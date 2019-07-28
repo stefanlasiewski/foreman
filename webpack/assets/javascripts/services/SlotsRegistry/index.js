@@ -14,4 +14,5 @@ export const remove = (SlotId, fillId) => {
   delete slotItems[fillId];
 };
 
-export const getSlotComponents = id => Object.values(slotsRegistry[id]);
+export const getSlotComponents = id =>
+  slotsRegistry[id] ? Object.values(slotsRegistry[id]) : [];

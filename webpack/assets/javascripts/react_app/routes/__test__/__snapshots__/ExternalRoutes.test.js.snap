@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ExternalRoutes rendering Addomg global routes 1`] = `
+Object {
+  "routes": Object {
+    "some-id-0": true,
+    "some-id-1": true,
+  },
+}
+`;
