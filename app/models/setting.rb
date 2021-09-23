@@ -14,13 +14,15 @@ class Setting < ApplicationRecord
   TYPES = %w{integer boolean hash array string}
   FROZEN_ATTRS = %w{name category}
   NONZERO_ATTRS = %w{puppet_interval idle_timeout entries_per_page outofsync_interval}
+  # constant BLANK_ATTRS is deprecated and all settings without custom validation allow blank values
+  # if you wish to validate non-empty arrays, please add validation through the new setting DSL
   BLANK_ATTRS = %w{ host_owner trusted_hosts login_delegation_logout_url root_pass default_location default_organization websockets_ssl_key websockets_ssl_cert oauth_consumer_key oauth_consumer_secret login_text oidc_audience oidc_issuer oidc_algorithm
-                    smtp_address smtp_domain smtp_user_name smtp_password smtp_openssl_verify_mode smtp_authentication sendmail_arguments sendmail_location http_proxy http_proxy_except_list default_locale default_timezone ssl_certificate ssl_ca_file ssl_priv_key default_pxe_item_global default_pxe_item_local oidc_jwks_url instance_title }
+                    smtp_address smtp_domain smtp_user_name smtp_password smtp_openssl_verify_mode smtp_authentication sendmail_arguments sendmail_location http_proxy http_proxy_except_list default_locale default_timezone ssl_certificate ssl_ca_file server_ca_file ssl_priv_key default_pxe_item_global default_pxe_item_local oidc_jwks_url instance_title }
   ARRAY_HOSTNAMES = %w{trusted_hosts}
   URI_ATTRS = %w{foreman_url unattended_url}
   URI_BLANK_ATTRS = %w{login_delegation_logout_url}
   IP_ATTRS = %w{libvirt_default_console_address}
-  REGEXP_ATTRS = %w{remote_addr}
+  REGEXP_ATTRS = %w{}
   EMAIL_ATTRS = %w{administrator email_reply_address}
   NOT_STRIPPED = %w{}
 
@@ -34,12 +36,9 @@ class Setting < ApplicationRecord
 
   validates :name, :presence => true, :uniqueness => true
   validates :description, :presence => true
-  validates :default, :presence => true, :unless => proc { |s| s.settings_type == "boolean" || BLANK_ATTRS.include?(s.name) }
-  validates :default, :inclusion => {:in => [true, false]}, :if => proc { |s| s.settings_type == "boolean" }
   validates :value, :numericality => true, :length => {:maximum => 8}, :if => proc { |s| s.settings_type == "integer" }
   validates :value, :numericality => {:greater_than => 0}, :if => proc { |s| NONZERO_ATTRS.include?(s.name) }
   validates :value, :inclusion => {:in => [true, false]}, :if => proc { |s| s.settings_type == "boolean" }
-  validates :value, :presence => true, :if => proc { |s| s.settings_type == "array" && !BLANK_ATTRS.include?(s.name) }
   validates :settings_type, :inclusion => {:in => TYPES}, :allow_nil => true, :allow_blank => true
   validates :value, :url_schema => ['http', 'https'], :if => proc { |s| URI_ATTRS.include?(s.name) }
 
@@ -49,14 +48,15 @@ class Setting < ApplicationRecord
   validates :value, :format => { :with => Resolv::AddressRegex }, :if => proc { |s| IP_ATTRS.include? s.name }
   validates :value, :regexp => true, :if => proc { |s| REGEXP_ATTRS.include? s.name }
   validates :value, :array_type => true, :if => proc { |s| s.settings_type == "array" }
-  validates_with ValueValidator, :if => proc { |s| s.respond_to?("validate_#{s.name}") }
+  validates_with ValueValidator, :if => proc { |s| Foreman.settings.ready? && s.respond_to?("validate_#{s.name}") }
   validates :value, :array_hostnames_ips => true, :if => proc { |s| ARRAY_HOSTNAMES.include? s.name }
   validates :value, :email => true, :if => proc { |s| EMAIL_ATTRS.include? s.name }
   before_validation :set_setting_type_from_value
   before_save :clear_value_when_default
-  before_save :clear_cache
   validate :validate_frozen_attributes
+  # Custom validations are added from SettingManager class
   after_find :readonly_when_overridden
+  after_save :refresh_registry_value
   default_scope -> { order(:name) }
 
   # Filer out settings from disabled plugins
@@ -64,8 +64,8 @@ class Setting < ApplicationRecord
 
   scope :order_by, ->(attr) { except(:order).order(attr) }
 
-  scoped_search :on => :name, :complete_value => :true
-  scoped_search :on => :description, :complete_value => :true
+  scoped_search on: :name, complete_value: :true, operators: ['=']
+  scoped_search on: :description, complete_value: :true, operators: ['~']
 
   def self.config_file
     'settings.yaml'
@@ -89,22 +89,12 @@ class Setting < ApplicationRecord
     nil
   end
 
-  def self.cache_key(name)
-    "settings/#{name}"
-  end
-
   def self.[](name)
-    name = name.to_s
-    cache.fetch(cache_key(name)) do
-      find_by(:name => name)&.value
-    end
+    Foreman.settings[name]
   end
 
   def self.[]=(name, value)
-    name   = name.to_s
-    record = where(:name => name).first!
-    record.value = value
-    record.save!
+    Foreman.settings[name] = value
   end
 
   def self.setting_type_from_value(value_for_type)
@@ -112,6 +102,10 @@ class Setting < ApplicationRecord
     return t if TYPES.include?(t)
     return "integer" if value_for_type.is_a?(Integer)
     return "boolean" if value_for_type.is_a?(TrueClass) || value_for_type.is_a?(FalseClass)
+  end
+
+  def to_param
+    name
   end
 
   def value=(v)
@@ -249,7 +243,7 @@ class Setting < ApplicationRecord
       # update query for every setting
       to_update.delete(:default) if to_update[:default].to_yaml.strip == s[:default]
       s.attributes = to_update
-      s.save if s.changed? # to bypass name uniqueness validator to query db
+      s.save(validate: false)
       s.update_column :category, opts[:category] if s.category != opts[:category]
       s.update_column :full_name, opts[:full_name] if column_check([:full_name]).present? && s.full_name != opts[:full_name]
       raw_value = s.read_attribute(:value)
@@ -268,10 +262,6 @@ class Setting < ApplicationRecord
     yield(s)
   ensure
     s.readonly! if old_readonly
-  end
-
-  def self.cache
-    Rails.cache
   end
 
   # Methods for loading default settings
@@ -353,18 +343,15 @@ class Setting < ApplicationRecord
     end
   end
 
-  def clear_cache
-    # Rails cache returns false if the delete failed and nil if the key is missing
-    if Setting.cache.delete(cache_key) == false
-      Rails.logger.warn "Failed to remove #{name} from cache"
-    end
-  end
-
-  def cache_key
-    Setting.cache_key(name)
-  end
-
   def readonly_when_overridden
     readonly! if !new_record? && has_readonly_value?
+  end
+
+  def refresh_registry_value
+    return unless Foreman.settings.ready?
+    Foreman.settings.find(name)&.tap do |definition|
+      definition.updated_at = updated_at
+      definition.value = value
+    end
   end
 end

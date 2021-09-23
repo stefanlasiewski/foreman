@@ -101,9 +101,7 @@ class LocationsControllerTest < ActionController::TestCase
   test "should assign all hosts with no location to selected location and add taxable_taxonomies" do
     location = taxonomies(:location1)
     domain = FactoryBot.create(:domain, :locations => [taxonomies(:location2)])
-    FactoryBot.create_list(:host, 2, :domain => domain,
-                            :environment => environments(:production),
-                            :location => nil)
+    FactoryBot.create_list(:host, 2, :domain => domain, :location => nil)
     assert_difference "location.taxable_taxonomies.count", 1 do
       post :assign_all_hosts, params: { :id => location.id }, session: set_session_user
     end
@@ -131,7 +129,7 @@ class LocationsControllerTest < ActionController::TestCase
 
   # Mismatches
   test "should show all mismatches and button Fix All Mismatches if there are" do
-    FactoryBot.create_list(:host, 2, :with_environment, :location => taxonomies(:location1))
+    FactoryBot.create_list(:host, 2, :location => taxonomies(:location1))
     TaxableTaxonomy.delete_all
     get :mismatches, session: set_session_user
     assert_response :success
@@ -171,7 +169,7 @@ class LocationsControllerTest < ActionController::TestCase
     assert_redirected_to :controller => :locations, :action => :step2, :id => new_location.to_param
 
     as_admin do
-      [:environment_ids, :hostgroup_ids, :environment_ids, :domain_ids, :medium_ids, :user_ids, :smart_proxy_ids, :provisioning_template_ids, :compute_resource_ids, :organization_ids].each do |association|
+      [:hostgroup_ids, :domain_ids, :medium_ids, :user_ids, :smart_proxy_ids, :provisioning_template_ids, :compute_resource_ids, :organization_ids].each do |association|
         assert new_location.public_send(association).present?, "missing #{association}"
         assert_equal location.public_send(association).uniq.sort, new_location.public_send(association).uniq.sort, "#{association} is different"
       end

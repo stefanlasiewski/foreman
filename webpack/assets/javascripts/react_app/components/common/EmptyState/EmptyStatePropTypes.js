@@ -7,7 +7,7 @@ export const actionButtonPropTypes = {
 };
 
 export const emptyStatePatternPropTypes = {
-  icon: PropTypes.string,
+  icon: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
   iconType: PropTypes.string,
   header: PropTypes.string.isRequired,
   documentation: PropTypes.oneOfType([
@@ -18,7 +18,8 @@ export const emptyStatePatternPropTypes = {
     }),
     PropTypes.node,
   ]),
-  description: PropTypes.string.isRequired,
+  description: PropTypes.oneOfType([PropTypes.string, PropTypes.node])
+    .isRequired,
   action: PropTypes.node,
   secondaryActions: PropTypes.node,
 };

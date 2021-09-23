@@ -12,20 +12,6 @@ def set_nic_attributes(host, attributes, evaluator)
   host
 end
 
-def set_environment_taxonomies(host_or_hostgroup, environment = host_or_hostgroup.environment)
-  if host_or_hostgroup.is_a? Hostgroup
-    organizations = host_or_hostgroup.organizations
-    locations = host_or_hostgroup.locations
-  else
-    organizations = [host_or_hostgroup.organization].compact
-    locations = [host_or_hostgroup.location].compact
-  end
-  return if environment.nil? || (organizations.empty? && locations.empty?)
-  environment.organizations = (environment.organizations + organizations).uniq
-  environment.locations = (environment.locations + locations).uniq
-  environment.save unless environment.new_record?
-end
-
 FactoryBot.define do
   factory :ptable do
     sequence(:name) { |n| "ptable#{n}" }
@@ -141,7 +127,6 @@ FactoryBot.define do
       end
 
       set_nic_attributes(host, deferred_nic_attrs, evaluator)
-      set_environment_taxonomies(host)
     end
 
     trait :with_build do
@@ -152,25 +137,16 @@ FactoryBot.define do
       model
     end
 
-    trait :with_environment do
-      environment
-    end
-
     trait :with_medium do
       medium
     end
 
     trait :with_hostgroup do
-      hostgroup { FactoryBot.create(:hostgroup, :with_domain, :with_os, :environment => environment) }
-    end
-
-    trait :with_puppetclass do
-      environment
-      puppetclasses { [FactoryBot.create(:puppetclass, :environments => [environment])] }
+      hostgroup { FactoryBot.create(:hostgroup, :with_domain, :with_os) }
     end
 
     trait :with_config_group do
-      config_groups { [FactoryBot.create(:config_group, :with_puppetclass, :class_environments => [environment])] }
+      config_groups { [FactoryBot.create(:config_group)] }
     end
 
     trait :with_parameter do
@@ -245,15 +221,7 @@ FactoryBot.define do
       operatingsystem
     end
 
-    trait :with_puppet do
-      environment
-      puppet_proxy do
-        FactoryBot.create(:puppet_smart_proxy)
-      end
-    end
-
     trait :with_puppet_ca do
-      environment
       puppet_ca_proxy do
         FactoryBot.create(:smart_proxy, :features => [FactoryBot.create(:feature, :puppetca)])
       end
@@ -317,6 +285,32 @@ FactoryBot.define do
           :domain => FactoryBot.build(:domain),
           :ip => subnet.network.sub(/0\Z/, '1'),
           :ip6 => IPAddr.new(subnet6.ipaddr.to_i + 1, subnet6.family).to_s)]
+      end
+    end
+
+    factory :host_for_snapshots_base do
+      name { 'snapshot-ipv4-dhcp-el7' }
+      hostname { name }
+      managed { true }
+      domain { FactoryBot.build(:domain_for_snapshots) }
+      subnet { FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots) }
+      pxe_loader { "PXELinux BIOS" }
+      architecture { operatingsystem.try(:architectures).try(:first) }
+      medium { operatingsystem.try(:media).try(:first) }
+      ptable { operatingsystem.try(:ptables).try(:first) }
+      root_pass { '$1$rtd8Ub7R$5Ohzuy8WXlkaK9cA2T1wb0' }
+      certname { name }
+
+      factory :host_for_snapshots_ipv4_dhcp_el7 do
+        operatingsystem { FactoryBot.build(:for_snapshots_centos_7_0) }
+      end
+
+      factory :host_for_snapshots_ipv4_dhcp_deb10 do
+        operatingsystem { FactoryBot.build(:for_snapshots_debian_10) }
+      end
+
+      factory :host_for_snapshots_ipv4_dhcp_ubuntu20 do
+        operatingsystem { FactoryBot.build(:for_snapshots_ubuntu_20) }
       end
     end
 
@@ -508,23 +502,6 @@ FactoryBot.define do
       end
     end
 
-    trait :with_puppet_orchestration do
-      managed
-      environment
-      compute_resource do
-        taxonomies = {}
-        # add taxonomy overrides in case it's set in the host object
-        taxonomies[:locations] = [location] unless location.nil?
-        taxonomies[:organizations] = [organization] unless organization.nil?
-        FactoryBot.create(:libvirt_cr, taxonomies)
-      end
-      domain
-      interfaces { [FactoryBot.build(:nic_primary_and_provision)] }
-      puppet_ca_proxy do
-        FactoryBot.create(:puppet_ca_smart_proxy)
-      end
-    end
-
     trait :with_realm do
       realm
     end
@@ -543,21 +520,8 @@ FactoryBot.define do
     organizations { [Organization.find_by_name('Organization 1')] }
     locations { [Location.find_by_name('Location 1')] }
 
-    after(:build) do |host, evaluator|
-      set_environment_taxonomies(host)
-    end
-
     trait :with_parent do
       association :parent, :factory => :hostgroup
-    end
-
-    trait :with_environment do
-      environment
-    end
-
-    trait :with_puppetclass do
-      environment
-      puppetclasses { [FactoryBot.create(:puppetclass, :environments => [environment])] }
     end
 
     trait :with_compute_resource do
@@ -565,8 +529,7 @@ FactoryBot.define do
     end
 
     trait :with_config_group do
-      environment
-      config_groups { [FactoryBot.create(:config_group, :with_puppetclass, :class_environments => [environment])] }
+      config_groups { [FactoryBot.create(:config_group)] }
     end
 
     trait :with_parameter do
@@ -595,17 +558,17 @@ FactoryBot.define do
       domain
     end
 
-    trait :with_puppet_orchestration do
+    trait :with_puppet_ca do
+      puppet_ca_proxy do
+        FactoryBot.create(:smart_proxy, :features => [FactoryBot.create(:feature, :puppetca)])
+      end
+    end
+
+    trait :with_orchestration do
       architecture
       ptable
       operatingsystem do
         FactoryBot.create(:operatingsystem, :architectures => [architecture], :ptables => [ptable])
-      end
-      puppet_ca_proxy do
-        FactoryBot.create(:puppet_ca_smart_proxy)
-      end
-      puppet_proxy do
-        FactoryBot.create(:puppet_smart_proxy)
       end
     end
   end

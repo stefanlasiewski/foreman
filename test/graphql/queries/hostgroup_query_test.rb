@@ -13,9 +13,6 @@ module Queries
           updatedAt
           name
           title
-          environment {
-            id
-          }
           computeResource {
             id
           }
@@ -31,9 +28,6 @@ module Queries
           puppetCaProxy {
             id
           }
-          puppetProxy {
-            id
-          }
           ptable {
             id
           }
@@ -41,14 +35,6 @@ module Queries
             id
           }
           hosts {
-            totalCount
-            edges {
-              node {
-                id
-              }
-            }
-          }
-          puppetclasses {
             totalCount
             edges {
               node {
@@ -83,6 +69,14 @@ module Queries
               }
             }
           }
+          descendants {
+            totalCount
+            edges {
+              node {
+                id
+              }
+            }
+          }
         }
       }
       GRAPHQL
@@ -95,17 +89,18 @@ module Queries
       FactoryBot.create(
         :hostgroup,
         :with_compute_resource,
-        :with_environment,
-        :with_puppetclass,
         :with_subnet,
         :with_os,
         :with_domain,
-        :with_puppet_orchestration,
+        :with_puppet_ca,
+        :with_orchestration,
         parent: parent_hostgroup,
         operatingsystem: operatingsystem
       )
     end
     let(:child_hostgroup) { FactoryBot.create(:hostgroup, parent: hostgroup) }
+    let(:second_child_hostgroup) { FactoryBot.create(:hostgroup, :parent => hostgroup) }
+    let(:grandchild_hostgroup) { FactoryBot.create(:hostgroup, :parent => child_hostgroup) }
 
     let(:global_id) { Foreman::GlobalId.for(hostgroup) }
     let(:variables) { { id: global_id } }
@@ -113,6 +108,8 @@ module Queries
 
     setup do
       child_hostgroup
+      second_child_hostgroup
+      grandchild_hostgroup
       FactoryBot.create(:host, hostgroup: hostgroup)
     end
 
@@ -124,23 +121,21 @@ module Queries
       assert_equal hostgroup.name, data['name']
       assert_equal hostgroup.title, data['title']
 
-      assert_record hostgroup.environment, data['environment']
       assert_record hostgroup.compute_resource, data['computeResource'], type_name: 'ComputeResource'
       assert_record hostgroup.architecture, data['architecture']
       assert_record hostgroup.domain, data['domain']
       assert_record hostgroup.operatingsystem, data['operatingsystem'], type_name: 'Operatingsystem'
       assert_record hostgroup.puppet_ca_proxy, data['puppetCaProxy']
-      assert_record hostgroup.puppet_proxy, data['puppetProxy']
       assert_record hostgroup.ptable, data['ptable']
       assert_record hostgroup.medium, data['medium']
 
       assert_collection hostgroup.hosts, data['hosts'], type_name: 'Host'
-      assert_collection hostgroup.puppetclasses, data['puppetclasses']
       assert_collection hostgroup.locations, data['locations']
       assert_collection hostgroup.organizations, data['organizations']
 
       assert_record hostgroup.parent, data['parent']
       assert_collection hostgroup.children, data['children']
+      assert_collection hostgroup.descendants, data['descendants']
     end
   end
 end

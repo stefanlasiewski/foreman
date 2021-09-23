@@ -33,21 +33,29 @@ const EmptyStatePattern = props => {
     const {
       label = __('For more information please see '), // eslint-disable-line react/prop-types
       buttonLabel = __('documentation'), // eslint-disable-line react/prop-types
-      url, // eslint-disable-line react/prop-types
+      url = '#', // eslint-disable-line react/prop-types
     } = documentation;
     return (
       <span>
         {label}
-        <a href={url}>{buttonLabel}</a>
+        <a href={url} target="_blank" rel="external noreferrer noopener">
+          {buttonLabel}
+        </a>
       </span>
     );
   };
 
+  const EmptyStateIcon = () =>
+    React.isValidElement(icon) ? (
+      icon
+    ) : (
+      <Icon name={icon} type={iconType} size="2x" />
+    );
+
   return (
     <EmptyState variant={EmptyStateVariant.xl}>
       <span className="empty-state-icon">
-        {/* TODO: Add pf4 icons, Redmine issue: #30865 */}
-        <Icon name={icon} type={iconType} size="2x" />
+        <EmptyStateIcon />
       </span>
       <Title headingLevel="h5" size="4xl">
         {header}
@@ -69,9 +77,7 @@ EmptyStatePattern.propTypes = emptyStatePatternPropTypes;
 EmptyStatePattern.defaultProps = {
   icon: 'add-circle-o',
   secondaryActions: [],
-  documentation: {
-    url: '#',
-  },
+  documentation: null,
   action: null,
   iconType: 'pf',
 };

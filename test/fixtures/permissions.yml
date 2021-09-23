@@ -39,11 +39,6 @@ destroy_authenticators:
   resource_type: AuthSource
   created_at: "2013-12-04 08:41:04.414794"
   updated_at: "2013-12-04 08:41:04.414794"
-view_bookmarks:
-  name: view_bookmarks
-  resource_type: Bookmark
-  created_at: "2013-12-04 08:41:04.423092"
-  updated_at: "2013-12-04 08:41:04.423092"
 create_bookmarks:
   name: create_bookmarks
   resource_type: Bookmark
@@ -169,51 +164,6 @@ destroy_realms:
   resource_type: Realm
   created_at: "2013-12-04 08:41:04.648794"
   updated_at: "2013-12-04 08:41:04.648794"
-view_environments:
-  name: view_environments
-  resource_type: Environment
-  created_at: "2013-12-04 08:41:04.623403"
-  updated_at: "2013-12-04 08:41:04.623403"
-create_environments:
-  name: create_environments
-  resource_type: Environment
-  created_at: "2013-12-04 08:41:04.631791"
-  updated_at: "2013-12-04 08:41:04.631791"
-edit_environments:
-  name: edit_environments
-  resource_type: Environment
-  created_at: "2013-12-04 08:41:04.640671"
-  updated_at: "2013-12-04 08:41:04.640671"
-destroy_environments:
-  name: destroy_environments
-  resource_type: Environment
-  created_at: "2013-12-04 08:41:04.648794"
-  updated_at: "2013-12-04 08:41:04.648794"
-import_environments:
-  name: import_environments
-  resource_type: Environment
-  created_at: "2013-12-04 08:41:04.656654"
-  updated_at: "2013-12-04 08:41:04.656654"
-view_external_parameters:
-  name: view_external_parameters
-  resource_type: PuppetclassLookupKey
-  created_at: "2013-12-04 08:41:04.664806"
-  updated_at: "2013-12-04 08:41:04.664806"
-create_external_parameters:
-  name: create_external_parameters
-  resource_type: PuppetclassLookupKey
-  created_at: "2013-12-04 08:41:04.673323"
-  updated_at: "2013-12-04 08:41:04.673323"
-edit_external_parameters:
-  name: edit_external_parameters
-  resource_type: PuppetclassLookupKey
-  created_at: "2013-12-04 08:41:04.681526"
-  updated_at: "2013-12-04 08:41:04.681526"
-destroy_external_parameters:
-  name: destroy_external_parameters
-  resource_type: PuppetclassLookupKey
-  created_at: "2013-12-04 08:41:04.690155"
-  updated_at: "2013-12-04 08:41:04.690155"
 view_globals:
   name: view_globals
   resource_type: CommonParameter
@@ -634,11 +584,6 @@ destroy_users:
   resource_type: User
   created_at: "2013-12-04 08:41:06.38334"
   updated_at: "2013-12-04 08:41:06.38334"
-edit_classes:
-  name: edit_classes
-  resource_type: HostClass
-  created_at: "2013-12-04 08:41:04.815942"
-  updated_at: "2013-12-11 09:48:09.672833"
 view_compute_resources_vms:
   name: view_compute_resources_vms
   resource_type: ComputeResource
@@ -752,6 +697,11 @@ edit_settings:
 escalate_roles:
   name: escalate_roles
   resource_type: Role
+  created_at: "2014-01-07 15:09:32.783442"
+  updated_at: "2014-01-07 15:09:32.783442"
+revoke_personal_access_tokens:
+  name: revoke_personal_access_tokens
+  resource_type: PersonalAccessToken
   created_at: "2014-01-07 15:09:32.783442"
   updated_at: "2014-01-07 15:09:32.783442"
 

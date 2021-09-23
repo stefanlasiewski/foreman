@@ -12,7 +12,6 @@ module HostDescriptionHelper
     if authorized_for(:controller => :hosts, :action => :edit)
       actions.concat [
         { :action => [_('Change Group'), select_multiple_hostgroup_hosts_path], :priority => 100 },
-        { :action => [_('Change Environment'), select_multiple_environment_hosts_path], :priority => 200 },
         { :action => [_('Edit Parameters'), multiple_parameters_hosts_path], :priority => 300 },
         { :action => [_('Disable Notifications'), multiple_disable_hosts_path], :priority => 400 },
         { :action => [_('Enable Notifications'), multiple_enable_hosts_path], :priority => 500 },
@@ -71,12 +70,12 @@ module HostDescriptionHelper
     fields << { :field => [_("Comment"), host.comment], :priority => 500 } if host.comment.present?
     fields << { :field => [_("MAC Address"), host.mac], :priority => 600 } if host.mac.present?
     fields << { :field => [_("Architecture"), link_to(host.arch, hosts_path(:search => "architecture = #{host.arch}"))], :priority => 700 } if host.arch.present?
-    fields << { :field => [_("Operating System"), link_to(host.operatingsystem.to_label, hosts_path(:search => "os_description = #{host.operatingsystem.description}"))], :priority => 800 } if host.operatingsystem.present?
+    fields << { :field => [_("Operating System"), link_to(host.operatingsystem.to_label, hosts_path(:search => %{os_title = "#{host.operatingsystem.title}"}))], :priority => 800 } if host.operatingsystem.present?
     fields << { :field => [_("PXE Loader"), host.pxe_loader], :priority => 900 } if host.operatingsystem.present? && !host.image_build?
     fields << { :field => [_("Host group"), link_to(host.hostgroup, hosts_path(:search => %{hostgroup_title = "#{host.hostgroup}"}))], :priority => 1000 } if host.hostgroup.present?
     fields << { :field => [_("Boot time"), (boot_time = host&.reported_data&.boot_time) ? date_time_relative(boot_time) : _('Not reported')], :priority => 1100 }
-    fields << { :field => [_("Location"), link_to(host.location.title, hosts_path(:search => "location = #{host.location}"))], :priority => 1200 } if host.location.present?
-    fields << { :field => [_("Organization"), link_to(host.organization.title, hosts_path(:search => "organization = #{host.organization}"))], :priority => 1300 } if host.organization.present?
+    fields << { :field => [_("Location"), link_to(host.location.title, hosts_path(:search => "location = \"#{host.location}\""))], :priority => 1200 } if host.location.present?
+    fields << { :field => [_("Organization"), link_to(host.organization.title, hosts_path(:search => "organization = \"#{host.organization}\""))], :priority => 1300 } if host.organization.present?
     if host.owner_type == "User"
       fields << { :field => [_("Owner"), (link_to(host.owner, hosts_path(:search => %{user.login = "#{host.owner.login}"})) if host.owner)], :priority => 1400 }
     else

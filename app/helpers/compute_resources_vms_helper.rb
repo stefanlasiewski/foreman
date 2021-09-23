@@ -33,7 +33,7 @@ module ComputeResourcesVmsHelper
         when Array
           value.map { |v| v.try(:name) || v.try(:to_s) || v }.to_sentence
         when Fog::Time, Time
-          _("%s ago") % time_ago_in_words(value)
+          date_time_relative_value(value)
         when nil
           _("N/A")
         else
@@ -44,26 +44,12 @@ module ComputeResourcesVmsHelper
     end
   end
 
-  def supports_spice_xpi?
-    user_agent = request.env['HTTP_USER_AGENT']
-    user_agent =~ /linux/i && user_agent =~ /firefox/i
-  end
-
   def spice_data_attributes(console)
-    options = {
-      :port     => console[:proxy_port],
+    {
+      :encrypt  => console[:encrypt],
+      :port     => console[:port],
       :password => console[:password],
     }
-    if supports_spice_xpi?
-      options.merge!(
-        :address     => console[:address],
-        :secure_port => console[:secure_port],
-        :subject     => console[:subject],
-        :title       => _("%s - Press Shift-F12 to release the cursor.") % console[:name]
-      )
-    end
-    options[:ca_cert] = URI.escape(console[:ca_cert]) if console[:ca_cert].present?
-    options
   end
 
   def libvirt_networks(compute_resource)
@@ -213,7 +199,7 @@ module ComputeResourcesVmsHelper
         number_to_human_size(vm.memory),
         "<span #{vm_power_class(vm.ready?)}>#{vm_state(vm)}</span>",
         action_buttons(vm_power_action(vm, authorizer),
-          vm_import_action(vm),
+          vm_import_action(vm), vm_associate_link(vm),
           display_delete_if_authorized(hash_for_compute_resource_vm_path(:compute_resource_id => @compute_resource, :id => vm.id).merge(:auth_object => @compute_resource, :authorizer => authorizer))),
       ]
     end
@@ -263,13 +249,17 @@ module ComputeResourcesVmsHelper
         :type => 'unmanaged'),
       html_options
     )
-
     import_managed_link + import_unmanaged_link
   end
 
   def vm_associate_action(vm)
+    vm_associate_link(vm, link_class: "btn btn-default")
+  end
+
+  def vm_associate_link(vm, link_class: "")
+    return unless @compute_resource.supports_host_association?
     display_link_if_authorized(
-      _("Associate VM"),
+      _('Associate VM'),
       hash_for_associate_compute_resource_vm_path(
         :compute_resource_id => @compute_resource,
         :id => vm.identity
@@ -278,7 +268,7 @@ module ComputeResourcesVmsHelper
         :permission => 'edit_compute_resources'),
       :title => _("Associate VM to a Foreman host"),
       :method => :put,
-      :class => "btn btn-default"
+      :class => link_class
     )
   end
 

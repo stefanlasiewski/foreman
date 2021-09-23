@@ -13,37 +13,16 @@ module Queries
           updatedAt
           name
           title
-          environments {
-            totalCount
-            edges {
-              node {
-                id
-              }
-            }
-          }
-          puppetclasses {
-            totalCount
-            edges {
-              node {
-                id
-              }
-            }
-          }
         }
       }
       GRAPHQL
     end
 
-    let(:environment) { FactoryBot.create(:environment) }
-    let(:organization) { FactoryBot.create(:organization, environments: [environment]) }
+    let(:organization) { FactoryBot.create(:organization) }
 
     let(:global_id) { Foreman::GlobalId.for(organization) }
     let(:variables) { { id: global_id } }
     let(:data) { result['data']['organization'] }
-
-    setup do
-      FactoryBot.create(:puppetclass, :environments => [environment])
-    end
 
     test 'fetching organization attributes' do
       assert_empty result['errors']
@@ -53,9 +32,6 @@ module Queries
       assert_equal organization.updated_at.utc.iso8601, data['updatedAt']
       assert_equal organization.name, data['name']
       assert_equal organization.title, data['title']
-
-      assert_collection organization.environments, data['environments']
-      assert_collection organization.puppetclasses, data['puppetclasses']
     end
   end
 end

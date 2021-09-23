@@ -17,7 +17,6 @@ module Mutations
       argument :owner_id, ID, loads: Types::UserOrUsergroupUnion
       argument :location_id, ID, loads: Types::Location
       argument :organization_id, ID, loads: Types::Organization
-      argument :environment_id, ID, loads: Types::Environment
       argument :architecture_id, ID, loads: Types::Architecture
       argument :domain_id, ID, loads: Types::Domain
       argument :operatingsystem_id, ID, loads: Types::Operatingsystem
@@ -29,7 +28,6 @@ module Mutations
       argument :hostgroup_id, ID, loads: Types::Hostgroup
       argument :puppet_proxy_id, ID, loads: Types::SmartProxy
       argument :puppet_ca_proxy_id, ID, loads: Types::SmartProxy
-      argument :puppetclass_ids, [ID], loads: Types::Puppetclass, as: :puppetclasses
       argument :compute_attributes, Types::RawJson, required: false
       argument :interfaces_attributes, [Types::InterfaceAttributesInput], required: false
 

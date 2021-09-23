@@ -32,11 +32,8 @@ export function templateSelected(item) {
       // As Instance Type values will take precence over templates values,
       // we don't update memory/cores values if  instance type is already selected
       if (!$('#host_compute_attributes_instance_type').val()) {
-        $('[id$=_memory]')
-          .val(result.memory)
-          .trigger('change');
-        $('[id$=_cores]').val(result.cores);
-        $('[id$=_sockets]').val(result.sockets);
+        updateCoresAndSockets(result);
+        setMemoryInputProps({ value: result.memory });
         $('[id$=_ha]').prop('checked', result.ha);
       }
       $('#network_interfaces')
@@ -78,14 +75,13 @@ export function instanceTypeSelected(item) {
       data: `instance_type_id=${instanceType}`,
       success(result) {
         if (result.name != null) {
-          $('[id$=_memory]')
-            .val(result.memory)
-            .trigger('change');
-          $('[id$=_cores]').val(result.cores);
-          $('[id$=_sockets]').val(result.sockets);
+          setMemoryInputProps({ value: result.memory });
+          updateCoresAndSockets(result);
           $('[id$=_ha]').prop('checked', result.ha);
         }
-        ['_memory', '_cores', '_sockets', '_ha'].forEach(name =>
+        setMemoryInputProps({ disabled: result.name != null });
+        disableCoresAndSockets(result);
+        ['_ha'].forEach(name =>
           $(`[id$=${name}]`).prop('readOnly', result.name != null)
         );
         const instanceTypeSelector = $(
@@ -146,6 +142,46 @@ function addVolume({
     .hide();
 }
 
+function setMemoryInputProps(props) {
+  const memoryInputElement = getComponentByWrapperId('memory-input');
+  memoryInputElement.reactProps = {
+    ...memoryInputElement.reactProps,
+    ...props,
+  };
+}
+
+function updateCoresAndSockets(result) {
+  const coresInputElement = getComponentByWrapperId('cores-input');
+  coresInputElement.reactProps = {
+    ...coresInputElement.reactProps,
+    value: result.cores,
+  };
+  const socketInputElement = getComponentByWrapperId('sockets-input');
+  socketInputElement.reactProps = {
+    ...socketInputElement.reactProps,
+    value: result.sockets,
+  };
+}
+
+function disableCoresAndSockets(result) {
+  const coresInputElement = getComponentByWrapperId('cores-input');
+  coresInputElement.reactProps = {
+    ...coresInputElement.reactProps,
+    disabled: result.name != null,
+  };
+  const socketInputElement = getComponentByWrapperId('sockets-input');
+  socketInputElement.reactProps = {
+    ...socketInputElement.reactProps,
+    disabled: result.name != null,
+  };
+}
+
+function getComponentByWrapperId(wrapperId) {
+  return document
+    .getElementById(wrapperId)
+    .getElementsByTagName('foreman-react-component')[0];
+}
+
 function disableElement(element) {
   element
     .clone()
@@ -195,4 +231,31 @@ export function clusterSelected(item) {
 export function datacenterSelected(item) {
   // eslint-disable-next-line no-undef
   testConnection($('#test_connection_button'));
+}
+
+export function vnicSelected(item) {
+  const selectedVnicProfile = $(item).val();
+  if (selectedVnicProfile) {
+    const vnicOptions = JSON.parse(
+      $('select[id$=_vnic_profile]')[1].getAttribute('data-profiles')
+    );
+    const networkOptions = JSON.parse(
+      $('select[id$=_vnic_profile]')[1].getAttribute('data-networks')
+    );
+
+    const vnicNetwork = vnicOptions.filter(
+      vnicOption => vnicOption.id === selectedVnicProfile
+    )[0].network;
+    const networkObj = networkOptions.filter(
+      network => network.id === vnicNetwork.id
+    )[0];
+    const networkSelect = $('select[id$=_network]');
+    networkSelect.empty();
+    networkSelect.append(
+      $('<option />')
+        .val(networkObj.id)
+        .text(networkObj.name)
+    );
+    networkSelect.val(networkObj.id).trigger('change');
+  }
 }

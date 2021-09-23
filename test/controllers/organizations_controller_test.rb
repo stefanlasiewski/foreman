@@ -113,9 +113,7 @@ class OrganizationsControllerTest < ActionController::TestCase
   test "should assign all hosts with no organization to selected organization and add taxable_taxonomies" do
     organization = taxonomies(:organization1)
     domain = FactoryBot.create(:domain, :organizations => [taxonomies(:organization2)])
-    FactoryBot.create_list(:host, 2, :domain => domain,
-                            :environment => environments(:production),
-                            :organization => nil)
+    FactoryBot.create_list(:host, 2, :domain => domain, :organization => nil)
     assert_difference "organization.taxable_taxonomies.count", 1 do
       post :assign_all_hosts, params: { :id => organization.id }, session: set_session_user
     end
@@ -143,7 +141,7 @@ class OrganizationsControllerTest < ActionController::TestCase
 
   # Mismatches
   test "should show all mismatches and button Fix All Mismatches if there are" do
-    FactoryBot.create_list(:host, 2, :with_environment, :organization => taxonomies(:organization1))
+    FactoryBot.create_list(:host, 2, :organization => taxonomies(:organization1))
     TaxableTaxonomy.delete_all
     get :mismatches, session: set_session_user
     assert_response :success
@@ -183,7 +181,7 @@ class OrganizationsControllerTest < ActionController::TestCase
     assert_redirected_to :controller => :organizations, :action => :step2, :id => new_organization.to_param
 
     as_admin do
-      [:environment_ids, :hostgroup_ids, :environment_ids, :domain_ids, :medium_ids, :user_ids, :smart_proxy_ids, :provisioning_template_ids, :compute_resource_ids, :location_ids].each do |association|
+      [:hostgroup_ids, :domain_ids, :medium_ids, :user_ids, :smart_proxy_ids, :provisioning_template_ids, :compute_resource_ids, :location_ids].each do |association|
         assert new_organization.public_send(association).present?, "missing #{association}"
         assert_equal organization.public_send(association).uniq.sort, new_organization.public_send(association).uniq.sort, "#{association} is different"
       end

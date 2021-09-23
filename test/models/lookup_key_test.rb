@@ -97,9 +97,10 @@ class LookupKeyTest < ActiveSupport::TestCase
       assert_equal val, param.default_value_before_type_cast
     end
   end
-  test "this is a smart class parameter?" do
+
+  test "this is not a smart class parameter?" do
     assert_not_deprecated do
-      assert lookup_keys(:complex).puppet?
+      refute FactoryBot.build_stubbed(:lookup_key).puppet?
     end
   end
 
@@ -111,7 +112,7 @@ class LookupKeyTest < ActiveSupport::TestCase
   test "should not be able to merge overrides for a string" do
     key = FactoryBot.build_stubbed(:lookup_key, override: true, merge_overrides: true)
     refute_valid key
-    assert_equal key.errors[:merge_overrides].first, _("can only be set for array or hash")
+    assert_equal key.errors[:merge_overrides].first, _("can only be set for array, hash, json or yaml")
   end
 
   test "should be able to merge overrides and merge_default for a hash" do

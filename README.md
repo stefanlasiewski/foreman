@@ -3,8 +3,7 @@
 [![Build Status](https://ci.theforeman.org/buildStatus/icon?job=foreman-develop-source-release)](https://ci.theforeman.org/job/test_foreman-develop-source-release/)
 [![Code Climate](https://codeclimate.com/github/theforeman/foreman/badges/gpa.svg)](https://codeclimate.com/github/theforeman/foreman)
 [![Coverage Status](https://coveralls.io/repos/github/theforeman/foreman/badge.svg?branch=develop)](https://coveralls.io/github/theforeman/foreman?branch=develop)
-[![Reviewed by Hound](https://img.shields.io/badge/Reviewed_by-Hound-8E64B0.svg)](https://houndci.com)
-[![Support IRC channel](https://kiwiirc.com/buttons/irc.freenode.net/theforeman.png)](https://kiwiirc.com/client/irc.freenode.net/?#theforeman)
+[![Support IRC channel](https://kiwiirc.com/buttons/irc.libera.chat/theforeman.png)](https://kiwiirc.com/client/irc.libera.chat/?#theforeman)
 [![Storybook](https://raw.githubusercontent.com/storybooks/brand/master/badge/badge-storybook.svg)](https://foreman-storybook.surge.sh)
 
 [Foreman](https://theforeman.org) is a free open source project that gives you the power to easily **automate repetitive tasks**, quickly **deploy applications**, and proactively **manage your servers life cycle**, on-premises or in the cloud.
@@ -15,7 +14,7 @@ From **provisioning** and **configuration** to **orchestration** and **monitorin
 * ServerFault tag: [Foreman](https://serverfault.com/questions/tagged/foreman)
 * Issues: [Redmine](https://projects.theforeman.org/issues)
 * Wiki: [Foreman wiki](https://projects.theforeman.org/projects/foreman/wiki/About)
-* Community and support: We use [Freenode](https://freenode.net) IRC channels
+* Community and support: We use [Libera.Chat](https://libera.chat) IRC channels
     * #theforeman for general support
     * #theforeman-dev for development chat
 * Mailing lists:
@@ -65,6 +64,10 @@ We document our API using [apipie](https://github.com/Apipie/apipie-rails).The [
 Plugins are tools to extend and modify the functionality of Foreman. They are implemented as Rails engines that are packaged as gems and thus easily installed into Foreman.
 
 The [plugins page](https://theforeman.org/plugins/) lists all available plugins and has more information about how to install and develop them.
+
+# Similarly Named Project
+There is a similarly named project on Github called [foreman](https://github.com/ddollar/foreman) (a CLI tool for running processes). 
+We've left a note about it here, to help people in case that's the one they're looking for, but ended up here.
 
 # How to contribute?
 Generally, follow the [Foreman guidelines](https://theforeman.org/contribute.html). For code-related contributions, fork this project and send a pull request with all changes. Some things to keep in mind:

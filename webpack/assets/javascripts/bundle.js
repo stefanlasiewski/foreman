@@ -11,10 +11,8 @@ import * as authSource from './foreman_auth_source';
 import * as tools from './foreman_tools';
 import * as users from './foreman_users';
 import * as sshKeys from './foreman_ssh_keys';
-import * as hostgroups from './foreman_hostgroups';
 import * as httpProxies from './foreman_http_proxies';
 import * as toastNotifications from './foreman_toast_notifications';
-import * as numFields from './jquery.ui.custom_spinners';
 import * as reactMounter from './react_app/common/MountingService';
 import * as editor from './foreman_editor';
 import * as nav from './foreman_navigation';
@@ -22,12 +20,23 @@ import * as medium from './foreman_medium';
 import * as templateInputs from './foreman_template_inputs';
 import * as advancedFields from './foreman_advanced_fields';
 import * as configReportsModalDiff from './foreman_config_reports_modal_diff';
-import * as classEditor from './foreman_class_edit';
 import * as dashboard from './dashboard';
 import * as spice from './spice';
 import * as autocomplete from './foreman_autocomplete';
 import * as typeAheadSelect from './foreman_type_ahead_select';
+import * as lookupKeys from './foreman_lookup_keys';
+import './foreman_overrides';
 import './bundle_novnc';
+
+const numFieldsDeprecationOnly = {
+  initAll: () => {
+    window.tfm.tools.deprecate(
+      'initAll()',
+      'does nothing as of now, please stop calling it',
+      '3.2'
+    );
+  },
+};
 
 // Set the public path for dynamic imports
 if (process.env.NODE_ENV !== 'production') {
@@ -41,11 +50,10 @@ window.tfm = Object.assign(window.tfm || {}, {
   users,
   computeResource: compute,
   sshKeys,
-  hostgroups,
   hosts,
   httpProxies,
   toastNotifications,
-  numFields,
+  numFields: numFieldsDeprecationOnly,
   reactMounter,
   editor,
   nav,
@@ -53,7 +61,6 @@ window.tfm = Object.assign(window.tfm || {}, {
   templateInputs,
   advancedFields,
   configReportsModalDiff,
-  classEditor,
   dashboard,
   i18n,
   spice,
@@ -62,4 +69,5 @@ window.tfm = Object.assign(window.tfm || {}, {
   store,
   autocomplete,
   typeAheadSelect,
+  lookupKeys,
 });

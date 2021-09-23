@@ -66,31 +66,6 @@ module ApplicationHelper
     render :partial => 'common/show_habtm', :collection => associations, :as => :association
   end
 
-  def link_to_remove_puppetclass(klass, type)
-    options = options_for_puppetclass_selection(klass, type)
-    text = remove_link_to_function(truncate(klass.name, :length => 28), options)
-    content_tag(:span, text).html_safe +
-        remove_link_to_function('', options.merge(:class => 'glyphicon glyphicon-minus-sign'))
-  end
-
-  def remove_link_to_function(text, options)
-    options.delete_if { |key, value| !options[key].to_s } # otherwise error during template render
-    title = (_("Click to remove %s") % options[:"data-class-name"])
-    link_to_function(text, "tfm.classEditor.removePuppetClass(this)", options.merge!(:'data-original-title' => title))
-  end
-
-  def link_to_add_puppetclass(klass, type)
-    options = options_for_puppetclass_selection(klass, type)
-    text = add_link_to_function(truncate(klass.name, :length => 28), options)
-    content_tag(:span, text).html_safe +
-        add_link_to_function('', options.merge(:class => 'glyphicon glyphicon-plus-sign'))
-  end
-
-  def add_link_to_function(text, options)
-    link_to_function(text, "tfm.classEditor.addPuppetClass(this)",
-      options.merge(:'data-original-title' => _("Click to add %s") % options[:"data-class-name"]))
-  end
-
   # Display a link if user is authorized, otherwise a string
   # +name+    : String to be displayed
   # +options+ : Hash containing options for authorized_for and link_to
@@ -185,7 +160,7 @@ module ApplicationHelper
   end
 
   def auto_complete_search(name, val, options = {})
-    Foreman::Deprecation.deprecation_warning('1.27', 'use #auto_complete_f, possibly with #form_with if you need to avoid of object scope')
+    Foreman::Deprecation.deprecation_warning('2.5', 'use #auto_complete_f, possibly with #form_with if you need to avoid of object scope')
     options.merge!(
       {
         url: options[:full_path] || (options[:path] || send("#{auto_complete_controller_name}_path")) + "/auto_complete_#{name}",
@@ -224,61 +199,34 @@ module ApplicationHelper
   end
 
   def flot_pie_chart(name, title, data, options = {})
-    data = data.map { |k, v| {:label => k.to_s.humanize, :data => v} } if data.is_a?(Hash)
-    data.map { |element| element[:label] = truncate(element[:label], :length => 16) }
-    header = content_tag(:h4, options[:show_title] ? title : '', :class => 'ca pie-title', :'data-original-title' => _("Expand the chart"), :rel => 'twipsy')
-    link_to_function(header, "expand_chart(this)") +
-        content_tag(:div, nil,
-          { :id    => name,
-            :class => 'statistics-pie',
-            :data  => {
-              :title  => title,
-              :series => data,
-              :url    => options[:search] ? "#{request.script_name}/hosts?search=#{URI.encode(options.delete(:search))}" : "#",
-            },
-          }.merge(options))
+    Foreman::Deprecation.deprecation_warning('3.1', '#flot_pie_chart is now rendered by react Donut chart with default configuration. '\
+                                                    'Please render the Donut chart component directly.')
+    data = data.map { |k, v| [k.to_s.humanize, v] } if data.is_a?(Hash)
+    react_component('ChartBox', type: 'donut',
+                                status: 'RESOLVED',
+                                title: title,
+                                chart: {
+                                  data: data,
+                                  search: options[:search] ? hosts_path(search: options[:search]) : nil,
+                                })
   end
 
   def flot_chart(name, xaxis_label, yaxis_label, data, options = {})
+    Foreman::Deprecation.deprecation_warning('3.1', '#flot_chart is rendering its react version by default now. '\
+                                                    'Please move to rendering React Component directly.')
     data = data.map { |k, v| {:label => k.to_s.humanize, :data => v} } if data.is_a?(Hash)
-    content_tag(:div, nil,
-      { :id    => name,
-        :class => 'statistics-chart',
-        :data  => {
-          :'legend-options' => options.delete(:legend),
-          :'xaxis-label'    => xaxis_label,
-          :'yaxis-label'    => yaxis_label,
-          :series => data,
-        },
-      }.merge(options))
+    time = ['time'].concat(data[0][:data].map { |d| d.first })
+    data = data.map { |d_hash| [d_hash[:label]].concat(d_hash[:data].map { |d| d.second }) }
+    data.unshift(time)
+    react_component('AreaChart', id: name, xAxisLabel: xaxis_label, yAxisLabel: yaxis_label, data: data)
   end
 
   def flot_bar_chart(name, xaxis_label, yaxis_label, data, options = {})
-    i = 0
-    ticks = nil
-    if data.is_a?(Array)
-      data = data.map do |kv|
-        ticks ||= []
-        ticks << [i += 1, kv[0].to_s.humanize]
-        [i, kv[1]]
-      end
-    elsif  data.is_a?(Hash)
-      data = data.map do |k, v|
-        ticks ||= []
-        ticks << [i += 1, k.to_s.humanize]
-        [i, v]
-      end
+    Foreman::Deprecation.deprecation_warning('3.1', '#flot_bar_chart is rendering its react version now. '\
+                                                    'Please move to rendering React Component directly.')
+    content_tag(:div, id: name) do
+      react_component('BarChart', data: data, xAxisLabel: xaxis_label, yAxisLabel: yaxis_label)
     end
-
-    content_tag(:div, nil,
-      { :id   => name,
-        :data => {
-          :'xaxis-label' => xaxis_label,
-          :'yaxis-label' => yaxis_label,
-          :chart   => data,
-          :ticks   => ticks,
-        },
-      }.merge(options))
   end
 
   def select_action_button(title, options = {}, *args)
@@ -349,15 +297,6 @@ module ApplicationHelper
     end
   end
 
-  def obj_type(obj)
-    obj.class.model_name.to_s.tableize.singularize
-  end
-
-  def class_in_environment?(environment, puppetclass)
-    return false unless environment
-    environment.puppetclasses.map(&:id).include?(puppetclass.id)
-  end
-
   def show_parent?(obj)
     minimum_count = obj.new_record? ? 0 : 1
     base = obj.class.respond_to?(:completer_scope) ? obj.class.completer_scope(nil) : obj.class
@@ -398,16 +337,6 @@ module ApplicationHelper
 
   def documentation_url(section = "", options = {})
     main_app.external_link_url(options.merge(type: 'manual', params: { section: section }))
-  end
-
-  def options_for_puppetclass_selection(klass, type)
-    {
-      :'data-class-id'   => klass.id,
-      :'data-class-name' => klass.name,
-      :'data-type'       => type,
-      :'data-url'        => main_app.parameters_puppetclass_path(:id => klass.id),
-      :rel               => 'twipsy',
-    }
   end
 
   def spinner(text = '', options = {})
@@ -475,7 +404,8 @@ module ApplicationHelper
   end
 
   def notifications
-    react_component('ToastNotifications', {railsMessages: toast_notifications_data})
+    Foreman::Deprecation.deprecation_warning('3.1', 'notifications method is deprecated, and instead, toasts alerts are handled in the root of the React app.')
+    nil
   end
 
   def toast_notifications_data

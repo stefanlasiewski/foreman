@@ -17,6 +17,7 @@ class ApplicationController < ActionController::Base
   helper 'layout'
   helper_method :resource_path
 
+  before_action :load_settings
   before_action :require_login, :check_user_enabled
   before_action :set_gettext_locale_db, :set_gettext_locale
   before_action :session_expiry, :update_activity_time, :unless => proc { |c| c.remote_user_provided? || c.api_request? }
@@ -370,7 +371,7 @@ class ApplicationController < ActionController::Base
   # If the user has a fact_filter then we need to include :fact_values
   # We do not include most associations unless we are processing a html page
   def included_associations(include = [])
-    include + [:hostgroup, :compute_resource, :operatingsystem, :environment, :model, :host_statuses, :token]
+    include + [:hostgroup, :compute_resource, :operatingsystem, :model, :host_statuses, :token]
   end
 
   def errors_hash(errors)

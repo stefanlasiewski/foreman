@@ -71,12 +71,6 @@ module Types
     record_field :fact_value, Types::FactValue
     collection_field :fact_values, Types::FactValue
 
-    record_field :environment, Types::Environment
-    collection_field :environments, Types::Environment
-
-    record_field :puppetclass, Types::Puppetclass
-    collection_field :puppetclasses, Types::Puppetclass
-
     record_field :compute_resource, Types::ComputeResource
     collection_field :compute_resources, Types::ComputeResource
 
@@ -94,5 +88,11 @@ module Types
 
     record_field :configReport, Types::ConfigReport
     collection_field :configReports, Types::ConfigReport
+
+    record_field :lookup_value, Types::LookupValue
+    collection_field :lookup_values, Types::LookupValue
+
+    record_field :permission, Types::Permission
+    collection_field :permissions, Types::Permission
   end
 end

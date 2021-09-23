@@ -15,7 +15,7 @@ module RenderersSharedTests
       @scope = Class.new(Foreman::Renderer::Scope::Base) do
         include Foreman::Renderer::Scope::Macros::Base
         include Foreman::Renderer::Scope::Macros::SnippetRendering
-      end.send(:new, host: @host, source: source)
+      end.send(:new, host: @host, source: source, variables: { x: 'test' })
     end
 
     test "should evaluate template variables" do
@@ -127,6 +127,13 @@ module RenderersSharedTests
       assert_equal '12', renderer.render(source, @scope)
     end
 
+    test "should pass variables from template to snippet" do
+      snippet = FactoryBot.create(:provisioning_template, :snippet, :template => "<%= @x -%>")
+      template = OpenStruct.new(content: "<%= snippet('#{snippet.name}') %>")
+
+      assert_equal renderer.render(template, @scope), 'test'
+    end
+
     test "should render a save_to_file macro" do
       source = OpenStruct.new(content: '<%= save_to_file("/etc/puppet/puppet.conf", "[main]\nserver=example.com\n") %>')
       assert_nothing_raised do
@@ -205,18 +212,91 @@ module RenderersSharedTests
       assert_equal(renderer.render(source, @scope), '-1')
     end
 
-    test "foreman_server_ca_cert - existing file" do
-      cert_path = Rails.root.join('test/static_fixtures/certificates/example.com.crt')
-      Setting[:ssl_ca_file] = cert_path
-      source = OpenStruct.new(content: '<%= foreman_server_ca_cert %>')
-      assert_equal(renderer.render(source, @scope), File.read(cert_path))
-    end
+    describe '#foreman_server_ca_cert' do
+      subject { renderer.render(source, @scope) }
 
-    test "foreman_server_ca_cert - not existing file" do
-      Setting[:ssl_ca_file] = 'not-existing-file'
-      source = OpenStruct.new(content: '<%= foreman_server_ca_cert %>')
-      assert_raise Foreman::Exception do
-        renderer.render(source, @scope)
+      let(:source) { OpenStruct.new(content: '<%= foreman_server_ca_cert %>') }
+      let(:cert_path) { Rails.root.join('test/static_fixtures/certificates/example.com.crt') }
+      let(:cert_2_path) { Rails.root.join('test/static_fixtures/certificates/example2.com.crt') }
+      let(:cert_file_content) { File.read(cert_path) }
+      let(:cert_2_file_content) { File.read(cert_2_path) }
+
+      test "load server_ca_file" do
+        Setting[:server_ca_file] = cert_path
+        Setting[:ssl_ca_file] = 'not-existing-file'
+
+        assert_equal subject, cert_file_content
+      end
+
+      test "load ssl_ca_file" do
+        Setting[:server_ca_file] = 'not-existing-file'
+        Setting[:ssl_ca_file] = cert_path
+
+        assert_equal subject, cert_file_content
+      end
+
+      test "load server_ca_file and ssl_ca_file" do
+        Setting[:server_ca_file] = cert_path
+        Setting[:ssl_ca_file] = cert_2_path
+
+        expected = "#{cert_file_content}\n#{cert_2_file_content}"
+        assert_equal subject, expected
+      end
+
+      test "do not load any files and raise exception" do
+        Setting[:server_ca_file] = 'not-existing-file'
+        Setting[:ssl_ca_file] = 'not-existing-file'
+
+        error = assert_raise Foreman::Exception do
+          subject
+        end
+
+        assert_includes error.message, "SSL CA file not found, check the 'Server CA file' and 'SSL CA file' in Settings > Authentication"
+      end
+
+      context 'when server_ca_file is disabled' do
+        let(:source) { OpenStruct.new(content: '<%= foreman_server_ca_cert(server_ca_file_enabled: false) %>') }
+
+        test "do not load server_ca_file and raise exception" do
+          Setting[:server_ca_file] = cert_path
+          Setting[:ssl_ca_file] = 'not-existing-file'
+
+          error = assert_raise Foreman::Exception do
+            subject
+          end
+
+          assert_includes error.message, "SSL CA file not found, check the 'Server CA file' and 'SSL CA file' in Settings > Authentication"
+        end
+      end
+
+      context 'when ssl_ca_file is disabled' do
+        let(:source) { OpenStruct.new(content: '<%= foreman_server_ca_cert(ssl_ca_file_enabled: false) %>') }
+
+        test "do not load ssl_ca_file and raise exception" do
+          Setting[:server_ca_file] = 'not-existing-file'
+          Setting[:ssl_ca_file] = cert_path
+
+          error = assert_raise Foreman::Exception do
+            subject
+          end
+
+          assert_includes error.message, "SSL CA file not found, check the 'Server CA file' and 'SSL CA file' in Settings > Authentication"
+        end
+      end
+
+      context "when server_ca_file and ssl_ca_file settings are blank" do
+        let(:source) { OpenStruct.new(content: '<%= foreman_server_ca_cert %>') }
+
+        test "do not load any files and raise exception" do
+          Setting[:server_ca_file] = ''
+          Setting[:ssl_ca_file] = ''
+
+          error = assert_raise Foreman::Renderer::Errors::UndefinedSetting do
+            renderer.render(source, @scope)
+          end
+
+          assert_includes error.message, 'Undefined setting \'"Server CA file" or "SSL CA file"\''
+        end
       end
     end
 
@@ -296,6 +376,128 @@ module RenderersSharedTests
             assert_nothing_raised do
               assert_equal "service restart httpd", result
             end
+          end
+        end
+      end
+    end
+
+    describe 'input_resource macro' do
+      let(:template) { FactoryBot.build(:provisioning_template, template: 'resource: <%= input_resource("ress") -%>') }
+      let(:template_inputs) { [FactoryBot.build(:template_input, name: 'ress', value_type: 'resource', resource_type: 'Hostgroup')] }
+      let(:source) { Foreman::Renderer::Source::Database.new(template) }
+
+      let(:real_scope) { Foreman::Renderer::Scope::Provisioning.new(**scope_args) }
+      let(:preview_scope) { Foreman::Renderer::Scope::Provisioning.new(**scope_args, mode: Foreman::Renderer::PREVIEW_MODE) }
+
+      setup { template.update(template_inputs: template_inputs) }
+
+      context "when resource found" do
+        let(:scope_args) { { host: @host, source: source, template_input_values: { 'ress' => hostgroups(:common).id } } }
+
+        test "preview" do
+          assert_nothing_raised do
+            result = renderer.render(source, preview_scope)
+            assert_equal "resource: #{hostgroups(:common).id}", result
+          end
+        end
+
+        test "render" do
+          assert_nothing_raised do
+            result = renderer.render(source, real_scope)
+            assert_equal "resource: #{hostgroups(:common)}", result
+          end
+        end
+      end
+
+      context "when resource not found" do
+        let(:scope_args) { { host: @host, source: source, template_input_values: { 'ress' => 0 } } }
+
+        test "preview" do
+          assert_nothing_raised do
+            result = renderer.render(source, preview_scope)
+            assert_equal 'resource: 0', result
+          end
+        end
+
+        test "render" do
+          assert_raises ActiveRecord::RecordNotFound do
+            renderer.render(source, real_scope)
+          end
+        end
+      end
+
+      context "when resource class is not found" do
+        let(:template_inputs) { [FactoryBot.build(:template_input, name: 'ress', value_type: 'resource', resource_type: 'NotExistingResource')] }
+        let(:scope_args) { { host: @host, source: source, template_input_values: { 'ress' => 0 } } }
+
+        test "preview" do
+          assert_nothing_raised do
+            result = renderer.render(source, preview_scope)
+            assert_equal 'resource: 0', result
+          end
+        end
+
+        test "render" do
+          e = assert_raises Foreman::Renderer::Errors::UnknownResource do
+            renderer.render(source, real_scope)
+          end
+          assert_includes e.message, "Unkown 'NotExistingResource' resource class"
+        end
+      end
+
+      context "when not authorized" do
+        let(:template_inputs) { [FactoryBot.build(:template_input, name: 'ress', value_type: 'resource', resource_type: 'Image')] }
+        let(:scope_args) { { host: @host, source: source, template_input_values: { 'ress' => images(:one).id } } }
+
+        test "preview" do
+          as_user(users(:one)) do
+            assert_nothing_raised do
+              result = renderer.render(source, preview_scope)
+              assert_equal "resource: #{images(:one).id}", result
+            end
+          end
+        end
+
+        test "render" do
+          as_user(users(:one)) do
+            assert_raises ActiveRecord::RecordNotFound do
+              renderer.render(source, real_scope)
+            end
+          end
+        end
+      end
+
+      context "when value is empty" do
+        let(:scope_args) { { host: @host, source: source } }
+
+        test "preview" do
+          assert_nothing_raised do
+            result = renderer.render(source, preview_scope)
+            assert_equal "resource: $USER_INPUT[ress]", result
+          end
+        end
+
+        test "render" do
+          e = assert_raises TemplateInput::ValueNotReady do
+            renderer.render(source, real_scope)
+          end
+          assert_includes e.message, "Input 'ress' is not ready for rendering"
+        end
+      end
+
+      context "when value type != 'resource'" do
+        let(:template_inputs) { [FactoryBot.build(:template_input, name: 'ress')] }
+        let(:scope_args) { { host: @host, source: source } }
+
+        test "preview" do
+          assert_raises Foreman::Renderer::Errors::WrongInputValueType do
+            renderer.render(source, real_scope)
+          end
+        end
+
+        test "render" do
+          assert_raises Foreman::Renderer::Errors::WrongInputValueType do
+            renderer.render(source, real_scope)
           end
         end
       end

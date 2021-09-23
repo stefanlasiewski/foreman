@@ -18,19 +18,16 @@ class RolesList
                           :description => 'Role granting permissions to update hosts. For features provided by plugins, you might need to combine this role with roles provided by those plugins' },
         Role::VIEWER => { :permissions => view_permissions, :description => 'Role granting read only access. Users with this role can see all data but can not do any modifications' },
         'Site manager' => { :permissions => [:view_architectures, :view_audit_logs, :view_authenticators, :access_dashboard,
-                                             :view_domains, :view_environments, :import_environments,
-                                             :view_external_parameters, :create_external_parameters, :edit_external_parameters,
-                                             :destroy_external_parameters, :view_facts, :view_hostgroups, :view_hosts, :view_smart_proxies_puppetca,
+                                             :view_domains, :view_facts, :view_hostgroups, :view_hosts, :view_smart_proxies_puppetca,
                                              :view_smart_proxies_autosign, :create_hosts, :edit_hosts, :destroy_hosts,
                                              :build_hosts, :view_media, :create_media, :edit_media, :destroy_media,
-                                             :view_models, :view_operatingsystems, :view_ptables, :view_puppetclasses,
-                                             :import_puppetclasses, :view_config_reports, :destroy_config_reports,
+                                             :view_models, :view_operatingsystems, :view_ptables, :view_config_reports, :destroy_config_reports,
                                              :view_smart_proxies, :edit_smart_proxies, :view_subnets, :edit_subnets,
                                              :view_usergroups, :create_usergroups, :edit_usergroups, :destroy_usergroups,
                                              :view_users, :edit_users, :view_realms, :view_mail_notifications,
                                              :view_params, :view_ssh_keys, :view_personal_access_tokens],
                             :description => 'Role granting mostly view permissions but also permissions required for managing hosts in the infrastructure. Users with this role can update puppet parameters, create and edit hosts, manage installation media, subnets, usergroups and edit existing users.' },
-        'Bookmarks manager' => { :permissions => [:view_bookmarks, :create_bookmarks, :edit_bookmarks, :destroy_bookmarks],
+        'Bookmarks manager' => { :permissions => [:create_bookmarks, :edit_bookmarks, :destroy_bookmarks],
                                  :description => 'Role granting permissions for managing search bookmarks. Usually useful in combination with Viewer role. This role also grants the permission to update all public bookmarks.' },
         'Auditor' => { :permissions => [:view_audit_logs],
                        :description => 'Role granting permission to view only the Audit log and nothing else.',
@@ -40,7 +37,7 @@ class RolesList
 
     def default_role
       {
-        'Default role' => { permissions: [:view_bookmarks, :view_tasks],
+        'Default role' => { permissions: [],
                             description: 'Role that is automatically assigned to every user in the system. Adding a permission grants it to everybody',
         },
       }

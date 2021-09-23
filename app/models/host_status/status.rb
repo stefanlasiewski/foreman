@@ -12,6 +12,10 @@ module HostStatus
 
     before_validation :update_timestamp, :if => ->(status) { status.reported_at.blank? }
 
+    def self.presenter
+      ::HostStatusPresenter.new(self)
+    end
+
     class Jail < ::Safemode::Jail
       allow :host, :to_global, :to_label, :status, :name, :relevant?
       allow_class_method :status_name, :humanized_name
@@ -26,7 +30,10 @@ module HostStatus
     end
 
     def to_status(options = {})
-      raise NotImplementedError, "Method 'to_status' method needs to be implemented"
+      # By default return the same value the status already has.
+      # Override this method with a way to recalculate the status based on
+      # external values
+      status
     end
 
     def self.status_name

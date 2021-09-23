@@ -23,8 +23,8 @@ module Menu
 
       Manager.map :admin_menu do |menu|
         menu.sub_menu :administer_menu,  :caption => N_('Administer'), :icon => 'fa fa-cog' do
-          menu.item :locations,          :caption => N_('Locations') if SETTINGS[:locations_enabled]
-          menu.item :organizations,      :caption => N_('Organizations') if SETTINGS[:organizations_enabled]
+          menu.item :locations,          :caption => N_('Locations')
+          menu.item :organizations,      :caption => N_('Organizations')
           menu.item :auth_sources,       :caption => N_('Authentication Sources')
           menu.item :users,              :caption => N_('Users')
           menu.item :usergroups,         :caption => N_('User Groups')
@@ -38,6 +38,10 @@ module Menu
       Manager.map :top_menu do |menu|
         menu.sub_menu :monitor_menu,    :caption => N_('Monitor'), :icon => 'fa fa-tachometer' do
           menu.item :dashboard,         :caption => N_('Dashboard'), :exact => true
+          menu.item :host_statuses,
+            :caption => N_('Host Statuses'),
+            :url => '/host_statuses',
+            :url_hash => { :controller => 'api/v2/host_statuses', :action => 'index' }
           menu.item :fact_values,       :caption => N_('Facts')
           menu.item :audits,            :caption => N_('Audits')
           menu.divider                  :caption => N_('Reports')
@@ -51,6 +55,9 @@ module Menu
           menu.item :hosts,             :caption => N_('All Hosts')
           menu.item :newhost,           :caption => N_('Create Host'),
                     :url_hash => {:controller => '/hosts', :action => 'new'}
+          menu.item :register_hosts,    :caption => N_('Register Host'),
+                    :url => '/hosts/register',
+                    :url_hash => { :controller => 'hosts', :action => 'create' }
           if SETTINGS[:unattended]
             menu.divider                :caption => N_('Provisioning Setup')
             menu.item :architectures,   :caption => N_('Architectures')
@@ -71,11 +78,6 @@ module Menu
         menu.sub_menu :configure_menu,  :caption => N_('Configure'), :icon => 'fa fa-wrench' do
           menu.item :hostgroups,        :caption => N_('Host Groups')
           menu.item :common_parameters, :caption => N_('Global Parameters')
-          menu.divider                  :caption => N_('Puppet')
-          menu.item :environments,      :caption => N_('Environments')
-          menu.item :puppetclasses,     :caption => N_('Classes')
-          menu.item :config_groups,     :caption => N_('Config Groups')
-          menu.item :puppetclass_lookup_keys, :caption => N_('Smart Class Parameters')
         end
 
         menu.sub_menu :infrastructure_menu, :caption => N_('Infrastructure'), :icon => 'pficon pficon-network' do
@@ -95,6 +97,7 @@ module Menu
         menu.sub_menu :lab_features_menu, :caption => N_('Lab Features'), :icon => 'fa fa-flask' do
           menu.item :host_wizard,
             :caption => 'Host Wizard',
+            :url_hash => { :controller => 'api/v2/hosts', :action => 'create' },
             :url => '/host_wizard'
         end
       end

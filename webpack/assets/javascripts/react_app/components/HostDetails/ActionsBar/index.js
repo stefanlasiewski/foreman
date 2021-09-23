@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import React, { useState } from 'react';
+import { useSelector, shallowEqual } from 'react-redux';
 import {
   Button,
   DropdownItem,
@@ -9,26 +10,24 @@ import {
 } from '@patternfly/react-core';
 import { foremanUrl } from '../../../../foreman_navigation';
 import { translate as __ } from '../../../common/I18n';
+import { selectKebabItems } from './Selectors';
 
 const ActionsBar = ({ hostName }) => {
   const [kebabIsOpen, setKebab] = useState(false);
   const onKebabToggle = isOpen => setKebab(isOpen);
+  const registeredItems = useSelector(selectKebabItems, shallowEqual);
 
   const dropdownItems = [
-    <DropdownItem key="clone" component="button">
-      Delete
+    <DropdownItem key="delete" component="button">
+      {__('Delete')}
     </DropdownItem>,
     <DropdownItem key="clone" component="button">
-      Clone
+      {__('Clone')}
     </DropdownItem>,
-    <DropdownItem key="disabled link" component="button">
-      Build
+    <DropdownItem key="build" component="button">
+      {__('Build')}
     </DropdownItem>,
     <DropdownSeparator key="separator" />,
-    <DropdownItem key="separated link"> plugin action 1</DropdownItem>,
-    <DropdownItem key="separated action" component="button">
-      plugin action 2
-    </DropdownItem>,
   ];
 
   return (
@@ -45,14 +44,17 @@ const ActionsBar = ({ hostName }) => {
         toggle={<KebabToggle onToggle={onKebabToggle} />}
         isOpen={kebabIsOpen}
         isPlain
-        dropdownItems={dropdownItems}
+        dropdownItems={dropdownItems.concat(registeredItems)}
       />
     </>
   );
 };
 
 ActionsBar.propTypes = {
-  hostName: PropTypes.string.isRequired,
+  hostName: PropTypes.string,
+};
+ActionsBar.defaultProps = {
+  hostName: undefined,
 };
 
 export default ActionsBar;

@@ -24,15 +24,14 @@ class Host::Managed < Host::Base
   include Foreman::ObservableModel
   include ::ForemanRegister::HostExtensions
 
-  has_many :host_classes, :foreign_key => :host_id
-  has_many :puppetclasses, :through => :host_classes, :dependent => :destroy
   has_many :reports, :foreign_key => :host_id, :class_name => 'ConfigReport'
   has_one :last_report_object, -> { order("#{Report.table_name}.id DESC") }, :foreign_key => :host_id, :class_name => 'ConfigReport'
   has_many :all_reports, :foreign_key => :host_id
 
   belongs_to :image
-  has_many :host_statuses, :class_name => 'HostStatus::Status', :foreign_key => 'host_id', :inverse_of => :host, :dependent => :destroy
+  has_many :host_statuses, -> { where.not(type: nil) }, :class_name => 'HostStatus::Status', :foreign_key => 'host_id', :inverse_of => :host, :dependent => :destroy
   has_one :configuration_status_object, :class_name => 'HostStatus::ConfigurationStatus', :foreign_key => 'host_id'
+  has_one :build_status_object, :class_name => 'HostStatus::BuildStatus', :foreign_key => 'host_id'
   before_destroy :remove_reports
 
   def self.complete_for(query, opts = {})
@@ -70,7 +69,6 @@ class Host::Managed < Host::Base
   # Custom hooks will be executed after_commit
   after_commit :build_hooks
   before_save :clear_data_on_build
-  before_save :clear_puppetinfo, :if => :environment_id_changed?
 
   include PxeLoaderValidator
 
@@ -111,7 +109,6 @@ class Host::Managed < Host::Base
     property :certname, String, desc: 'Returns a name used in puppet certificate, this is usually either equal to FQDN or random UUID if `use_uuid_for_certificates` setting is enabled'
     property :compute_resource, 'ComputeResource', desc: 'Returns a compute resource object the host exists in, nil if no compute resource is assigned (e.g. baremetal host)'
     property :domain, 'Domain', desc: 'Returns a domain object the host primary interface belongs to, nil if no domain is assigned (unmanaged host)'
-    property :environment, 'Environment', desc: 'Returns a string representing the puppet environment the host is assigned to (e.g. "production") or an empty string if no puppet environment is assigned'
     property :hostgroup, 'Hostgroup', desc: 'Returns a host group object the host is assigned to, nil if no host group is assigned'
     property :interfaces, array_of: ['Nic::Managed'], desc: 'Returns an array of all host interfaces objects'
     property :ip, String, desc: 'Returns an IPv4 address of the host primary interface, e.g. "192.168.0.1"'
@@ -126,7 +123,7 @@ class Host::Managed < Host::Base
     property :provision_method, String, desc: 'Returns a provisioning method used for this host, one of "build", "image". Plugins can add additional methods.'
     property :ptable, 'Ptable', desc: 'Returns a partition table object assigned to the host, returns nil if none is found'
     property :puppet_ca_server, String, desc: 'FQDN of the Puppet CA server used by this host, typically FQDN of the host\'s puppet CA proxy'
-    property :puppetmaster, String, desc: 'FQDN of the Puppet master/server used by this host, typically FQDN of the host\'s puppet proxy'
+    property :puppet_server, String, desc: 'FQDN of the Puppet master/server used by this host, typically FQDN of the host\'s puppet proxy'
     property :realm, 'Realm', desc: 'Returns a realm object assigned to the host primary interface, returns nil if none is found'
     property :shortname, String, desc: 'Host shortname, usually a hostname without the domain part, e.g. my-host'
     property :subnet, 'Subnet', desc: 'Returns an IPv4 subnet object assigned to the host primary interface, returns nil if none is found'
@@ -162,9 +159,10 @@ class Host::Managed < Host::Base
     property :params, Hash, desc: 'Returns name=value object with host\'s parameters'
     property :pxe_loader_efi?, one_of: [true, false], desc: 'Returns true if PXE Loader uses EFI, false otherwise'
     property :created_at, 'ActiveSupport::TimeWithZone', desc: 'The time when the host was created'
+    property :comment, String, desc: 'Returns comment/description of this host'
   end
   class Jail < ::Safemode::Jail
-    allow :id, :name, :created_at, :diskLayout, :puppetmaster, :puppet_ca_server, :operatingsystem, :os, :environment, :ptable, :hostgroup,
+    allow :id, :name, :created_at, :diskLayout, :puppetmaster, :puppet_server, :puppet_ca_server, :operatingsystem, :os, :ptable, :hostgroup,
       :url_for_boot, :hostgroup, :compute_resource, :domain, :ip, :ip6, :mac, :shortname, :architecture,
       :model, :certname, :capabilities, :provider, :subnet, :subnet6, :token, :location, :organization, :provision_method,
       :image_build?, :pxe_build?, :otp, :realm, :nil?, :indent, :primary_interface,
@@ -172,7 +170,12 @@ class Host::Managed < Host::Base
       :managed_interfaces, :facts, :facts_hash, :root_pass, :sp_name, :sp_ip, :sp_mac, :sp_subnet, :use_image,
       :multiboot, :jumpstart_path, :install_path, :miniroot, :medium, :bmc_nic, :templates_used, :owner, :owner_type,
       :ssh_authorized_keys, :pxe_loader, :global_status, :get_status, :puppetca_token, :last_report, :build?, :smart_proxies, :host_param,
-      :virtual, :ram, :sockets, :cores, :params, :pxe_loader_efi?
+      :virtual, :ram, :sockets, :cores, :params, :pxe_loader_efi?, :comment
+
+    def puppetmaster
+      Foreman::Deprecation.deprecation_warning('3.0', 'Host#puppetmaster is deprecated, please use host_puppet_server macro instead')
+      @source.puppet_server
+    end
   end
 
   scope :recent, lambda { |interval = Setting[:outofsync_interval]|
@@ -285,7 +288,6 @@ class Host::Managed < Host::Base
   # some shortcuts
   alias_attribute :arch, :architecture
 
-  validates :environment_id, :presence => true, :unless => proc { |host| host.puppet_proxy_id.blank? }
   validates :organization_id, :presence => true, :if => proc { |host| host.managed? }
   validates :location_id,     :presence => true, :if => proc { |host| host.managed? }
   validate :compute_resource_in_taxonomy, :if => proc { |host| host.managed? && host.compute_resource_id.present? }
@@ -469,17 +471,6 @@ autopart"', desc: 'to render the content of host partition table'
     puppet_proxy_id.present?
   end
 
-  # the environment used by #clases nees to be self.environment and not self.parent.environment
-  def parent_classes
-    return [] unless hostgroup
-    hostgroup.classes(environment)
-  end
-
-  def parent_config_groups
-    return [] unless hostgroup
-    hostgroup.all_config_groups
-  end
-
   def attributes_to_import_from_facts
     attrs = [:architecture]
     if Setting[:update_hostgroup_from_facts]
@@ -511,46 +502,6 @@ autopart"', desc: 'to render the content of host partition table'
     self.initiated_at = Time.now.utc
     logger.warn("Set build failed: #{errors.inspect}") unless save
     errors.empty?
-  end
-
-  # this method accepts a puppets external node yaml output and generate a node in our setup
-  # it is assumed that you already have the node (e.g. imported by one of the rack tasks)
-  def importNode(nodeinfo)
-    myklasses = []
-    # puppet classes
-    classes = nodeinfo["classes"]
-    classes = classes.keys if classes.is_a?(Hash)
-    classes.each do |klass|
-      if (pc = Puppetclass.find_by_name(klass.to_s))
-        myklasses << pc
-      else
-        error = _("Failed to import %{klass} for %{name}: doesn't exists in our database - ignoring") % { :klass => klass, :name => name }
-        logger.warn error
-        $stdout.puts error
-      end
-      self.puppetclasses = myklasses
-    end
-
-    # parameters are a bit more tricky, as some classifiers provide the facts as parameters as well
-    # not sure what is puppet priority about it, but we ignore it if has a fact with the same name.
-    # additionally, we don't import any non strings values, as puppet don't know what to do with those as well.
-
-    myparams = info["parameters"]
-    nodeinfo["parameters"].each_pair do |param, value|
-      next if fact_names.exists? :name => param
-      next unless value.is_a?(String)
-
-      # we already have this parameter
-      next if myparams.has_key?(param) && myparams[param] == value
-
-      unless (hp = host_parameters.create(:name => param, :value => value))
-        logger.warn "Failed to import #{param}/#{value} for #{name}: #{hp.errors.full_messages.join(', ')}"
-        $stdout.puts $ERROR_INFO
-      end
-    end
-
-    clear_host_parameters_cache!
-    save
   end
 
   # counts each association of a given host
@@ -602,7 +553,7 @@ autopart"', desc: 'to render the content of host partition table'
   end
 
   def hostgroup_inherited_attributes
-    %w{puppet_proxy_id puppet_ca_proxy_id environment_id compute_profile_id realm_id compute_resource_id}
+    %w{puppet_proxy_id puppet_ca_proxy_id compute_profile_id realm_id compute_resource_id}
   end
 
   def apply_inherited_attributes(attributes, initialized = true)
@@ -736,7 +687,14 @@ autopart"', desc: 'to render the content of host partition table'
     Setting[:root_pass]
   end
 
-  include_in_clone :config_groups, :host_config_groups, :host_classes, :host_parameters, :lookup_values
+  def root_pass_source
+    return N_("host") if self[:root_pass].present?
+    return N_("hostgroup") if hostgroup.try(:root_pass).present?
+    return N_("global setting") if Setting[:root_pass].present?
+    nil
+  end
+
+  include_in_clone :host_parameters, :lookup_values
   exclude_from_clone :name, :uuid, :certname, :last_report, :lookup_value_matcher
 
   def clone
@@ -793,6 +751,7 @@ autopart"', desc: 'to render the content of host partition table'
     return false if ipmi.nil?
     (ipmi.password.present? && ipmi.username.present? && %w(IPMI Redfish).include?(ipmi.provider)) || ipmi.provider == 'SSH'
   end
+  alias_method :bmc_available, :bmc_available?
 
   def ipmi_boot(booting_device)
     unless bmc_available?
@@ -996,17 +955,6 @@ autopart"', desc: 'to render the content of host partition table'
         end
       end
     end
-
-    status = validate_association_taxonomy(:environment)
-
-    if environment
-      puppetclasses.select("puppetclasses.id,puppetclasses.name").distinct.each do |e|
-        unless environment.puppetclasses.map(&:id).include?(e.id)
-          errors.add(:puppetclasses, _("%{e} does not belong to the %{environment} environment") % { :e => e, :environment => environment })
-          status = false
-        end
-      end
-    end
     status
   end
 
@@ -1047,13 +995,6 @@ autopart"', desc: 'to render the content of host partition table'
     host_reports = Report.where(host_id: id)
     Log.where(report_id: host_reports.pluck(:id)).delete_all
     host_reports.delete_all
-  end
-
-  def clear_puppetinfo
-    unless environment
-      self.puppetclasses = []
-      self.config_groups = []
-    end
   end
 
   def refresh_build_status

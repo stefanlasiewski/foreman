@@ -40,11 +40,6 @@ module HostsHelper
     javascript_include_tag("compute_resources/#{compute_resource.provider.downcase}/#{js_name}.js")
   end
 
-  def value_hash_cache(host)
-    @value_hash_cache ||= {}
-    @value_hash_cache[host.id] ||= HostInfoProviders::PuppetInfo.new(host).inherited_puppetclass_parameters
-  end
-
   def host_taxonomy_select(f, taxonomy)
     taxonomy_id = "#{taxonomy.to_s.downcase}_id"
     selected_taxonomy = @host.new_record? ? taxonomy.current.try(:id) : @host.send(taxonomy_id)
@@ -183,8 +178,7 @@ module HostsHelper
   end
 
   def date(ts = nil)
-    return _("%s ago") % (time_ago_in_words ts) if ts
-    _("N/A")
+    ts ? date_time_relative_value(ts) : _("N/A")
   end
 
   def template_path(opts = {})
@@ -200,29 +194,34 @@ module HostsHelper
     session[:selected].include?(host.id.to_s)
   end
 
-  def resources_chart(timerange = 1.day.ago)
-    applied, failed, restarted, failed_restarts, skipped = [], [], [], [], []
+  def resources_chart_data(timerange = 1.day.ago)
+    time = ['time']
+    applied = [_("Applied")]
+    failed = [_("Failed")]
+    restarted = [_("Failed restarts")]
+    failed_restarts = [_("Skipped")]
+    skipped = [_("Restarted")]
     @host.reports.recent(timerange).each do |r|
-      applied         << [r.reported_at.to_i * 1000, r.applied]
-      failed          << [r.reported_at.to_i * 1000, r.failed]
-      restarted       << [r.reported_at.to_i * 1000, r.restarted]
-      failed_restarts << [r.reported_at.to_i * 1000, r.failed_restarts]
-      skipped         << [r.reported_at.to_i * 1000, r.skipped]
+      time            << r.reported_at.to_i * 1000
+      applied         << r.applied
+      failed          << r.failed
+      restarted       << r.restarted
+      failed_restarts << r.failed_restarts
+      skipped         << r.skipped
     end
-    [{:label => _("Applied"), :data => applied, :color => '#89A54E'},
-     {:label => _("Failed"), :data => failed, :color => '#AA4643'},
-     {:label => _("Failed restarts"), :data => failed_restarts, :color => '#EC971F'},
-     {:label => _("Skipped"), :data => skipped, :color => '#80699B'},
-     {:label => _("Restarted"), :data => restarted, :color => '#4572A7'}]
+    [time, applied, failed, failed_restarts, skipped, restarted]
   end
 
-  def runtime_chart(timerange = 1.day.ago)
-    config, runtime = [], []
+  def runtime_chart_data(timerange = 1.day.ago)
+    time = ['time']
+    config = [_("Config Retrieval")]
+    runtime = [_("Runtime")]
     @host.reports.recent(timerange).each do |r|
-      config  << [r.reported_at.to_i * 1000, r.config_retrieval]
-      runtime << [r.reported_at.to_i * 1000, r.runtime]
+      time << r.reported_at.to_i * 1000
+      config  << r.config_retrieval
+      runtime << r.runtime
     end
-    [{:label => _("Config Retrieval"), :data => config, :color => '#AA4643'}, {:label => _("Runtime"), :data => runtime, :color => '#4572A7'}]
+    [time, config, runtime]
   end
 
   def reports_show
@@ -302,14 +301,6 @@ module HostsHelper
 
   def has_dhcp_lease_errors?(errors)
     errors.include?(:dhcp_lease_error)
-  end
-
-  def args_for_compute_resource_partial(host)
-    args = {}
-    args[:arch] = host.try(:architecture_id) || (params[:host] && params[:host][:architecture_id])
-    args[:os] = host.try(:operatingsystem_id) || (params[:host] && params[:host][:operatingsystem_id])
-    args[:selected_cluster] = vm_attrs['cluster'] if defined?(vm_attrs)
-    args
   end
 
   def show_appropriate_host_buttons(host)
@@ -430,5 +421,16 @@ module HostsHelper
     list.
       sort_by { |member| member[:priority] }.
       map { |member_hash| member_hash[value_key] }
+  end
+
+  def lookup_values_data(host_or_hostgroup)
+    host_or_hostgroup.lookup_values.map do |item|
+      {
+        :id => item.id,
+        :lookup_key_id => item.lookup_key_id,
+        :value => item.value,
+        :errors => item.errors.to_hash,
+      }
+    end
   end
 end

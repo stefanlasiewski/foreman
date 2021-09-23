@@ -349,7 +349,7 @@ class User < ApplicationRecord
           logger.info "User '#{user.login}' auto-created from #{user.auth_source}"
           user.post_successful_login
         else
-          logger.info "Failed to create external User '{user.login}': #{user.errors.full_messages.join(', ')}"
+          logger.info "Failed to create external User '#{user.login}': #{user.errors.full_messages.join(', ')}"
           user = nil
         end
       end
@@ -500,21 +500,6 @@ class User < ApplicationRecord
   def taxonomy_ids
     { :organizations => my_organizations.pluck(:id),
       :locations => my_locations.pluck(:id) }
-  end
-
-  def visible_environments
-    authorized_scope = Environment.unscoped.authorized(:view_environments)
-    authorized_scope = authorized_scope
-      .joins(:taxable_taxonomies)
-      .where('taxable_taxonomies.taxonomy_id' => taxonomy_ids[:organizations] + taxonomy_ids[:locations])
-    result = authorized_scope.distinct.pluck(:name)
-    if User.current.admin?
-      # Admin users can also see Environments that do not have any organization or location, even when
-      # organizations and locations are enabled.
-      untaxed_environments = Environment.unscoped.where.not(id: TaxableTaxonomy.where(taxable_type: 'Environment').distinct.select(:taxable_id)).pluck(:name)
-      result += untaxed_environments
-    end
-    result
   end
 
   def taxonomy_and_child_ids(taxonomies)

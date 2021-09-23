@@ -2,93 +2,16 @@ module Foreman::Controller::Puppet::HostsControllerExtensions
   extend ActiveSupport::Concern
 
   PUPPETMASTER_ACTIONS = [:externalNodes, :lookup]
-  PUPPET_AJAX_REQUESTS = %w{hostgroup_or_environment_selected puppetclass_parameters}
 
-  MULTIPLE_EDIT_ACTIONS = %w(select_multiple_environment update_multiple_environment
-                             select_multiple_puppet_proxy update_multiple_puppet_proxy
-                             select_multiple_puppet_ca_proxy update_multiple_puppet_ca_proxy)
+  MULTIPLE_EDIT_ACTIONS = %w(select_multiple_puppet_ca_proxy update_multiple_puppet_ca_proxy)
 
   included do
     add_smart_proxy_filters PUPPETMASTER_ACTIONS, :features => ['Puppet']
-    alias_method :ajax_request_for_puppet_host_extensions, :ajax_request
 
-    before_action :ajax_request_for_puppet_host_extensions, :only => PUPPET_AJAX_REQUESTS
-    before_action :taxonomy_scope_for_puppet_host_extensions, :only => PUPPET_AJAX_REQUESTS
     before_action :find_multiple_for_puppet_host_extensions, :only => MULTIPLE_EDIT_ACTIONS
-    before_action :validate_multiple_puppet_proxy, :only => :update_multiple_puppet_proxy
     before_action :validate_multiple_puppet_ca_proxy, :only => :update_multiple_puppet_ca_proxy
 
     define_action_permission MULTIPLE_EDIT_ACTIONS, :edit
-
-    set_callback :set_class_variables, :after, :set_puppet_class_variables
-  end
-
-  def hostgroup_or_environment_selected
-    refresh_host
-    set_class_variables(@host)
-    Taxonomy.as_taxonomy @organization, @location do
-      if @environment || @hostgroup
-        render :partial => 'puppetclasses/class_selection', :locals => {:obj => @host}
-      else
-        logger.info "environment_id or hostgroup_id is required to render puppetclasses"
-      end
-    end
-  end
-
-  def puppetclass_parameters
-    Taxonomy.as_taxonomy @organization, @location do
-      render :partial => "puppetclasses/classes_parameters", :locals => { :obj => refresh_host}
-    end
-  end
-
-  def select_multiple_environment
-  end
-
-  def update_multiple_environment
-    # simple validations
-    if params[:environment].nil? || (id = params["environment"]["id"]).nil?
-      error _('No environment selected!')
-      redirect_to(select_multiple_environment_hosts_path)
-      return
-    end
-
-    ev = Environment.find_by_id(id)
-
-    # update the hosts
-    @hosts.each do |host|
-      host.environment = (id == 'inherit' && host.hostgroup.present?) ? host.hostgroup.environment : ev
-      host.save(:validate => false)
-    end
-
-    success _('Updated hosts: changed environment')
-    redirect_back_or_to hosts_path
-  end
-
-  def environment_from_param
-    # simple validations
-    if params[:environment].nil? || (id = params["environment"]["id"]).nil?
-      error _('No environment selected!')
-      redirect_to(select_multiple_environment_hosts_path)
-      return
-    end
-
-    id
-  end
-
-  def get_environment_id(env_params)
-    env_params['id'] if env_params
-  end
-
-  def get_environment_for(host, id)
-    if id == 'inherit' && host.hostgroup.present?
-      host.hostgroup.environment
-    else
-      Environment.find_by_id(id)
-    end
-  end
-
-  def validate_multiple_puppet_proxy
-    validate_multiple_proxy(select_multiple_puppet_proxy_hosts_path)
   end
 
   def validate_multiple_puppet_ca_proxy
@@ -156,26 +79,11 @@ module Foreman::Controller::Puppet::HostsControllerExtensions
     end
   end
 
-  def select_multiple_puppet_proxy
-  end
-
-  def update_multiple_puppet_proxy
-    update_multiple_proxy(_('Puppet'), :puppet_proxy=)
-  end
-
   def select_multiple_puppet_ca_proxy
   end
 
   def update_multiple_puppet_ca_proxy
     update_multiple_proxy(_('Puppet CA'), :puppet_ca_proxy=)
-  end
-
-  def set_puppet_class_variables
-    @environment = @host.environment
-  end
-
-  def taxonomy_scope_for_puppet_host_extensions
-    taxonomy_scope
   end
 
   def find_multiple_for_puppet_host_extensions

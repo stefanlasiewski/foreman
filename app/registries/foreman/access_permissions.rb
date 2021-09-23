@@ -5,13 +5,19 @@ Foreman::AccessControl.map do |permission_set|
   permission_set.security_block :public do |map|
     map.permission :user_logout, { :users => [:logout] }, :public => true
     map.permission :view_current_user, { :"api/v2/users" => [:show_current] }, public: :true
-    map.permission :my_account, { :users => [:edit],
+    map.permission :my_account, {
+      :users => [:edit],
       :notification_recipients => [:index, :update, :destroy, :update_group_as_read, :destroy_group],
-      :"api/v2/table_preferences" => [:show, :create, :edit, :delete, :index]}, :public => true
+      :"api/v2/table_preferences" => [:show, :create, :edit, :delete, :index],
+    }, :public => true
     map.permission :api_status, { :"api/v2/home" => [:status]}, :public => true
     map.permission :about_index, { :about => [:index] }, :public => true
     map.permission :user_menu, { :user_menus => [:menu] }, :public => true
     map.permission :links, { :links => [:show] }, :public => true
+    map.permission :bookmarks, {
+      :bookmarks => [:index, :show, :auto_complete_search, :welcome],
+      :"api/v2/bookmarks" => [:index, :show],
+    }, :public => true
   end
 
   permission_set.security_block :architectures do |map|
@@ -52,9 +58,6 @@ Foreman::AccessControl.map do |permission_set|
   end
 
   permission_set.security_block :bookmarks do |map|
-    map.permission :view_bookmarks,
-      :bookmarks => [:index, :show, :auto_complete_search, :welcome],
-      :"api/v2/bookmarks" => [:index, :show]
     map.permission :create_bookmarks,
       :bookmarks => [:new, :create],
       :"api/v2/bookmarks" => [:new, :create]
@@ -81,7 +84,7 @@ Foreman::AccessControl.map do |permission_set|
     ajax_actions = [:test_connection]
     map.permission :view_compute_resources, {:compute_resources => [:index, :show, :auto_complete_search, :ping, :available_images, :refresh_cache, :welcome],
                                                 :"api/v2/compute_resources" => [:index, :show, :available_images, :available_clusters, :available_folders,
-                                                                                :available_flavors, :available_networks, :available_resource_pools, :available_virtual_machines, :show_vm,
+                                                                                :available_flavors, :available_networks, :available_vnic_profiles, :available_resource_pools, :available_virtual_machines, :show_vm,
                                                                                 :available_security_groups, :available_storage_domains, :available_zones,
                                                                                 :available_storage_pods, :storage_pod, :storage_domain, :refresh_cache],
     }
@@ -185,48 +188,6 @@ Foreman::AccessControl.map do |permission_set|
     }
   end
 
-  permission_set.security_block :environments do |map|
-    map.permission :view_environments, {:environments => [:index, :show, :auto_complete_search, :welcome],
-                                           :"api/v2/environments" => [:index, :show],
-    }
-    map.permission :create_environments, {:environments => [:new, :create],
-                                           :"api/v2/environments" => [:create],
-    }
-    map.permission :edit_environments, {:environments => [:edit, :update],
-                                           :"api/v2/environments" => [:update],
-    }
-    map.permission :destroy_environments, {:environments => [:destroy],
-                                           :"api/v2/environments" => [:destroy],
-    }
-    map.permission :import_environments, {:environments => [:import_environments, :obsolete_and_new],
-                                           :"api/v2/environments" => [:import_puppetclasses],
-                                           :"api/v2/smart_proxies" => [:import_puppetclasses],
-                                            }
-  end
-
-  permission_set.security_block :external_variables do |map|
-    map.permission :view_external_parameters,    {:lookup_keys => [:index, :show, :auto_complete_search],
-                                                 :puppetclass_lookup_keys => [:index, :show, :auto_complete_search, :welcome],
-                                                 :lookup_values => [:index],
-                                                 :"api/v2/smart_class_parameters" => [:index, :show],
-                                                 :"api/v2/override_values" => [:index, :show]}
-    map.permission :create_external_parameters,  {:lookup_keys => [:new, :create],
-                                                 :puppetclass_lookup_keys => [:new, :create],
-                                                 :lookup_values => [:create],
-                                                 :"api/v2/smart_class_parameters" => [:create],
-                                                 :"api/v2/override_values" => [:create]}
-    map.permission :edit_external_parameters,    {:lookup_keys => [:edit, :update],
-                                                 :puppetclass_lookup_keys => [:edit, :update],
-                                                 :lookup_values => [:create, :update, :destroy],
-                                                 :"api/v2/smart_class_parameters" => [:update],
-                                                 :"api/v2/override_values" => [:create, :update, :destroy]}
-    map.permission :destroy_external_parameters, {:lookup_keys => [:destroy],
-                                                 :puppetclass_lookup_keys => [:destroy],
-                                                 :lookup_values => [:destroy],
-                                                 :"api/v2/smart_class_parameters" => [:destroy],
-                                                 :"api/v2/override_values" => [:create, :update, :destroy]}
-  end
-
   permission_set.security_block :filters do |map|
     map.permission :view_filters,    {:filters => [:index, :auto_complete_search],
                                       :'api/v2/filters' => [:index, :show]}
@@ -240,91 +201,70 @@ Foreman::AccessControl.map do |permission_set|
   end
 
   permission_set.security_block :hostgroups do |map|
-    ajax_actions = [:architecture_selected, :domain_selected, :environment_selected, :medium_selected, :os_selected,
-                    :use_image_selected, :process_hostgroup, :puppetclass_parameters, :welcome]
+    ajax_actions = [:architecture_selected, :domain_selected, :medium_selected, :os_selected,
+                    :use_image_selected, :process_hostgroup, :welcome]
     host_ajax_actions = [:process_hostgroup]
-    pc_ajax_actions = [:parameters]
 
     map.permission :view_hostgroups,       {:hostgroups => [:index, :show, :auto_complete_search],
                                             :"api/v2/hostgroups" => [:index, :show],
                                           }
     map.permission :create_hostgroups,     {:hostgroups => [:new, :create, :clone, :nest, :process_hostgroup].push(*ajax_actions),
                                             :host => host_ajax_actions,
-                                            :puppetclasses => pc_ajax_actions,
                                             :"api/v2/hostgroups" => [:create, :clone],
                                           }
     map.permission :edit_hostgroups,       {:hostgroups => [:edit, :update, :architecture_selected, :process_hostgroup].push(*ajax_actions),
                                             :host => host_ajax_actions,
-                                            :puppetclasses => pc_ajax_actions,
                                             :"api/v2/hostgroups" => [:update, :rebuild_config],
-                                            :"api/v2/hostgroup_classes" => [:index, :create, :destroy],
                                            }
     map.permission :destroy_hostgroups,    {:hostgroups => [:destroy],
                                             :"api/v2/hostgroups" => [:destroy],
     }
   end
 
-  permission_set.security_block :config_groups do |map|
-    map.permission :view_config_groups,    {:config_groups => [:index, :auto_complete_search, :welcome],
-                                            :"api/v2/config_groups" => [:index, :show],
-                                          }
-    map.permission :create_config_groups,  {:config_groups => [:new, :create],
-                                            :"api/v2/config_groups" => [:create],
-                                          }
-    map.permission :edit_config_groups,    {:config_groups => [:edit, :update],
-                                            :"api/v2/config_groups" => [:update],
-                                          }
-    map.permission :destroy_config_groups, {:config_groups => [:destroy],
-                                            :"api/v2/config_groups" => [:destroy],
-                                          }
-  end
-
   permission_set.security_block :hosts do |map|
-    ajax_actions = [:architecture_selected, :compute_resource_selected, :domain_selected, :environment_selected,
-                    :hostgroup_or_environment_selected, :medium_selected, :os_selected, :use_image_selected, :process_hostgroup,
-                    :process_taxonomy, :current_parameters, :puppetclass_parameters, :template_used, :interfaces, :scheduler_hint_selected,
+    ajax_actions = [:architecture_selected, :compute_resource_selected, :domain_selected,
+                    :medium_selected, :os_selected, :use_image_selected, :process_hostgroup,
+                    :process_taxonomy, :current_parameters, :template_used, :interfaces, :scheduler_hint_selected,
                     :random_name]
     cr_ajax_actions = [:cluster_selected, :template_selected, :instance_type_selected, :provider_selected, :resource_pools]
-    pc_ajax_actions = [:parameters]
     subnets_ajax_actions = [:freeip]
     tasks_ajax_actions = [:show]
 
     map.permission :view_hosts,    {:hosts => [:index, :show, :errors, :active, :out_of_sync, :disabled, :pending, :vm,
-                                               :externalNodes, :pxe_config, :auto_complete_search, :bmc, :build_errors,
-                                               :runtime, :resources, :templates, :overview, :nics, :get_power_state, :preview_host_collection, :welcome],
+                                               :pxe_config, :auto_complete_search, :bmc, :build_errors, :runtime, :resources,
+                                               :templates, :overview, :nics, :get_power_state, :preview_host_collection, :welcome, :statuses],
                                     :dashboard => [:OutOfSync, :errors, :active],
                                     :unattended => [:host_template, :hostgroup_template],
                                      :"api/v2/hosts" => [:index, :show, :get_status, :vm_compute_attributes, :template, :enc],
                                      :"api/v2/interfaces" => [:index, :show],
+                                     :"api/v2/host_statuses" => [:index],
                                      :locations =>  [:mismatches],
                                      :organizations =>  [:mismatches],
                                   }
     map.permission :create_hosts,  {:hosts => [:new, :create, :clone].push(*ajax_actions),
                                     :compute_resources_vms => [:import],
                                     :compute_resources => cr_ajax_actions,
-                                    :puppetclasses => pc_ajax_actions,
                                     :subnets => subnets_ajax_actions,
                                     :interfaces => [:new, :random_name],
-                                    :registration => [:new, :create],
+                                    :registration_commands => [:form_data, :operatingsystem_template, :create],
                                      :"api/v2/hosts" => [:create],
                                      :"api/v2/interfaces" => [:create],
                                      :"api/v2/tasks" => [:index],
+                                     :"api/v2/registration_commands" => [:create],
                                      :"api/v2/registration" => [:global, :host],
                                   }
     map.permission :edit_hosts,    {:hosts => [:edit, :update, :multiple_actions, :reset_multiple, :submit_multiple_enable,
-                                               :select_multiple_hostgroup, :select_multiple_environment, :submit_multiple_disable,
-                                               :multiple_parameters, :multiple_disable, :multiple_enable, :update_multiple_environment,
+                                               :select_multiple_hostgroup, :submit_multiple_disable,
+                                               :multiple_parameters, :multiple_disable, :multiple_enable,
                                                :update_multiple_hostgroup, :update_multiple_parameters, :toggle_manage,
                                                :select_multiple_organization, :update_multiple_organization,
                                                :disassociate, :multiple_disassociate, :update_multiple_disassociate,
                                                :select_multiple_owner, :update_multiple_owner, :forget_status,
                                                :select_multiple_power_state, :update_multiple_power_state,
-                                               :select_multiple_puppet_proxy, :update_multiple_puppet_proxy,
                                                :select_multiple_puppet_ca_proxy, :update_multiple_puppet_ca_proxy,
                                                :select_multiple_location, :update_multiple_location].push(*ajax_actions),
                                     :compute_resources => [:associate].push(cr_ajax_actions),
                                     :compute_resources_vms => [:associate],
-                                    :puppetclasses => pc_ajax_actions,
                                     :subnets => subnets_ajax_actions,
                                     :interfaces => [:new, :random_name],
                                     :"api/v2/hosts" => [:update, :disassociate, :forget_status],
@@ -350,9 +290,6 @@ Foreman::AccessControl.map do |permission_set|
   end
 
   permission_set.security_block :host_editing do |map|
-    map.permission :edit_classes, { :host_editing => [:edit_classes],
-                                    :"api/v2/host_classes" => [:index, :create, :destroy],
-                                }
     map.permission :view_params, { :host_editing => [:view_params],
                                    :parameters => [:index, :auto_complete_search],
                                    :common_parameters => [:index, :show, :auto_complete_search, :welcome],
@@ -485,29 +422,6 @@ Foreman::AccessControl.map do |permission_set|
                                       }
   end
 
-  permission_set.security_block :puppetclasses do |map|
-    map.permission :view_puppetclasses,    {:puppetclasses => [:index, :show, :auto_complete_search],
-                                          :"api/v2/puppetclasses" => [:index, :show],
-                                          :"api/v2/smart_variables" => [:index, :show],
-                                          :"api/v2/smart_class_parameters" => [:index, :show],
-                                        }
-    map.permission :create_puppetclasses,  {:puppetclasses => [:new, :create],
-                                          :"api/v2/puppetclasses" => [:create],
-                                        }
-    map.permission :edit_puppetclasses,    {:puppetclasses => [:edit, :update, :override],
-                                          :"api/v2/puppetclasses" => [:update],
-                                          :"api/v2/smart_variables" => [:create, :update, :destroy],
-                                          :"api/v2/smart_class_parameters" => [:create, :update, :destroy],
-                                        }
-    map.permission :destroy_puppetclasses, {:puppetclasses => [:destroy],
-                                          :"api/v2/puppetclasses" => [:destroy],
-                                        }
-    map.permission :import_puppetclasses,  {:puppetclasses => [:import_environments, :obsolete_and_new],
-                                           :"api/v2/environments" => [:import_puppetclasses],
-                                           :"api/v2/smart_proxies" => [:import_puppetclasses],
-                                            }
-  end
-
   permission_set.security_block :report_templates do |map|
     map.permission :view_report_templates, {:report_templates => [:index, :show, :auto_complete_search, :revision, :preview, :welcome, :export],
                                    :"api/v2/report_templates" => [:index, :show, :revision, :export],
@@ -543,8 +457,8 @@ Foreman::AccessControl.map do |permission_set|
 
   permission_set.security_block :smart_proxies do |map|
     map.permission :view_smart_proxies,    {:smart_proxies => [:index, :ping, :auto_complete_search, :version,
-                                                               :show, :plugin_version, :tftp_server, :puppet_environments,
-                                                               :puppet_dashboard, :log_pane, :failed_modules, :errors_card,
+                                                               :show, :plugin_version, :tftp_server,
+                                                               :log_pane, :failed_modules, :errors_card,
                                                                :modules_card, :welcome],
                                           :"api/v2/smart_proxies" => [:index, :show, :version, :logs],
     }
@@ -677,10 +591,6 @@ Foreman::AccessControl.map do |permission_set|
     map.permission :view_audit_logs, {:audits      => [:index, :show, :auto_complete_search],
                                        :"api/v2/audits" => [:index, :show],
     }
-  end
-
-  permission_set.security_block :tasks do |map|
-    map.permission :view_tasks, {:trends => [:show]}
   end
 
   permission_set.security_block :plugins do |map|

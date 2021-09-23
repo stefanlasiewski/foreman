@@ -29,7 +29,8 @@ export const getLineChartConfig = ({
   if (config === 'timeseries' && xAxisDataLabel) {
     chartConfig.data.x = xAxisDataLabel;
   } else if (config === 'timeseries' && !xAxisDataLabel) {
-    throw new Error('xAxisDataLabel is missing for timeseries line graph');
+    // eslint-disable-next-line no-console
+    console.warn('xAxisDataLabel is missing for timeseries line graph');
   }
 
   chartConfig.axis = { ...chartConfig.axis, ...axisOpts };

@@ -3,8 +3,10 @@ kind: finish
 name: Kickstart default finish
 model: ProvisioningTemplate
 oses:
+- AlmaLinux
 - CentOS
 - Fedora
+- Rocky
 %>
   <%#
   This template accepts the following parameters:
@@ -15,18 +17,23 @@ oses:
   - package_upgrade: boolean (default=true)
   - salt_master: string (default=undef)
   %>
-<% if @host.subnet.respond_to?(:dhcp_boot_mode?) -%>
-<%= snippet 'kickstart_networking_setup' %>
-service network restart
-<% end -%>
-
 <%
   rhel_compatible = @host.operatingsystem.family == 'Redhat' && @host.operatingsystem.name != 'Fedora'
-  pm_set = @host.puppetmaster.empty? ? false : true
-  puppet_enabled = pm_set || host_param_true?('force-puppet')
+  os_major = @host.operatingsystem.major.to_i
+  puppet_enabled = host_puppet_server.present? || host_param_true?('force-puppet')
   salt_enabled = host_param('salt_master') ? true : false
   chef_enabled = @host.respond_to?(:chef_proxy) && @host.chef_proxy
 %>
+
+<%= snippet_if_exists(template_name + " custom pre") -%>
+<% if @host.subnet.respond_to?(:dhcp_boot_mode?) -%>
+<%= snippet 'kickstart_networking_setup' %>
+<% if (rhel_compatible && os_major >= 8) -%>
+systemctl restart NetworkManager
+<% else -%>
+service network restart
+<% end -%>
+<% end -%>
 
 <% if @host.provision_method == 'image' && root_pass.present? -%>
 # Install the root password
@@ -37,7 +44,7 @@ echo 'root:<%= root_pass -%>' | /usr/sbin/chpasswd -e
 
 <%= snippet 'ntp' %>
 
-<% if rhel_compatible && !host_param_false?('enable-epel') -%>
+<% if rhel_compatible && host_param_true?('enable-epel') -%>
 <%= snippet 'epel' -%>
 <% end -%>
 
@@ -60,6 +67,7 @@ fi
 
 <%= snippet "blacklist_kernel_modules" %>
 
+<%= snippet_if_exists(template_name + " custom post") -%>
 <% if chef_enabled %>
 <%= snippet 'chef_client' %>
 <% end -%>
@@ -77,6 +85,7 @@ fi
 
 <% if host_param_true?('ansible_tower_provisioning') -%>
 <%= save_to_file('/root/ansible_provisioning_call.sh', snippet('ansible_tower_callback_script')) %>
+chmod +x /root/ansible_provisioning_call.sh
 /root/ansible_provisioning_call.sh
 <% end -%>
 

@@ -7,17 +7,6 @@ import store from './react_app/redux';
 import * as LayoutActions from './react_app/components/Layout/LayoutActions';
 import { deprecate } from './react_app/common/DeprecationService';
 
-window.Turbolinks = {
-  visit: url => {
-    deprecate(
-      'Turbolinks.visit',
-      'react router or visit(<url>) method, or legacy tfm.nav.visit(<url>)',
-      '2.1'
-    );
-    visit(url);
-  },
-};
-
 export const visit = url => {
   window.location.href = url;
 };
@@ -45,11 +34,11 @@ export const hideLoading = () => {
 };
 
 export const changeLocation = loc => {
-  store.dispatch(LayoutActions.changeLocation(loc));
+  deprecate('changeLocation', 'Context', '2.6');
 };
 
 export const changeOrganization = org => {
-  store.dispatch(LayoutActions.changeOrganization(org));
+  deprecate('changeOrganization', 'Context', '2.6');
 };
 
 export const changeActive = active => {

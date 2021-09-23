@@ -6,9 +6,6 @@ Foreman::Application.routes.draw do
     end
   end
 
-  # ENC requests goes here
-  get "node/:name" => 'hosts#externalNodes', :constraints => { name: /[^\.][\w\.-]+/ }
-
   resources :config_reports, only: [:index, :show, :destroy] do
     collection do
       get 'auto_complete_search'
@@ -22,22 +19,17 @@ Foreman::Application.routes.draw do
     'common_parameters',
     'compute_profiles',
     'compute_resources',
-    'config_groups',
     'config_reports',
     'domains',
-    'environments',
     'fact_values',
     'hostgroups',
     'hosts',
     'http_proxies',
-    'locations',
     'media',
     'models',
     'operatingsystems',
-    'organizations',
     'provisioning_templates',
     'ptables',
-    'puppetclass_lookup_keys',
     'realms',
     'report_templates',
     'smart_proxies',
@@ -53,14 +45,12 @@ Foreman::Application.routes.draw do
     resources :hosts do
       member do
         get 'clone'
-        get 'externalNodes'
         get 'review_before_build'
         put 'setBuild'
         get 'cancelBuild'
         get 'build_errors'
         get 'pxe_config'
         put 'toggle_manage'
-        post 'environment_selected'
         put 'power'
         get 'console'
         get 'overview'
@@ -71,6 +61,7 @@ Foreman::Application.routes.draw do
         get 'templates'
         get 'nics'
         post 'forget_status'
+        get 'statuses'
         put 'ipmi_boot'
         put 'disassociate'
       end
@@ -80,14 +71,10 @@ Foreman::Application.routes.draw do
         post 'update_multiple_parameters'
         post 'select_multiple_hostgroup'
         post 'update_multiple_hostgroup'
-        post 'select_multiple_environment'
-        post 'update_multiple_environment'
         post 'select_multiple_owner'
         post 'update_multiple_owner'
         post 'select_multiple_power_state'
         post 'update_multiple_power_state'
-        post 'select_multiple_puppet_proxy'
-        post 'update_multiple_puppet_proxy'
         post 'select_multiple_puppet_ca_proxy'
         post 'update_multiple_puppet_ca_proxy'
         post 'multiple_destroy'
@@ -109,10 +96,8 @@ Foreman::Application.routes.draw do
         get 'errors'
         get 'disabled'
         post 'current_parameters'
-        post 'puppetclass_parameters'
         post 'process_hostgroup'
         post 'process_taxonomy'
-        post 'hostgroup_or_environment_selected'
         post 'architecture_selected'
         post 'os_selected'
         post 'domain_selected'
@@ -130,14 +115,15 @@ Foreman::Application.routes.draw do
         get 'random_name', only: :new
         get 'preview_host_collection'
 
-        get 'register', to: 'registration#new'
-        post 'register', to: 'registration#create'
+        get 'register' => 'react#index'
+        post 'register', to: 'registration_commands#create'
+        get 'register/data', to: 'registration_commands#form_data'
+        get 'register/os/:id', to: 'registration_commands#operatingsystem_template'
       end
 
       constraints(host_id: /[^\/]+/) do
         resources :config_reports, only: [:index, :show]
         resources :facts, only: :index, controller: :fact_values
-        resources :puppetclasses, only: :index
 
         get 'parent_facts/*parent_fact/facts', to: 'fact_values#index', as: 'parent_fact_facts', parent_fact: /[\/\w.:_-]+/
       end
@@ -146,15 +132,6 @@ Foreman::Application.routes.draw do
     resources :bookmarks, except: [:show, :new, :create] do
       collection do
         get 'auto_complete_search'
-      end
-    end
-
-    [:lookup_keys, :puppetclass_lookup_keys].each do |key|
-      resources key, except: [:show, :new, :create] do
-        resources :lookup_values, only: [:index, :create, :update, :destroy]
-        collection do
-          get 'auto_complete_search'
-        end
       end
     end
 
@@ -183,13 +160,6 @@ Foreman::Application.routes.draw do
       get 'auto_complete_search'
     end
   end
-  resources :environments, except: [:show] do
-    collection do
-      get 'import_environments'
-      post 'obsolete_and_new'
-      get 'auto_complete_search'
-    end
-  end
 
   resources :compute_profiles do
     collection do
@@ -208,34 +178,12 @@ Foreman::Application.routes.draw do
     end
     collection do
       get 'auto_complete_search'
-      post 'environment_selected'
       post 'architecture_selected'
       post 'os_selected'
       post 'domain_selected'
       post 'use_image_selected'
       post 'medium_selected'
       post 'process_hostgroup'
-      post 'puppetclass_parameters'
-    end
-  end
-
-  resources :config_groups, except: [:show] do
-    get 'auto_complete_search', on: :collection
-  end
-
-  resources :puppetclasses, except: [:new, :create, :show] do
-    collection do
-      get 'import_environments'
-      post 'obsolete_and_new'
-      get 'auto_complete_search'
-    end
-    member do
-      post 'parameters'
-      post 'override'
-    end
-    constraints(id: /[^\/]+/) do
-      resources :hosts
-      resources :lookup_keys, except: [:show, :new, :create]
     end
   end
 
@@ -246,8 +194,6 @@ Foreman::Application.routes.draw do
       get 'version'
       get 'plugin_version'
       get 'tftp_server'
-      get 'puppet_environments'
-      get 'puppet_dashboard'
       get 'log_pane'
       get 'failed_modules'
       get 'errors_card'
@@ -597,6 +543,7 @@ Foreman::Application.routes.draw do
     mount GraphiQL::Rails::Engine, at: '/graphiql', graphql_path: '/api/graphql'
   end
 
+  match 'host_statuses' => 'react#index', :via => :get
   match 'host_wizard' => 'react#index', :via => :get
   constraints(id: /[^\/]+/) do
     match 'experimental/hosts/:id' => 'react#index', :via => :get, :as => :host_details_page

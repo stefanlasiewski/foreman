@@ -13,22 +13,6 @@ module Queries
           updatedAt
           name
           title
-          environments {
-            totalCount
-            edges {
-              node {
-                id
-              }
-            }
-          }
-          puppetclasses {
-            totalCount
-            edges {
-              node {
-                id
-              }
-            }
-          }
           hosts {
             totalCount
             edges {
@@ -42,17 +26,12 @@ module Queries
       GRAPHQL
     end
 
-    let(:environment) { FactoryBot.create(:environment) }
     let(:hosts) { FactoryBot.create_list(:host, 2) }
-    let(:location_object) { FactoryBot.create(:location, hosts: hosts, environments: [environment]) }
+    let(:location_object) { FactoryBot.create(:location, hosts: hosts) }
 
     let(:global_id) { Foreman::GlobalId.for(location_object) }
     let(:variables) { { id: global_id } }
     let(:data) { result['data']['location'] }
-
-    setup do
-      FactoryBot.create(:puppetclass, :environments => [environment])
-    end
 
     test 'fetching location attributes' do
       assert_empty result['errors']
@@ -63,8 +42,6 @@ module Queries
       assert_equal location_object.name, data['name']
       assert_equal location_object.title, data['title']
 
-      assert_collection location_object.environments, data['environments']
-      assert_collection location_object.puppetclasses, data['puppetclasses']
       assert_collection location_object.hosts, data['hosts'], type_name: 'Host'
     end
   end

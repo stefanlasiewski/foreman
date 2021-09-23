@@ -5,7 +5,7 @@ class HostIntegrationTest < ActionDispatch::IntegrationTest
   include HostFinders
 
   before do
-    as_admin { @host = FactoryBot.create(:host, :with_puppet, :managed) }
+    as_admin { @host = FactoryBot.create(:host, :managed) }
   end
 
   test "index page with search" do
@@ -34,23 +34,9 @@ class HostIntegrationTest < ActionDispatch::IntegrationTest
   end
 
   describe 'edit page' do
-    test 'correctly show hash type overrides' do
-      host = FactoryBot.create(:host, :with_puppetclass)
-      FactoryBot.create(:puppetclass_lookup_key, :as_smart_class_param,
-        :with_override, :key_type => 'hash',
-                         :default_value => 'a: b', :path => "fqdn\ncomment",
-                         :puppetclass => host.puppetclasses.first,
-                         :overrides => { host.lookup_value_matcher => 'a: c' })
-
-      visit edit_host_path(host)
-      assert page.has_link?('Parameters', :href => '#params')
-      click_link 'Parameters'
-      assert_equal class_params.find("textarea").value, "a: c\n"
-    end
-
     test 'displays warning when vm not found by uuid' do
       ComputeResource.any_instance.stubs(:find_vm_by_uuid).raises(ActiveRecord::RecordNotFound)
-      host = FactoryBot.create(:host, :with_hostgroup, :with_environment, :on_compute_resource, :managed)
+      host = FactoryBot.create(:host, :with_hostgroup, :on_compute_resource, :managed)
 
       visit edit_host_path(host)
       assert page.has_link?('Operating System')
@@ -65,23 +51,9 @@ class HostIntegrationTest < ActionDispatch::IntegrationTest
   end
 
   describe 'clone page' do
-    test 'clones lookup values' do
-      host = FactoryBot.create(:host, :with_puppetclass)
-      lookup_key = FactoryBot.create(:puppetclass_lookup_key, :as_smart_class_param, :with_override,
-        :puppetclass => host.puppetclasses.first, :path => "fqdn\ncomment")
-      lookup_value = LookupValue.create(:value => 'abc', :match => host.lookup_value_matcher, :lookup_key_id => lookup_key.id)
-
-      visit clone_host_path(host)
-      assert page.has_link?('Parameters', :href => '#params')
-      click_link 'Parameters'
-      a = page.find("#host_lookup_values_attributes_#{lookup_key.id}_value")
-      assert_equal lookup_value.value, a.value
-    end
-
     test 'shows no errors on lookup values' do
-      host = FactoryBot.create(:host, :with_puppetclass)
-      FactoryBot.create(:puppetclass_lookup_key, :as_smart_class_param, :with_override, :path => "fqdn\ncomment",
-                         :puppetclass => host.puppetclasses.first, :overrides => {host.lookup_value_matcher => 'test'})
+      host = FactoryBot.create(:host)
+      FactoryBot.create(:lookup_key, :with_override, path: "fqdn\ncomment", overrides: { host.lookup_value_matcher => 'test' })
 
       visit clone_host_path(host)
       assert page.has_link?('Parameters', :href => '#params')

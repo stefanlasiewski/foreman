@@ -1,6 +1,7 @@
 # config/routes/api/v2.rb
 Foreman::Application.routes.draw do
   namespace :api, :defaults => {:format => 'json'} do
+    puppet_plugin = Foreman::Plugin.find(:foreman_puppet)
     # new v2 routes that point to v2
     scope "(:apiv)", :module => :v2, :defaults => {:apiv => 'v2'}, :apiv => /v2/, :constraints => ApiConstraints.new(:version => 2, :default => true) do
       resources :architectures, :except => [:new, :edit] do
@@ -58,19 +59,19 @@ Foreman::Application.routes.draw do
 
       resources :dashboard, :only => [:index]
 
-      resources :environments, :except => [:new, :edit] do
+      resources :environments, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/environments' do
         resources :locations, :only => [:index, :show]
         resources :organizations, :only => [:index, :show]
         resources :smart_proxies, :only => [] do
-          post :import_puppetclasses, :on => :member
+          post :import_puppetclasses, :on => :member, :controller => puppet_plugin && '/foreman_puppet/api/v2/environments'
         end
         constraints(:id => /[^\/]+/) do
-          resources :smart_class_parameters, :except => [:new, :edit, :create] do
-            resources :override_values, :except => [:new, :edit]
+          resources :smart_class_parameters, :except => [:new, :edit, :create], :controller => puppet_plugin && '/foreman_puppet/api/v2/smart_class_parameters' do
+            resources :override_values, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
           end
-          resources :puppetclasses, :except => [:new, :edit] do
-            resources :smart_class_parameters, :except => [:new, :edit, :create] do
-              resources :override_values, :except => [:new, :edit, :destroy]
+          resources :puppetclasses, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/puppetclasses' do
+            resources :smart_class_parameters, :except => [:new, :edit, :create], :controller => puppet_plugin && '/foreman_puppet/api/v2/smart_class_parameters' do
+              resources :override_values, :except => [:new, :edit, :destroy], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
             end
           end
         end
@@ -91,12 +92,12 @@ Foreman::Application.routes.draw do
           end
         end
         constraints(:id => /[^\/]+/) do
-          resources :smart_class_parameters, :except => [:new, :edit, :create] do
-            resources :override_values, :except => [:new, :edit]
+          resources :smart_class_parameters, :except => [:new, :edit, :create], :controller => puppet_plugin && '/foreman_puppet/api/v2/smart_class_parameters' do
+            resources :override_values, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
           end
         end
-        resources :puppetclasses, :except => [:new, :edit]
-        resources :hostgroup_classes, :path => :puppetclass_ids, :only => [:index, :create, :destroy]
+        resources :puppetclasses, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/puppetclasses'
+        resources :hostgroup_classes, :path => :puppetclass_ids, :only => [:index, :create, :destroy], :controller => puppet_plugin && '/foreman_puppet/api/v2/hostgroup_classes'
         resources :hosts, :except => [:new, :edit]
         resources :template_combinations, :only => [:show, :index, :create, :update]
       end
@@ -130,7 +131,7 @@ Foreman::Application.routes.draw do
         resources :media, :except => [:new, :edit]
         resources :ptables, :except => [:new, :edit]
         resources :architectures, :except => [:new, :edit]
-        resources :puppetclasses, :except => [:new, :edit]
+        resources :puppetclasses, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/puppetclasses'
         resources :os_default_templates, :except => [:new, :edit]
       end
 
@@ -204,11 +205,6 @@ Foreman::Application.routes.draw do
 
       resources :http_proxies, :except => [:new, :edit]
 
-      # TODO: remove in 2.4
-      statistics_plugin = Foreman::Plugin.find(:foreman_statistics)
-      resources :trends, :only => [:create, :index, :show, :destroy], :controller => statistics_plugin && '/foreman_statistics/api/v2/trends'
-      resources :statistics, :only => [:index], :controller => statistics_plugin && '/foreman_statistics/api/v2/statistics'
-
       resources :subnets, :except => [:new, :edit] do
         resources :locations, :only => [:index, :show]
         resources :organizations, :only => [:index, :show]
@@ -251,7 +247,7 @@ Foreman::Application.routes.draw do
       resources :template_kinds, :only => [:index]
 
       resources :template_combinations, :only => [:show, :destroy]
-      resources :config_groups, :except => [:new, :edit]
+      resources :config_groups, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/config_groups'
 
       resources :compute_attributes, :only => [:index, :show, :create, :update]
 
@@ -272,6 +268,7 @@ Foreman::Application.routes.draw do
           get :available_folders, :on => :member
           get :available_flavors, :on => :member
           get :available_networks, :on => :member
+          get :available_vnic_profiles, :on => :member
           get :available_security_groups, :on => :member
           get :available_storage_domains, :on => :member
           get 'storage_domains/(:storage_domain_id)', :to => 'compute_resources#storage_domain', :on => :member
@@ -280,12 +277,12 @@ Foreman::Application.routes.draw do
           get 'storage_pods/(:storage_pod_id)', :to => 'compute_resources#storage_pod', :on => :member
           get 'available_virtual_machines/(:vm_id)', :to => 'compute_resources#show_vm', :on => :member
           get 'available_storage_pods/(:storage_pod)', :to => 'compute_resources#available_storage_pods', :on => :member
-          get 'available_clusters/(:cluster_id)/available_networks', :to => 'compute_resources#available_networks', :on => :member
-          get 'available_clusters/(:cluster_id)/available_resource_pools', :to => 'compute_resources#available_resource_pools', :on => :member
-          get 'available_clusters/(:cluster_id)/available_storage_domains', :to => 'compute_resources#available_storage_domains', :on => :member
-          get 'available_clusters/(:cluster_id)/available_storage_pods', :to => 'compute_resources#available_storage_pods', :on => :member
+          get 'available_clusters/(:cluster_id)/available_networks', :to => 'compute_resources#available_networks', :on => :member, :cluster_id => /[^\/]+/
+          get 'available_clusters/(:cluster_id)/available_resource_pools', :to => 'compute_resources#available_resource_pools', :on => :member, :cluster_id => /[^\/]+/
+          get 'available_clusters/(:cluster_id)/available_storage_domains', :to => 'compute_resources#available_storage_domains', :on => :member, :cluster_id => /[^\/]+/
+          get 'available_clusters/(:cluster_id)/available_storage_pods', :to => 'compute_resources#available_storage_pods', :on => :member, :cluster_id => /[^\/]+/
           get :available_zones, :on => :member
-          put :associate, :on => :member
+          put 'associate/(:vm_id)', :to => 'compute_resources#associate', :on => :member
           put :refresh_cache, :on => :member
           put 'available_virtual_machines/(:vm_id)/power', :to => 'compute_resources#power_vm', :on => :member
           delete 'available_virtual_machines/(:vm_id)', :to => 'compute_resources#destroy_vm', :on => :member
@@ -325,9 +322,9 @@ Foreman::Application.routes.draw do
           put :refresh, :on => :member
           get :version, :on => :member
           get :logs, :on => :member
-          post :import_puppetclasses, :on => :member
+          post :import_puppetclasses, :on => :member, :controller => puppet_plugin && '/foreman_puppet/api/v2/environments'
           resources :environments, :only => [] do
-            post :import_puppetclasses, :on => :member
+            post :import_puppetclasses, :on => :member, :controller => puppet_plugin && '/foreman_puppet/api/v2/environments'
           end
           resources :autosign, :only => [:index, :create, :destroy]
         end
@@ -345,41 +342,41 @@ Foreman::Application.routes.draw do
           post :facts, :on => :collection
           resources :audits, :only => :index
           resources :facts, :only => :index, :controller => :fact_values
-          resources :host_classes, :path => :puppetclass_ids, :only => [:index, :create, :destroy]
+          resources :host_classes, :path => :puppetclass_ids, :only => [:index, :create, :destroy], :controller => puppet_plugin && '/foreman_puppet/api/v2/host_classes'
           resources :interfaces, :except => [:new, :edit]
           resources :parameters, :except => [:new, :edit] do
             collection do
               delete '/', :action => :reset
             end
           end
-          resources :puppetclasses, :except => [:new, :edit]
+          resources :puppetclasses, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/puppetclasses'
 
           resources :config_reports, :only => [:index, :show] do
             get :last, :on => :collection
           end
-          resources :smart_class_parameters, :except => [:new, :edit, :create] do
-            resources :override_values, :except => [:new, :edit]
+          resources :smart_class_parameters, :except => [:new, :edit, :create], :controller => puppet_plugin && '/foreman_puppet/api/v2/smart_class_parameters' do
+            resources :override_values, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
           end
         end
 
-        resources :puppetclasses, :except => [:new, :edit] do
-          resources :smart_class_parameters, :except => [:new, :edit, :create] do
-            resources :override_values, :except => [:new, :edit, :destroy]
+        resources :puppetclasses, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/puppetclasses' do
+          resources :smart_class_parameters, :except => [:new, :edit, :create], :controller => puppet_plugin && '/foreman_puppet/api/v2/smart_class_parameters' do
+            resources :override_values, :except => [:new, :edit, :destroy], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
           end
           resources :environments, :only => [] do
-            resources :smart_class_parameters, :except => [:new, :edit, :create] do
-              resources :override_values, :except => [:new, :edit, :destroy]
+            resources :smart_class_parameters, :except => [:new, :edit, :create], :controller => puppet_plugin && '/foreman_puppet/api/v2/smart_class_parameters' do
+              resources :override_values, :except => [:new, :edit, :destroy], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
             end
           end
           resources :hostgroups, :only => [:index, :show]
-          resources :environments, :only => [:index, :show]
+          resources :environments, :only => [:index, :show], :controller => puppet_plugin && '/foreman_puppet/api/v2/environments'
         end
 
-        resources :smart_class_parameters, :except => [:new, :edit, :create, :destroy] do
-          resources :override_values, :except => [:new, :edit]
+        resources :smart_class_parameters, :except => [:new, :edit, :create, :destroy], :controller => puppet_plugin && '/foreman_puppet/api/v2/smart_class_parameters' do
+          resources :override_values, :except => [:new, :edit], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
         end
 
-        resources :override_values, :only => [:update, :destroy]
+        resources :override_values, :only => [:update, :destroy], :controller => puppet_plugin && '/foreman_puppet/api/v2/override_values'
       end
 
       resources :locations, :except => [:new, :edit] do
@@ -391,7 +388,7 @@ Foreman::Application.routes.draw do
         resources :realms, :only => [:index, :show]
         resources :subnets, :only => [:index, :show]
         resources :hostgroups, :only => [:index, :show]
-        resources :environments, :only => [:index, :show]
+        resources :environments, :only => [:index, :show], :controller => puppet_plugin && '/foreman_puppet/api/v2/environments'
         resources :users, :only => [:index, :show]
         resources :provisioning_templates, :only => [:index, :show]
         resources :ptables, :only => [:index, :show]
@@ -416,7 +413,7 @@ Foreman::Application.routes.draw do
           resources :realms, :only => [:index, :show]
           resources :subnets, :only => [:index, :show]
           resources :hostgroups, :only => [:index, :show]
-          resources :environments, :only => [:index, :show]
+          resources :environments, :only => [:index, :show], :controller => puppet_plugin && '/foreman_puppet/api/v2/environments'
           resources :users, :only => [:index, :show]
           resources :provisioning_templates, :only => [:index, :show]
           resources :ptables, :only => [:index, :show]
@@ -438,7 +435,7 @@ Foreman::Application.routes.draw do
         resources :realms, :only => [:index, :show]
         resources :subnets, :only => [:index, :show]
         resources :hostgroups, :only => [:index, :show]
-        resources :environments, :only => [:index, :show]
+        resources :environments, :only => [:index, :show], :controller => puppet_plugin && '/foreman_puppet/api/v2/environments'
         resources :users, :only => [:index, :show]
         resources :provisioning_templates, :only => [:index, :show]
         resources :ptables, :only => [:index, :show]
@@ -481,6 +478,8 @@ Foreman::Application.routes.draw do
       get 'ping', :to => 'ping#ping'
       get 'statuses', :to => 'ping#statuses'
       put 'auth_source_ldaps/(:id)/test', :to => 'auth_source_ldaps#test'
+      post 'registration_commands', to: 'registration_commands#create'
+      get 'host_statuses', :to => 'host_statuses#index'
     end
   end
 end

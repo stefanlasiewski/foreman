@@ -9,6 +9,7 @@ class ActiveSupport::TestCase
   setup :begin_gc_deferment
   setup :reset_rails_cache
   setup :skip_if_plugin_asked_to
+  setup :load_settings
   setup :set_admin
 
   teardown :reconsider_gc_deferment
@@ -41,6 +42,10 @@ class ActiveSupport::TestCase
     end
   end
 
+  def load_settings
+    Foreman.settings.load
+  end
+
   def set_admin
     User.current = users(:admin)
   end
@@ -66,7 +71,7 @@ class ActiveSupport::TestCase
   alias_method :assert_raise,       :assert_raises
   alias_method :assert_include,     :assert_includes
   alias_method :assert_not_include, :assert_not_includes
-  class <<self
+  class << self
     alias_method :context, :describe
   end
 
@@ -167,7 +172,6 @@ class ActiveSupport::TestCase
   def stub_smart_proxy_v2_features_and_statuses
     stub_smart_proxy_v2_features
     ProxyStatus::Version.any_instance.stubs(:version).returns({'version' => '1.11', 'modules' => {'dhcp' => '1.11'}})
-    ProxyStatus::Puppet.any_instance.stubs(:environment_stats).returns({})
     ProxyStatus::PuppetCA.any_instance.stubs(:certs).returns([])
     ProxyStatus::PuppetCA.any_instance.stubs(:autosign).returns([])
     ProxyStatus::TFTP.any_instance.stubs(:server).returns('192.0.0.1')

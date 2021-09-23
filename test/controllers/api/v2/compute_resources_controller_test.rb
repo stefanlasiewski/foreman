@@ -340,9 +340,27 @@ class Api::V2::ComputeResourcesControllerTest < ActionController::TestCase
     vm2.expects(:identity).at_least_once.returns(uuid)
     vms = [mock('vm1', :identity => host_cr.uuid), vm2]
     ComputeResource.any_instance.expects(:vms).returns(vms)
-
     Foreman::Model::EC2.any_instance.expects(:associated_host).returns(host_bm)
     put :associate, params: { :id => host_cr.compute_resource.to_param }
+    assert_response :success
+
+    hosts = ActiveSupport::JSON.decode(@response.body)
+    assert_equal [host_bm.id], hosts['results'].map { |h| h['id'] }
+    assert_equal uuid, host_bm.reload.uuid
+    assert_equal host_cr.compute_resource.id, host_bm.compute_resource_id
+    assert host_bm.compute?
+  end
+
+  test "should associate hosts that match to a specific vm" do
+    host_cr = FactoryBot.create(:host, :on_compute_resource)
+    host_bm = FactoryBot.create(:host)
+
+    uuid = Foreman.uuid
+    vm2 = mock('vm2')
+    vm2.expects(:identity).at_least_once.returns(uuid)
+    Foreman::Model::EC2.any_instance.expects(:associated_host).returns(host_bm)
+    Foreman::Model::EC2.any_instance.expects(:find_vm_by_uuid).returns(vm2)
+    put :associate, params: { :id => host_cr.compute_resource.id, :vm_id => uuid }
     assert_response :success
 
     hosts = ActiveSupport::JSON.decode(@response.body)
@@ -366,6 +384,16 @@ class Api::V2::ComputeResourcesControllerTest < ActionController::TestCase
     assert_response :success
     cr.reload
     assert_equal 1, cr.attrs[:setpw]
+  end
+
+  test "should update compute attribute datacenter for VMware compute resource" do
+    cr = FactoryBot.create(:vmware_cr)
+    FactoryBot.create(:compute_attribute, compute_resource: cr)
+    attrs = { :provider => 'Vmware', :datacenter => 'Solutions' }
+    put :update, params: { :id => cr.id, :compute_resource => attrs }
+    assert_response :success
+    cr.reload
+    assert_equal '/Datacenters/Solutions/vm', cr.compute_attributes.first.vm_attrs['path']
   end
 
   test "should not update set_console_password to true for non-VMware or non-Libvirt compute resource" do

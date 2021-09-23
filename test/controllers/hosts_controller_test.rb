@@ -39,12 +39,12 @@ class HostsControllerTest < ActionController::TestCase
   end
 
   test "should get csv index with data" do
-    host = FactoryBot.create(:host, :with_hostgroup, :with_environment, :on_compute_resource, :with_reports)
+    host = FactoryBot.create(:host, :with_hostgroup, :on_compute_resource, :with_reports)
     get :index, params: { :format => 'csv', :search => "name = #{host.name}" }, session: set_session_user
     assert_response :success
     buf = response.stream.instance_variable_get(:@buf)
-    assert_equal "Name,Operatingsystem,Environment,Compute Resource Or Model,Hostgroup,Last Report\n", buf.next
-    assert_equal "#{host.name},#{host.operatingsystem},#{host.environment},#{host.compute_resource.name},#{host.hostgroup},#{host.last_report}\n", buf.next
+    assert_equal "Name,Operatingsystem,Compute Resource Or Model,Hostgroup,Last Report\n", buf.next
+    assert_equal "#{host.name},#{host.operatingsystem},#{host.compute_resource.name},#{host.hostgroup},#{host.last_report}\n", buf.next
     assert_raises StopIteration do
       buf.next
     end
@@ -90,13 +90,11 @@ class HostsControllerTest < ActionController::TestCase
           :domain_id => domains(:mydomain).id,
           :operatingsystem_id => operatingsystems(:redhat).id,
           :architecture_id => architectures(:x86_64).id,
-          :environment_id => environments(:production).id,
           :subnet_id => subnets(:one).id,
           :medium_id => media(:one).id,
           :pxe_loader => "Grub2 UEFI",
           :realm_id => realms(:myrealm).id,
           :disk => "empty partition",
-          :puppet_proxy_id => smart_proxies(:puppetmaster).id,
           :root_pass => "xybxa6JUkz63w",
           :location_id => taxonomies(:location1).id,
           :organization_id => taxonomies(:organization1).id,
@@ -120,7 +118,6 @@ class HostsControllerTest < ActionController::TestCase
         :domain_id => domains(:mydomain).id,
         :operatingsystem_id => operatingsystems(:redhat).id,
         :architecture_id => architectures(:x86_64).id,
-        :environment_id => environments(:production).id,
         :subnet_id => subnets(:one).id,
         :medium_id => media(:one).id,
         :pxe_loader => "Grub2 UEFI",
@@ -186,8 +183,6 @@ class HostsControllerTest < ActionController::TestCase
     end
     as_admin do
       new_host = Host.search_for('myotherfullhost').first
-      assert new_host.environment.present?
-      assert_equal hostgroup.environment, new_host.environment
       assert new_host.puppet_proxy.present?
       assert_equal hostgroup.puppet_proxy, new_host.puppet_proxy
     end
@@ -223,38 +218,6 @@ class HostsControllerTest < ActionController::TestCase
       delete :destroy, params: { :id => @host.name }, session: set_session_user
     end
     assert_redirected_to hosts_url
-  end
-
-  test "externalNodes should render correctly when format text/html is given" do
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name }, session: set_session_user
-    assert_response :success
-    as_admin { @enc = @host.info.to_yaml }
-    assert_equal "<pre>#{ERB::Util.html_escape(@enc)}</pre>", response.body
-  end
-
-  test "externalNodes should render yml request correctly" do
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }, session: set_session_user
-    assert_response :success
-    as_admin { @enc = @host.info.deep_stringify_keys.to_yaml(:line_width => -1) }
-    assert_equal @enc, response.body
-  end
-
-  test "externalNodes should render YAML hashes correctly" do
-    HostInfoProviders::PuppetInfo.any_instance.expects(:classes_info_hash).returns(
-      'dhcp' => {
-        'bootfiles' => [
-          {'name' => 'foo', 'mount_point' => '/bar'}.with_indifferent_access,
-          {'name' => 'john', 'mount_point' => '/doe'}.with_indifferent_access,
-        ],
-      }
-    ).at_least_once
-
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }, session: set_session_user
-    assert_response :success
-    as_admin { @enc = @host.info.deep_stringify_keys.to_yaml }
-    assert_equal @enc, response.body
   end
 
   test "when host is not saved after setBuild, the flash should inform it" do
@@ -323,7 +286,7 @@ class HostsControllerTest < ActionController::TestCase
 
     test 'should render ajax_error when finding a vm has been faild' do
       ComputeResource.any_instance.stubs(:find_vm_by_uuid).raises(ActiveRecord::RecordNotFound)
-      host = FactoryBot.create(:host, :with_hostgroup, :with_environment, :on_compute_resource)
+      host = FactoryBot.create(:host, :with_hostgroup, :on_compute_resource)
       get :vm, params: { :id => host.id }, session: set_session_user
       expected_body = "<div class=\"alert alert-danger \">"\
                       "<span class=\"pficon pficon-error-circle-o \"></span>"\
@@ -520,57 +483,6 @@ class HostsControllerTest < ActionController::TestCase
     end
   end
 
-  def setup_multiple_environments
-    setup_user_and_host "edit"
-    as_admin do
-      @host1, @host2 = FactoryBot.create_list(:host, 2, :environment => environments(:production),
-                                               :organization => users(:one).organizations.first,
-                                               :location => users(:one).locations.first)
-    end
-  end
-
-  test "user with edit host rights with update environments should change environments" do
-    @request.env['HTTP_REFERER'] = hosts_path
-    setup_multiple_environments
-    assert @host1.environment == environments(:production)
-    assert @host2.environment == environments(:production)
-    post :update_multiple_environment, params: { :host_ids => [@host1.id, @host2.id],
-      :environment => { :id => environments(:global_puppetmaster).id} },
-      session: set_session_user.merge(:user => users(:admin).id)
-    as_admin do
-      assert_equal environments(:global_puppetmaster), @host1.reload.environment
-      assert_equal environments(:global_puppetmaster), @host2.reload.environment
-    end
-    assert_equal "Updated hosts: changed environment", flash[:success]
-  end
-
-  test "should inherit the hostgroup environment if *inherit from hostgroup* selected" do
-    @request.env['HTTP_REFERER'] = hosts_path
-    setup_multiple_environments
-    assert @host1.environment == environments(:production)
-    assert @host2.environment == environments(:production)
-
-    hostgroup = hostgroups(:common)
-    as_admin do
-      hostgroup.environment = environments(:global_puppetmaster)
-      hostgroup.save(:validate => false)
-
-      @host1.hostgroup = hostgroup
-      @host1.save(:validate => false)
-      @host2.hostgroup = hostgroup
-      @host2.save(:validate => false)
-    end
-
-    params = { :host_ids => [@host1.id, @host2.id],
-      :environment => { :id => 'inherit' } }
-
-    post :update_multiple_environment, params: params,
-      session: set_session_user.merge(:user => users(:admin).id)
-
-    assert_equal hostgroup.environment_id, Host.unscoped.find(@host1.id).environment_id
-    assert_equal hostgroup.environment_id, Host.unscoped.find(@host2.id).environment_id
-  end
-
   test "user with edit host rights with update owner should change owner" do
     @request.env['HTTP_REFERER'] = hosts_path
     setup_user_and_host "edit"
@@ -651,49 +563,6 @@ class HostsControllerTest < ActionController::TestCase
     end
   end
 
-  describe "setting puppet proxy on multiple hosts" do
-    before do
-      setup_user_and_host "edit"
-      as_admin do
-        @hosts = FactoryBot.create_list(:host, 2, :with_puppet)
-      end
-    end
-
-    test "should change the puppet proxy" do
-      @request.env['HTTP_REFERER'] = hosts_path
-
-      proxy = as_admin { FactoryBot.build(:puppet_smart_proxy) }
-
-      params = { :host_ids => @hosts.map(&:id),
-                 :proxy => { :proxy_id => proxy.id } }
-
-      post :update_multiple_puppet_proxy, params: params,
-        session: set_session_user.merge(:user => users(:admin).id)
-
-      assert_empty flash[:error]
-
-      @hosts.each do |host|
-        assert_nil host.reload.puppet_ca_proxy
-      end
-    end
-
-    test "should clear the puppet proxy of multiple hosts" do
-      @request.env['HTTP_REFERER'] = hosts_path
-
-      params = { :host_ids => @hosts.map(&:id),
-                 :proxy => { :proxy_id => "" } }
-
-      post :update_multiple_puppet_proxy, params: params,
-        session: set_session_user.merge(:user => users(:admin).id)
-
-      assert_empty flash[:error]
-
-      @hosts.each do |host|
-        assert_nil host.reload.puppet_ca_proxy
-      end
-    end
-  end
-
   describe "setting puppet ca proxy on multiple hosts" do
     before do
       setup_user_and_host "edit"
@@ -741,8 +610,16 @@ class HostsControllerTest < ActionController::TestCase
     end
   end
 
+  def setup_multiple_parameters
+    setup_user_and_host "edit"
+    as_admin do
+      @host1, @host2 = FactoryBot.create_list(:host, 2, organization: users(:one).organizations.first,
+                                                        location: users(:one).locations.first)
+    end
+  end
+
   test "user with edit host rights with update parameters should change parameters" do
-    setup_multiple_environments
+    setup_multiple_parameters
     param1 = HostParameter.create(:name => "p1", :value => "yo")
     param2 = HostParameter.create(:name => "p1", :value => "hi")
 
@@ -758,19 +635,13 @@ class HostsControllerTest < ActionController::TestCase
     assert Host.find(@host2.id).host_parameters[0][:value] == "hello"
   end
 
-  test "parameter details should be html escaped" do
+  test "hostgroup name should be html escaped" do
     hg = FactoryBot.build(:hostgroup, :name => "<script>alert('hacked')</script>")
-    host = FactoryBot.create(:host, :with_puppetclass, :hostgroup => hg)
-    FactoryBot.create(:puppetclass_lookup_key, :as_smart_class_param,
-      :override => true, :key_type => 'string',
-      :default_value => "<script>alert('hacked!');</script>",
-      :description => "<script>alert('hacked!');</script>",
-      :puppetclass => host.puppetclasses.first)
+    host = FactoryBot.create(:host, :hostgroup => hg)
     FactoryBot.create(:hostgroup_parameter, :hostgroup => hg)
     get :edit, params: { :id => host.name }, session: set_session_user
     refute response.body.include?("<script>alert(")
     assert response.body.include?("&lt;script&gt;alert(")
-    assert_equal 3, response.body.scan("&lt;script&gt;alert(").size
   end
 
   test "should get errors" do
@@ -930,159 +801,6 @@ class HostsControllerTest < ActionController::TestCase
     assert flash[:success] == _("Foreman now no longer manages the build cycle for %s") % @host.name
   end
 
-  test 'when ":restrict_registered_smart_proxies" is false, HTTP requests should be able to get externalNodes' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = false
-    SETTINGS[:require_ssl] = false
-
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_response :success
-  end
-
-  test 'hosts with a registered smart proxy on should get externalNodes successfully' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = false
-
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_response :success
-  end
-
-  test 'hosts without a registered smart proxy on should not be able to get externalNodes' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = false
-
-    Resolv.any_instance.stubs(:getnames).returns(['another.host'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_equal 403, @response.status
-  end
-
-  test 'hosts with a registered smart proxy and SSL cert should get externalNodes successfully' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-
-    @request.env['HTTPS'] = 'on'
-    @request.env['SSL_CLIENT_S_DN'] = 'CN=else.where'
-    @request.env['SSL_CLIENT_VERIFY'] = 'SUCCESS'
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_response :success
-  end
-
-  test 'hosts in trusted hosts list and SSL cert should get externalNodes successfully' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-    Setting[:trusted_hosts] = ['else.where']
-
-    @request.env['HTTPS'] = 'on'
-    @request.env['SSL_CLIENT_S_DN'] = 'CN=else.where'
-    @request.env['SSL_CLIENT_VERIFY'] = 'SUCCESS'
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_response :success
-  end
-
-  test 'hosts with comma-separated SSL DN should get externalNodes successfully' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-    Setting[:trusted_hosts] = ['foreman.example']
-
-    @request.env['HTTPS'] = 'on'
-    @request.env['SSL_CLIENT_S_DN'] = 'CN=foreman.example,OU=PUPPET,O=FOREMAN,ST=North Carolina,C=US'
-    @request.env['SSL_CLIENT_VERIFY'] = 'SUCCESS'
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_response :success
-  end
-
-  test 'hosts with slash-separated SSL DN should get externalNodes successfully' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-    Setting[:trusted_hosts] = ['foreman.linux.lab.local']
-
-    @request.env['HTTPS'] = 'on'
-    @request.env['SSL_CLIENT_S_DN'] = '/C=US/ST=NC/L=City/O=Example/OU=IT/CN=foreman.linux.lab.local/emailAddress=user@example.com'
-    @request.env['SSL_CLIENT_VERIFY'] = 'SUCCESS'
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_response :success
-  end
-
-  test 'hosts without a registered smart proxy but with an SSL cert should not be able to get externalNodes' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-
-    @request.env['HTTPS'] = 'on'
-    @request.env['SSL_CLIENT_S_DN'] = 'CN=another.host'
-    @request.env['SSL_CLIENT_VERIFY'] = 'SUCCESS'
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_equal 403, @response.status
-  end
-
-  test 'hosts with an unverified SSL cert should not be able to get externalNodes' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-
-    @request.env['HTTPS'] = 'on'
-    @request.env['SSL_CLIENT_S_DN'] = 'CN=else.where'
-    @request.env['SSL_CLIENT_VERIFY'] = 'FAILURE'
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_equal 403, @response.status
-  end
-
-  test 'when "require_ssl_smart_proxies" and "require_ssl" are true, HTTP requests should not be able to get externalNodes' do
-    User.current = nil
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-    SETTINGS[:require_ssl] = true
-
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_equal 403, @response.status
-  end
-
-  test 'when "require_ssl_smart_proxies" is true and "require_ssl" is false, HTTP requests should be able to get externalNodes' do
-    User.current = nil
-    # since require_ssl_smart_proxies is only applicable to HTTPS connections, both should be set
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-    SETTINGS[:require_ssl] = false
-
-    Resolv.any_instance.stubs(:getnames).returns(['else.where'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }
-    assert_response :success
-  end
-
-  test 'authenticated users over HTTP should be able to get externalNodes' do
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-    SETTINGS[:require_ssl] = false
-
-    Resolv.any_instance.stubs(:getnames).returns(['users.host'])
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }, session: set_session_user
-    assert_response :success
-  end
-
-  test 'authenticated users over HTTPS should be able to get externalNodes' do
-    Setting[:restrict_registered_smart_proxies] = true
-    Setting[:require_ssl_smart_proxies] = true
-    SETTINGS[:require_ssl] = false
-
-    Resolv.any_instance.stubs(:getnames).returns(['users.host'])
-    @request.env['HTTPS'] = 'on'
-    get :externalNodes, params: { :name => @host.name, :format => "yml" }, session: set_session_user
-    assert_response :success
-  end
-
   # Pessimistic - Location
   test "update multiple location fails on pessimistic import" do
     @request.env['HTTP_REFERER'] = hosts_path
@@ -1133,9 +851,7 @@ class HostsControllerTest < ActionController::TestCase
     @request.env['HTTP_REFERER'] = hosts_path
     location = taxonomies(:location1)
     domain = FactoryBot.create(:domain, :locations => [taxonomies(:location2)])
-    hosts = FactoryBot.create_list(:host, 2, :domain => domain,
-                                    :environment => environments(:production),
-                                    :location => taxonomies(:location2))
+    hosts = FactoryBot.create_list(:host, 2, :domain => domain, :location => taxonomies(:location2))
     assert_difference "location.taxable_taxonomies.count", 1 do
       post :update_multiple_location, params: {
         :location => {:id => location.id, :optimistic_import => "yes"},
@@ -1218,9 +934,7 @@ class HostsControllerTest < ActionController::TestCase
     @request.env['HTTP_REFERER'] = hosts_path
     organization = taxonomies(:organization1)
     domain = FactoryBot.create(:domain, :organizations => [taxonomies(:organization2)])
-    hosts = FactoryBot.create_list(:host, 2, :domain => domain,
-                                    :environment => environments(:production),
-                                    :organization => taxonomies(:organization2))
+    hosts = FactoryBot.create_list(:host, 2, :domain => domain, :organization => taxonomies(:organization2))
     assert_difference "organization.taxable_taxonomies.count", 1 do
       post :update_multiple_organization, params: {
         :organization => { :id => organization.id, :optimistic_import => "yes"},
@@ -1355,7 +1069,7 @@ class HostsControllerTest < ActionController::TestCase
 
   test "#host update shouldn't diassociate from VM" do
     require 'fog/ovirt/models/compute/quota'
-    hostgroup = FactoryBot.create(:hostgroup, :with_environment, :with_subnet, :with_domain, :with_os)
+    hostgroup = FactoryBot.create(:hostgroup, :with_subnet, :with_domain, :with_os)
     compute_resource = compute_resources(:ovirt)
     quota = Fog::Ovirt::Compute::Quota.new({ :id => '1', :name => "Default" })
     client_mock = mock.tap { |m| m.stubs(datacenters: [], quotas: [quota]) }
@@ -1408,6 +1122,7 @@ class HostsControllerTest < ActionController::TestCase
       ActiveRecord::Base.any_instance.expects(:destroy).never
       ActiveRecord::Base.any_instance.expects(:save).never
       @attrs = host_attributes(@host)
+      @attrs['hostgroup_id'] = hostgroups(:common).id
     end
 
     test 'returns templates with interfaces' do
@@ -1421,13 +1136,6 @@ class HostsControllerTest < ActionController::TestCase
     test 'returns templates with host parameters' do
       @attrs[:host_parameters_attributes] = {'0' => {:name => 'foo', :value => 'bar', :id => '34'}}
       put :template_used, params: {:provisioning => 'build', :host => @attrs }, session: set_session_user
-      assert_response :success
-      assert_template :partial => '_provisioning'
-    end
-
-    test 'does not save has_many relations on existing hosts' do
-      @attrs[:config_group_ids] = [config_groups(:one).id]
-      put :template_used, params: {:provisioning => 'build', :host => @attrs, :id => @host.id }, session: set_session_user, xhr: true
       assert_response :success
       assert_template :partial => '_provisioning'
     end
@@ -1527,7 +1235,7 @@ class HostsControllerTest < ActionController::TestCase
 
       assert_response :success
       assert_template :partial => '_form'
-      assert_select '#host_compute_attributes_cpus'
+      assert_select 'input', {:name => 'host[compute_attributes][cpus]'}
     end
 
     test '#process_hostgroup does not change compute attributes if compute profile selected manually' do
@@ -1551,21 +1259,21 @@ class HostsControllerTest < ActionController::TestCase
 
       assert_response :success
       assert_template :partial => '_form'
-      assert_select '#host_compute_attributes_cpus'
+      assert_select 'input', {:name => 'host[compute_attributes][cpus]'}
     end
 
     test '#compute_resource_selected renders compute tab without compute profile' do
       get :compute_resource_selected, params: { :host => {:compute_resource_id => compute_resources(:one).id}}, session: set_session_user, xhr: true
       assert_response :success
       assert_template :partial => '_compute'
-      assert_select '#host_compute_attributes_cpus'
+      assert_select 'input', {:name => 'host[compute_attributes][cpus]'}
     end
 
     test '#compute_resource_selected renders compute tab with explicit compute profile' do
       get :compute_resource_selected, params: { :host => {:compute_resource_id => compute_resources(:one).id, :compute_profile_id => compute_profiles(:two).id}}, session: set_session_user, xhr: true
       assert_response :success
       assert_template :partial => '_compute'
-      assert_select '#host_compute_attributes_cpus'
+      assert_select 'input', {:name => 'host[compute_attributes][cpus]'}
     end
 
     test '#compute_resource_selected renders compute tab with hostgroup\'s compute profile' do
@@ -1573,7 +1281,7 @@ class HostsControllerTest < ActionController::TestCase
       get :compute_resource_selected, params: { :host => {:compute_resource_id => compute_resources(:one).id, :hostgroup_id => group.id}}, session: set_session_user, xhr: true
       assert_response :success
       assert_template :partial => '_compute'
-      assert_select '#host_compute_attributes_cpus'
+      assert_select 'input', {:name => 'host[compute_attributes][cpus]'}
     end
 
     test '#compute_resource_selected renders compute tab with hostgroup parent\'s compute profile' do
@@ -1582,7 +1290,7 @@ class HostsControllerTest < ActionController::TestCase
       get :compute_resource_selected, params: { :host => {:compute_resource_id => compute_resources(:one).id, :hostgroup_id => group.id}}, session: set_session_user, xhr: true
       assert_response :success
       assert_template :partial => '_compute'
-      assert_select '#host_compute_attributes_cpus'
+      assert_select 'input', {:name => 'host[compute_attributes][cpus]'}
     end
   end
 
@@ -1613,7 +1321,6 @@ class HostsControllerTest < ActionController::TestCase
     host.stubs(:set_compute_attributes)
     host.stubs(:architecture)
     host.stubs(:operatingsystem)
-    host.stubs(:environment)
     host.stubs(:domain)
     host.stubs(:subnet)
     host.stubs(:compute_profile)
@@ -1743,56 +1450,6 @@ class HostsControllerTest < ActionController::TestCase
     end
   end
 
-  describe '#hostgroup_or_environment_selected' do
-    test 'choosing only one of hostgroup or environment renders classes' do
-      post :hostgroup_or_environment_selected, params: {
-        :host_id => nil,
-        :host => {
-          :environment_id => Environment.unscoped.first.id,
-        },
-      }, session: set_session_user, xhr: true
-      assert_response :success
-      assert_template :partial => 'puppetclasses/_class_selection'
-    end
-
-    test 'choosing both hostgroup and environment renders classes' do
-      post :hostgroup_or_environment_selected, params: {
-        :host_id => @host.id,
-        :host => {
-          :environment_id => Environment.unscoped.first.id,
-          :hostgroup_id => Hostgroup.unscoped.first.id,
-        },
-      }, session: set_session_user, xhr: true
-      assert_response :success
-      assert_template :partial => 'puppetclasses/_class_selection'
-    end
-
-    test 'should not escape lookup values on environment change' do
-      host = FactoryBot.create(:host, :with_environment, :with_puppetclass)
-
-      host.environment.locations = [host.location]
-      host.environment.organizations = [host.organization]
-
-      lookup_key = FactoryBot.create(:puppetclass_lookup_key, :as_smart_class_param, :key_type => 'array',
-                                     :default_value => ['a', 'b'], :override => true, :puppetclass => host.puppetclasses.first)
-      lookup_value = FactoryBot.create(:lookup_value, :lookup_key => lookup_key, :match => "fqdn=#{host.fqdn}", :value => ["c", "d"])
-
-      # sending exactly what the host form would send which is lookup_value.value_before_type_cast
-      lk = {"lookup_values_attributes" => {lookup_key.id.to_s => {"value" => lookup_value.value_before_type_cast, "id" => lookup_value.id, "lookup_key_id" => lookup_key.id, "_destroy" => false}}}
-
-      params = {
-        host_id: host.id,
-        host: host.attributes.merge(lk),
-      }
-
-      # environment change calls puppetclass_parameters which caused the extra escaping
-      post :puppetclass_parameters, params: params, session: set_session_user, xhr: true
-
-      # if this was escaped during refresh_host the value in response.body after unescapeHTML would include "[\\\"c\\\",\\\"d\\\"]"
-      assert_includes CGI.unescapeHTML(response.body), "[\"c\",\"d\"]"
-    end
-  end
-
   context '#preview_host_collection' do
     test 'should list hosts' do
       host = FactoryBot.create(:host, :managed)
@@ -1884,10 +1541,8 @@ class HostsControllerTest < ActionController::TestCase
                         :domain_id          => domains(:mydomain).id,
                         :operatingsystem_id => operatingsystems(:redhat).id,
                         :architecture_id    => architectures(:x86_64).id,
-                        :environment_id     => environments(:production).id,
                         :subnet_id          => subnets(:one).id,
                         :disk               => "empty partition",
-                        :puppet_proxy_id    => smart_proxies(:puppetmaster).id,
                         :root_pass          => "123456789",
                         :location_id        => taxonomies(:location1).id,
                         :organization_id    => taxonomies(:organization1).id

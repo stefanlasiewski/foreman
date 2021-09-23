@@ -8,7 +8,7 @@ module Api
 
       before_action :find_resource, :only => [:show, :update, :destroy, :available_images, :associate,
                                               :available_virtual_machines, :available_clusters, :available_flavors, :available_folders,
-                                              :available_networks, :available_resource_pools, :available_security_groups, :available_storage_domains,
+                                              :available_networks, :available_vnic_profiles, :available_resource_pools, :available_security_groups, :available_storage_domains,
                                               :available_zones, :available_storage_pods, :storage_domain, :storage_pod, :refresh_cache, :power_vm, :show_vm, :destroy_vm]
 
       api :GET, "/compute_resources/", N_("List all compute resources")
@@ -87,6 +87,10 @@ module Api
       def update
         datacenter = change_datacenter_to_uuid(compute_resource_params[:datacenter])
         update_parameters = datacenter.present? ? compute_resource_params.merge(:datacenter => datacenter) : compute_resource_params
+        # update compute attributes as well when datacenter is changed
+        if @compute_resource.provider == 'Vmware' && compute_resource_params[:datacenter].present?
+          @compute_resource.compute_attributes.map { |ca| ca.vm_attrs['path'].gsub!(@compute_resource.datacenter, compute_resource_params[:datacenter]) }
+        end
         process_response @compute_resource.update(update_parameters)
       end
 
@@ -143,6 +147,13 @@ module Api
         @available_networks = @compute_resource.available_networks(params[:cluster_id].presence)
         @total = @available_networks&.size
         render :available_networks, :layout => 'api/v2/layouts/index_layout'
+      end
+
+      api :GET, "/compute_resources/:id/available_vnic_profiles", N_("List available vnic profiles for a compute resource, for oVirt only")
+      param :id, :identifier, :required => true
+      def available_vnic_profiles
+        @available_vnic_profiles = @compute_resource.vnic_profiles
+        render :available_vnic_profiles, :layout => 'api/v2/layouts/index_layout'
       end
 
       api :GET, "/compute_resources/:id/available_clusters/:cluster_id/available_resource_pools", N_("List resource pools for a compute resource cluster")
@@ -210,14 +221,20 @@ module Api
         render :available_security_groups, :layout => 'api/v2/layouts/index_layout'
       end
 
-      api :PUT, "/compute_resources/:id/associate/", N_("Associate VMs to Hosts")
+      api :PUT, "/compute_resources/:id/associate/:vm_id", N_("Associate VMs to Hosts")
       param :id, :identifier, :required => true
+      param :vm_id, :identifier
       def associate
         if @compute_resource.supports_host_association?
           associator = ComputeResourceHostAssociator.new(@compute_resource)
-          associator.associate_hosts
+          if params[:vm_id].nil?
+            associator.associate_hosts
+          else
+            @vm = @compute_resource.find_vm_by_uuid(params[:vm_id])
+            associator.associate_hosts([@vm])
+          end
           @hosts = associator.hosts
-          render 'api/v2/hosts/index', :layout => 'api/v2/layouts/index_layout'
+          handle_messages(associator)
         else
           render_message(_('Associating VMs is not supported for this compute resource'), :status => :unprocessable_entity)
         end
@@ -280,10 +297,22 @@ module Api
 
       def action_permission
         case params[:action]
-          when 'available_images', 'available_virtual_machines', 'available_clusters', 'available_flavors', 'available_folders', 'available_networks', 'available_resource_pools', 'available_security_groups', 'available_storage_domains', 'storage_domain', 'available_zones', 'associate', 'available_storage_pods', 'storage_pod', 'refresh_cache', 'show_vm', 'power_vm', 'destroy_vm'
+          when 'available_images', 'available_virtual_machines', 'available_clusters', 'available_flavors', 'available_folders', 'available_networks', 'available_vnic_profiles', 'available_resource_pools', 'available_security_groups', 'available_storage_domains', 'storage_domain', 'available_zones', 'associate', 'available_storage_pods', 'storage_pod', 'refresh_cache', 'show_vm', 'power_vm', 'destroy_vm'
             :view
           else
             super
+        end
+      end
+
+      def handle_messages(associator)
+        if associator.fail_count > 0
+          render_message((n_('%s VM failed while processing: check logs for more details.',
+            '%s VMs failed while processing: check logs for more details.',
+            associator.fail_count) % associator.fail_count), :status => :unprocessable_entity)
+        elsif associator.hosts.empty?
+          render_message(_('No VMs matched any host'), :status => :unprocessable_entity)
+        else
+          render('api/v2/hosts/index', :layout => 'api/v2/layouts/index_layout')
         end
       end
     end

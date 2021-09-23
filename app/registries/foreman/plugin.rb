@@ -40,6 +40,7 @@ module Foreman #:nodoc:
   class Plugin
     DEFAULT_REGISTRIES = {
       fact_importer: 'Foreman::Plugin::FactImporterRegistry',
+      fact_parser: 'Foreman::Plugin::FactParserRegistry',
       report_scanner: 'Foreman::Plugin::ReportScannerRegistry',
       report_origin: 'Foreman::Plugin::ReportOriginRegistry',
       medium_providers: 'Foreman::Plugin::MediumProvidersRegistry',
@@ -165,7 +166,7 @@ module Foreman #:nodoc:
     attr_reader :id, :logging, :provision_methods, :compute_resources, :to_prepare_callbacks,
       :facets, :rbac_registry, :dashboard_widgets, :info_providers, :smart_proxy_references,
       :renderer_variable_loaders, :host_ui_description, :ping_extension, :status_extension,
-      :allowed_registration_vars
+      :allowed_registration_vars, :observable_events
 
     # Lists plugin's roles:
     # Foreman::Plugin.find('my_plugin').registered_roles
@@ -191,6 +192,7 @@ module Foreman #:nodoc:
       @ping_extension = nil
       @status_extension = nil
       @allowed_registration_vars = []
+      @observable_events = []
     end
 
     def engine
@@ -204,6 +206,10 @@ module Foreman #:nodoc:
 
     def fact_importer_registry
       self.class.fact_importer_registry
+    end
+
+    def fact_parser_registry
+      self.class.fact_parser_registry
     end
 
     def report_scanner_registry
@@ -314,6 +320,27 @@ module Foreman #:nodoc:
           self.class.tests_to_skip[testclass] = self.class.tests_to_skip[testclass].push(tests).flatten.uniq
         end
       end
+    end
+
+    # Adds setting definition
+    #
+    # ===== Example
+    #
+    #   settings do
+    #     category(:cfgmgmt, N_('Configuration Management')) do
+    #       setting(:use_cooler_puppet,
+    #         type: :boolean,
+    #         default: true,
+    #         description: N_('Use Puppet that goes to 11'),
+    #         full_name: N_('Use shiny puppet'),
+    #         encrypted: true,
+    #         validate: /^cool/)
+    #       end
+    #     end
+    #   end
+    #
+    def settings(&block)
+      SettingManager.define(id, &block)
     end
 
     def security_block(name, &block)
@@ -606,6 +633,10 @@ module Foreman #:nodoc:
 
     def extend_allowed_registration_vars(var)
       @allowed_registration_vars << var
+    end
+
+    def extend_observable_events(events)
+      (@observable_events << events).flatten!.uniq!
     end
 
     delegate :subscribe, to: ActiveSupport::Notifications

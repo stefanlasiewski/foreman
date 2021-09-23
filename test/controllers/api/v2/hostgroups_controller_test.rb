@@ -43,25 +43,6 @@ class Api::V2::HostgroupsControllerTest < ActionController::TestCase
     assert show_response.has_key?('parameters')
   end
 
-  test "should show inherited parameters" do
-    get :show, params: { :id => hostgroups(:inherited).to_param }
-    assert_response :success
-    show_response = ActiveSupport::JSON.decode(@response.body)
-    assert_equal environments(:production).id, show_response['environment_id']
-    assert_nil show_response['inherited_environment_id']
-    assert_nil show_response['ptable_id']
-    assert_equal templates(:autopart).id, show_response['inherited_ptable_id']
-  end
-
-  test "should show all puppet clases for individual record" do
-    hostgroup = FactoryBot.create(:hostgroup, :with_config_group)
-    get :show, params: { :id => hostgroup.id }
-    assert_response :success
-    show_response = ActiveSupport::JSON.decode(@response.body)
-    assert !show_response.empty?
-    assert_not_equal 0, show_response['all_puppetclasses'].length
-  end
-
   test_attributes :pid => 'fd5d353c-fd0c-4752-8a83-8f399b4c3416'
   test "should create hostgroup" do
     assert_difference('Hostgroup.unscoped.count') do

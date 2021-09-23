@@ -2,22 +2,19 @@
 one:
   provisioning_template: mystring
   hostgroup: common
-  environment: production
 
 two:
   provisioning_template: mystring2
-  hostgroup_id: unusual
+  hostgroup: inherited
 
 three:
   provisioning_template: myfinish
-  environment: production
+  hostgroup: common
 
 four:
   provisioning_template: mystring2
   hostgroup: common
-  environment: production
 
 five:
   provisioning_template: myscript
   hostgroup: common
-  environment: production

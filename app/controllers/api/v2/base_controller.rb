@@ -18,7 +18,7 @@ module Api
 
       def_param_group :search_and_pagination do
         param :search, String, :desc => N_("filter results")
-        param :order, String, :desc => N_("Sort field and order, eg. ‘id DESC’")
+        param :order, String, :desc => N_("Sort and order by a searchable field, e.g. 'id DESC'")
         param_group :pagination, ::Api::V2::BaseController
       end
 
@@ -140,23 +140,6 @@ module Api
         model_name = controller_name.singularize
         append_array_of_ids(params[model_name]) # wrapped params
         append_array_of_ids(params)             # unwrapped params
-      end
-
-      def self.skip_before_action(*names)
-        names = names.map do |n|
-          if n == :check_content_type
-            Foreman::Deprecation.deprecation_warning('2.3', '#check_content_type is renamed to #check_media_type')
-            :check_media_type
-          else
-            n
-          end
-        end
-        super(*names)
-      end
-
-      def check_content_type
-        Foreman::Deprecation.deprecation_warning('2.3', '#check_content_type is renamed to #check_media_type')
-        check_media_type
       end
 
       def check_media_type

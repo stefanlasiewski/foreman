@@ -32,6 +32,7 @@ if File.exist?(File.expand_path('../Gemfile.in', __dir__))
   # rathern then trying to download them from rubygems.org. It always
   # loads all gemfile groups.
   require 'bundler_ext'
+  Bundler.ui = Bundler::UI::Silent.new if Rails.env.production?
   BundlerExt.system_require(File.expand_path('../Gemfile.in', __dir__), :all)
 
   class Foreman::Consoletie < Rails::Railtie
@@ -42,6 +43,8 @@ else
   # Note that :default, :test, :development and :production groups
   # will be included by default (and dependending on the current environment)
   if defined?(Bundler)
+    Bundler.ui = Bundler::UI::Silent.new if Rails.env.production?
+
     class Foreman::Consoletie < Rails::Railtie
       console do
         begin
@@ -100,15 +103,9 @@ module Foreman
     # Application configuration should go into files in config/initializers
     # -- all .rb files in that directory are automatically loaded.
 
-    # Custom directories with classes and modules you want to be autoloadable.
-    # config.autoload_paths += %W(#{config.root}/extras)
-    config.autoload_paths += Dir["#{config.root}/lib"]
-    config.autoload_paths += Dir["#{config.root}/app/controllers/concerns"]
-    config.autoload_paths += Dir[Rails.root.join('app', 'models', 'power_manager')]
-    config.autoload_paths += Dir["#{config.root}/app/models/concerns"]
-    config.autoload_paths += Dir["#{config.root}/app/services"]
-    config.autoload_paths += Dir["#{config.root}/app/mailers"]
-
+    # Autoloading
+    config.autoload_paths += %W(#{config.root}/lib)
+    config.autoload_paths += %W(#{config.root}/app/models/power_manager)
     config.autoload_paths += %W(#{config.root}/app/models/auth_sources)
     config.autoload_paths += %W(#{config.root}/app/models/compute_resources)
     config.autoload_paths += %W(#{config.root}/app/models/fact_names)
@@ -164,7 +161,7 @@ module Foreman
     # Use SQL instead of Active Record's schema dumper when creating the database.
     # This is necessary if your schema can't be completely dumped by the schema dumper,
     # like if you have constraints or database-specific column types
-    # config.active_record.schema_format = :sql
+    config.active_record.schema_format = :sql
 
     # enables JSONP support in the Rack middleware
     config.middleware.use Rack::JSONP if SETTINGS[:support_jsonp]
@@ -199,6 +196,16 @@ module Foreman
 
     # Catching Invalid JSON Parse Errors with Rack Middleware
     config.middleware.use Foreman::Middleware::CatchJsonParseErrors
+
+    # When operating behind a reverse proxy, this provides a valid remote ip in request.remote_ip
+    # the middleware is enabled by default however we minimize the trusted proxies list
+    #
+    # the trusted proxies are removed from remote IP candidates, since we know they are proxies and not clients
+    # in the default deployment, this is typically an Apache
+    #
+    # currently the requests with untrusted IPs in X_FORWARDED_FOR are taken into the consideration,
+    # the spoof detection based on HTTP_CLIENT_IP header performed by the middleware does not work
+    config.action_dispatch.trusted_proxies = SETTINGS.fetch(:trusted_proxies, %w(127.0.0.1/8 ::1)).map { |proxy| IPAddr.new(proxy) }
 
     # Record request and session tokens in logging MDC
     config.middleware.insert_before Rails::Rack::Logger, Foreman::Middleware::LoggingContextRequest
@@ -352,12 +359,6 @@ module Foreman
 
     def init_dynflow
       dynflow.eager_load_actions!
-
-      if defined?(PhusionPassenger) && !dynflow.config.lazy_initialization
-        PhusionPassenger.on_event(:starting_worker_process) do |forked|
-          dynflow.initialize! if forked
-        end
-      end
     end
 
     def setup_auditing

@@ -2,25 +2,6 @@ require 'test_helper'
 
 module Hostext
   class SearchTest < ActiveSupport::TestCase
-    context 'host exists' do
-      setup do
-        @host = FactoryBot.create(:host)
-      end
-
-      test "can be found by config group" do
-        config_group = FactoryBot.create(:config_group)
-        @host.config_groups = [config_group]
-        result = Host.search_for("config_group = #{config_group.name}")
-        assert_includes result, @host
-      end
-
-      test "search by config group returns only host within that config group" do
-        config_group = FactoryBot.create(:config_group)
-        result = Host.search_for("config_group = #{config_group.name}")
-        assert_not_includes result, @host
-      end
-    end
-
     describe 'a host with user search' do
       let(:user) { FactoryBot.create(:user, :with_mail, firstname: 'Jane', lastname: 'Doe') }
       let(:host) { FactoryBot.create(:host, owner: user) }
@@ -64,6 +45,12 @@ module Hostext
 
         test 'can be searched by hostname and firstname' do
           result = Host.search_for("name = \"#{host.name}\" and user.firstname = #{user.firstname}")
+          assert_same_elements result, [host]
+          assert_not_includes result, other_host
+        end
+
+        test 'can be searched by id' do
+          result = Host.search_for("id = \"#{host.id}\" and user.firstname = #{user.firstname}")
           assert_same_elements result, [host]
           assert_not_includes result, other_host
         end
@@ -226,6 +213,31 @@ module Hostext
           assert_equal(0, result.count)
           assert_empty result
         end
+      end
+
+      context "search by build status" do
+        let(:built_status) do
+          HostStatus::BuildStatus.create(
+            status: HostStatus::BuildStatus::BUILT,
+            host: FactoryBot.create(:host)
+          )
+        end
+        let(:build_failed_status) do
+          HostStatus::BuildStatus.create(
+            status: HostStatus::BuildStatus::BUILD_FAILED,
+            host: FactoryBot.create(:host)
+          )
+        end
+
+        subject { Host.search_for('build_status = built') }
+
+        setup do
+          built_status
+          build_failed_status
+        end
+
+        it { assert_includes(subject, built_status.host) }
+        it { assert_not_includes(subject, build_failed_status.host) }
       end
     end
   end

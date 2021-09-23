@@ -1,5 +1,5 @@
 module SmartProxiesHelper
-  TABBED_FEATURES = ["Puppet", "Puppet CA", "Logs"]
+  TABBED_FEATURES = ["Puppet CA", "Logs"]
 
   def proxy_actions(proxy, authorizer)
     actions = []
@@ -58,7 +58,7 @@ module SmartProxiesHelper
   end
 
   def refresh_proxy_button(proxy, authorizer)
-    display_link_if_authorized('Refresh features', hash_for_refresh_smart_proxy_path(:id => proxy).
+    display_link_if_authorized(_('Refresh features'), hash_for_refresh_smart_proxy_path(:id => proxy).
                                                      merge(:auth_object => proxy, :permission => 'edit_smart_proxies', :authorizer => authorizer), :method => :put, :class => 'btn btn-default')
   end
 

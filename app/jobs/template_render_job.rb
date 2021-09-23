@@ -1,5 +1,7 @@
 class TemplateRenderJob < ApplicationJob
   queue_as :default
+  include ::Foreman::ObservableJob
+  set_hook :template_render_performed
 
   def perform(composer_params, opts = {})
     user = User.unscoped.find(opts[:user_id])
@@ -13,6 +15,7 @@ class TemplateRenderJob < ApplicationJob
         ReportMailer.report(composer_params, result, start: start_time, end: end_time).deliver_now
       else
         StoredValue.write(provider_job_id, result, expire_at: Time.now + 1.day)
+        UINotifications::ReportFinished.new(composer, provider_job_id).deliver!
       end
     end
   end

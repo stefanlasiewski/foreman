@@ -7,8 +7,7 @@ module Hostext
         @host = Host.create(:name => "host.mydomain.net", :mac => "aabbccddeaff",
                             :ip => "2.3.04.03",           :medium => media(:one),
                             :subnet => subnets(:one), :hostgroup => Hostgroup.find_by_name("Common"),
-                            :architecture => Architecture.find_by(name: 'x86_64'), :disk => "aaa",
-                            :environment => Environment.find_by_name("production"))
+                            :architecture => Architecture.find_by(name: 'x86_64'), :disk => "aaa")
       end
 
       test "retrieves iPXE template if associated to the correct env and host group" do
@@ -32,7 +31,7 @@ module Hostext
           :template_kind => TemplateKind.friendly.find('finish'))
         host  = FactoryBot.create(:host, :operatingsystem => os_dt.operatingsystem)
 
-        assert_equal [os_dt.provisioning_template], host.available_template_kinds('build')
+        assert_equal [os_dt.provisioning_template, templates(:host_init_config)], host.available_template_kinds('build')
       end
 
       test "available_template_kinds finds templates for an image host" do

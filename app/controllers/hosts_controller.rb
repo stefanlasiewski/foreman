@@ -27,7 +27,7 @@ class HostsController < ApplicationController
   before_action :find_resource, :only => [:show, :clone, :edit, :update, :destroy, :review_before_build,
                                           :setBuild, :cancelBuild, :power, :overview, :bmc, :vm,
                                           :runtime, :resources, :nics, :ipmi_boot, :console,
-                                          :toggle_manage, :pxe_config, :disassociate, :build_errors, :forget_status]
+                                          :toggle_manage, :pxe_config, :disassociate, :build_errors, :forget_status, :statuses]
 
   before_action :taxonomy_scope, :only => [:new, :edit] + AJAX_REQUESTS
   before_action :set_host_type, :only => [:update]
@@ -142,14 +142,11 @@ class HostsController < ApplicationController
   def compute_resource_selected
     return not_found unless params[:host]
     Taxonomy.as_taxonomy @organization, @location do
-      hostgroup = Hostgroup.find_by_id(params[:host][:hostgroup_id])
-      compute_resource_id = params[:host][:compute_resource_id] || hostgroup.try(:inherited_compute_resource_id)
-      return not_found if compute_resource_id.blank?
-      compute_profile_id = params[:host][:compute_profile_id] || hostgroup.try(:inherited_compute_profile_id)
-      compute_resource = ComputeResource.authorized(:view_compute_resources).find_by_id(compute_resource_id)
+      refresh_host
+      compute_resource = ComputeResource.authorized(:view_compute_resources).find_by_id(@host.compute_resource_id) if @host.compute_resource_id
       return not_found if compute_resource.blank?
-      render :partial => "compute", :locals => { :compute_resource => compute_resource,
-                                                 :vm_attrs         => compute_resource.compute_profile_attributes_for(compute_profile_id) }
+      @host.compute_attributes = compute_resource.compute_profile_attributes_for(@host.compute_profile_id || @host.hostgroup&.inherited_compute_profile_id)
+      render partial: 'compute', locals: { host: @host, compute_resource: compute_resource }
     end
   rescue ActionView::Template::Error => exception
     process_ajax_error exception, 'render compute resource template'
@@ -174,36 +171,6 @@ class HostsController < ApplicationController
     host = refresh_host
     Taxonomy.as_taxonomy @organization, @location do
       render :partial => "common_parameters/inherited_parameters", :locals => {:inherited_parameters => host.inherited_params_hash, :parameters => host.host_parameters}
-    end
-  end
-
-  # returns a yaml file ready to use for puppet external nodes script
-  # expected a fqdn parameter to provide hostname to lookup
-  # see example script in extras directory
-  # will return HTML error codes upon failure
-
-  def externalNodes
-    certname = params[:name].to_s
-    @host ||= resource_base.find_by_certname certname
-    @host ||= resource_base.friendly.find certname
-    unless @host
-      not_found
-      return
-    end
-
-    begin
-      respond_to do |format|
-        # don't break lines in yaml to support Ruby < 1.9.3
-        # Remove the HashesWithIndifferentAccess using 'deep_stringify_keys',
-        # then we turn it into YAML
-        host_info_yaml = @host.info.deep_stringify_keys.to_yaml(:line_width => -1)
-        format.html { render :html => "<pre>#{ERB::Util.html_escape(host_info_yaml)}</pre>".html_safe }
-        format.yml { render :plain => host_info_yaml }
-      end
-    rescue => e
-      Foreman::Logging.exception("Failed to generate external nodes for #{@host}", e)
-      render :plain => _('Unable to generate output, Check log files'),
-             :status => :precondition_failed
     end
   end
 
@@ -269,7 +236,7 @@ class HostsController < ApplicationController
       bmc_proxy: @host.bmc_proxy,
     }
   rescue Foreman::BMCFeatureException
-    render partial: 'bmc_missing_proxy', locals: { bmc_proxy: @host.subnet.bmc, bmc_count: SmartProxy.with_features('BMC').count }
+    render partial: 'bmc_missing_proxy', locals: { bmc_proxy: @host&.subnet&.bmc, bmc_count: SmartProxy.with_features('BMC')&.count }
   rescue Foreman::Exception => exception
     process_ajax_error exception, 'fetch bmc information'
   rescue ActionView::Template::Error => exception
@@ -312,7 +279,16 @@ class HostsController < ApplicationController
   def forget_status
     status = @host.host_statuses.find(params[:status])
     status.delete
-    redirect_to host_path(@host)
+    respond_to do |format|
+      format.html do
+        redirect_to host_path(@host)
+      end
+      format.json do
+        head :ok
+      rescue => exception
+        process_ajax_error exception, 'forget status'
+      end
+    end
   end
 
   def ipmi_boot
@@ -629,6 +605,27 @@ class HostsController < ApplicationController
     end
   end
 
+  def statuses
+    statuses = {
+      global: @host.global_status,
+      captions: HostStatus.status_registry.map do |status_class|
+        status_class.status_name
+      end,
+      statuses: @host.host_statuses.map do |status|
+        {
+          id: status.id,
+          name: status.name,
+          label: status.to_label,
+          link: status.status_link,
+          global: status.to_global,
+          status: status.to_status,
+          reported_at: status.reported_at,
+        }
+      end,
+    }
+    render :json => statuses
+  end
+
   private
 
   def resource_base
@@ -636,7 +633,7 @@ class HostsController < ApplicationController
   end
 
   define_action_permission [
-    'clone', 'externalNodes', 'overview', 'bmc', 'vm', 'runtime', 'resources', 'templates', 'nics',
+    'clone', 'overview', 'bmc', 'vm', 'runtime', 'resources', 'templates', 'nics', 'statuses',
     'pxe_config', 'active', 'errors', 'out_of_sync', 'pending', 'disabled', 'get_power_state', 'preview_host_collection', 'build_errors'
   ], :view
   define_action_permission [
@@ -853,7 +850,7 @@ class HostsController < ApplicationController
   end
 
   def csv_columns
-    [:name, :operatingsystem, :environment, :compute_resource_or_model, :hostgroup, :last_report]
+    [:name, :operatingsystem, :compute_resource_or_model, :hostgroup, :last_report]
   end
 
   def origin_intervals_query(compare_with)

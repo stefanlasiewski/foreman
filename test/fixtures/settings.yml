@@ -22,17 +22,17 @@ attributes4:
   description: Enable safe mode config templates rendinging(recommended)
 attributes5:
   name: ssl_certificate
-  category: Setting::Provisioning
+  category: Setting::Auth
   default: /var/lib/puppet/ssl/certs/some.host.fqdn
   description: SSL Certificate path that foreman would use to communicate with its proxies
 attributes6:
   name: ssl_ca_file
-  category: Setting::Provisioning
+  category: Setting::Auth
   default: /var/lib/puppet/ssl/certs/ca.pem
   description: SSL CA file that foreman would use to communicate with its proxies
 attributes7:
   name: ssl_priv_key
-  category: Setting::Provisioning
+  category: Setting::Auth
   default: /var/lib/puppet/ssl/private_keys/super.some.host.fqdn.pem
   description: SSL Private Key file that foreman would use to communicate with its proxies
 attributes8:
@@ -91,11 +91,6 @@ attributes21:
   category: Setting::Provisioning
   default: "false"
   description: "Should Foreman query the locally configured name server or the SOA/NS authorities"
-attributes22:
-  name: remote_addr
-  category: Setting::Provisioning
-  default: "127.0.0"
-  description: "If Foreman is running behind Passenger or a remote loadbalancer, the ip should be set here"
 attributes23:
   name: authorize_login_delegation
   category: Setting::General
@@ -428,3 +423,13 @@ attribute94:
   category: Setting::Provisioning
   default: 'Global Registration'
   description: "Default Global registration template"
+attribute95:
+  name: default_host_init_config_template
+  category: Setting::Provisioning
+  default: 'Linux host initial configuration'
+  description: "Default host initial configuration template"
+attribute96:
+  name: server_ca_file
+  category: Setting::Auth
+  default: /var/lib/puppet/ssl/certs/ca.pem
+  description: SSL CA file that will be used in templates (to verify the connection to Foreman)

@@ -16,14 +16,13 @@ class Hostgroup < ApplicationRecord
 
   validate :validate_subnet_types
   validates_with SubnetsConsistencyValidator
+  validate :validate_compute_profile, :if => proc { |hostgroup| hostgroup.compute_profile_id_changed? && hostgroup.compute_profile_id.present? }
 
   include ScopedSearchExtensions
   include SelectiveClone
 
   validates_lengths_from_database :except => [:name]
   before_destroy EnsureNotUsedBy.new(:hosts)
-  has_many :hostgroup_classes
-  has_many :puppetclasses, :through => :hostgroup_classes, :dependent => :destroy
   validates :root_pass, :allow_blank => true, :length => {:minimum => 8, :message => _('should be 8 characters or more')}
   has_many :group_parameters, :dependent => :destroy, :foreign_key => :reference_id, :inverse_of => :hostgroup
   accepts_nested_attributes_for :group_parameters, :allow_destroy => true
@@ -40,12 +39,10 @@ class Hostgroup < ApplicationRecord
   belongs_to :subnet
   belongs_to :subnet6, :class_name => "Subnet"
 
-  before_save :remove_duplicated_nested_class
-
   alias_attribute :arch, :architecture
   alias_attribute :os, :operatingsystem
 
-  nested_attribute_for :compute_profile_id, :environment_id, :domain_id, :puppet_proxy_id, :puppet_ca_proxy_id, :compute_resource_id,
+  nested_attribute_for :compute_profile_id, :domain_id, :puppet_proxy_id, :puppet_ca_proxy_id, :compute_resource_id,
     :operatingsystem_id, :architecture_id, :medium_id, :ptable_id, :subnet_id, :subnet6_id, :realm_id, :pxe_loader
 
   set_crud_hooks :hostgroup
@@ -60,21 +57,9 @@ class Hostgroup < ApplicationRecord
 
   scoped_search :on => :name, :complete_value => :true
   scoped_search :relation => :hosts, :on => :name, :complete_value => :true, :rename => "host", :only_explicit => true
-  scoped_search :relation => :puppetclasses, :on => :name, :complete_value => true, :rename => :class, :only_explicit => true, :operators => ['= ', '~ ']
-  scoped_search :relation => :environment, :on => :name, :complete_value => :true, :rename => :environment, :only_explicit => true
   scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
   # for legacy purposes, keep search on :label
   scoped_search :on => :title, :complete_value => true, :rename => :label
-  scoped_search :relation => :config_groups, :on => :name, :complete_value => true, :rename => :config_group, :only_explicit => true, :operators => ['= ', '~ '], :ext_method => :search_by_config_group
-
-  def self.search_by_config_group(key, operator, value)
-    conditions = sanitize_sql_for_conditions(["config_groups.name #{operator} ?", value_to_sql(operator, value)])
-    hostgroup_ids = Hostgroup.unscoped.with_taxonomy_scope.joins(:config_groups).where(conditions).map(&:subtree_ids).flatten.uniq
-
-    opts = 'hostgroups.id < 0'
-    opts = "hostgroups.id IN(#{hostgroup_ids.join(',')})" if hostgroup_ids.present?
-    {:conditions => opts}
-  end
 
   if SETTINGS[:unattended]
     scoped_search :relation => :architecture,     :on => :name,        :complete_value => true,  :rename => :architecture, :only_explicit => true
@@ -106,11 +91,10 @@ class Hostgroup < ApplicationRecord
     property :arch, 'Architecture', desc: 'Returns architecture to be used on hosts within this host group'
     property :description, String, desc: 'Returns description of the host group'
     property :diskLayout, String, desc: 'Returns partition table template to be used on hosts within this host group'
-    property :environment, 'Environment', desc: 'Returns Puppet environment associated with this host group'
     property :operatingsystem, 'Operatingsystem', desc: 'Returns operating system to be used on hosts within this host group'
     property :os, 'Operatingsystem', desc: 'Returns operating system to be used on hosts within this host group'
     property :ptable, 'Ptable', desc: 'Returns partition table associated with this host group'
-    property :puppetmaster, String, desc: 'Returns host name of the server with Puppet Master'
+    property :puppet_server, String, desc: 'Returns host name of the server with Puppetserver'
     property :params, Hash, desc: 'Returns parameters of this host group'
     property :puppet_proxy, 'SmartProxy', desc: 'Returns Smart proxy with Puppet feature'
     property :puppet_ca_server, 'SmartProxy', desc: 'Returns Smart proxy Puppet CA feature'
@@ -124,11 +108,16 @@ class Hostgroup < ApplicationRecord
     property :title, String, desc: 'Returns full title of this host group, e.g. Base/CentOS 7'
   end
   class Jail < Safemode::Jail
-    allow :id, :name, :diskLayout, :puppetmaster, :operatingsystem, :architecture,
-      :environment, :ptable, :url_for_boot, :params, :puppet_proxy,
-      :puppet_ca_server, :os, :arch, :domain, :subnet, :hosts,
-      :subnet6, :realm, :root_pass, :description, :pxe_loader, :title,
+    allow :id, :name, :diskLayout, :puppetmaster, :puppet_server, :operatingsystem, :architecture,
+      :ptable, :url_for_boot, :params, :puppet_proxy, :puppet_ca_server,
+      :os, :arch, :domain, :subnet, :subnet6, :hosts, :realm,
+      :root_pass, :description, :pxe_loader, :title,
       :children, :parent
+
+    def puppetmaster
+      Foreman::Deprecation.deprecation_warning('3.0', 'Hostgroup#puppetmaster is deprecated, please use host_puppet_server macro instead')
+      @source.puppet_server
+    end
   end
 
   # TODO: add a method that returns the valid os for a hostgroup
@@ -151,25 +140,6 @@ class Hostgroup < ApplicationRecord
   def diskLayout
     raise Foreman::Renderer::Errors::RenderingError, 'Partition table not defined for hostgroup' unless disk_layout_source
     disk_layout_source.content
-  end
-
-  def all_config_groups
-    (config_groups + parent_config_groups).uniq
-  end
-
-  def parent_config_groups
-    return [] unless parent
-    groups = []
-    ancestors.each do |hostgroup|
-      groups += hostgroup.config_groups
-    end
-    groups.uniq
-  end
-
-  # the environment used by #clases nees to be self.environment and not self.parent.environment
-  def parent_classes
-    return [] unless parent
-    parent.classes(environment)
   end
 
   def inherited_lookup_value(key)
@@ -238,7 +208,7 @@ class Hostgroup < ApplicationRecord
     explicit_pxe_loader || nested(:pxe_loader).presence
   end
 
-  include_in_clone :lookup_values, :hostgroup_classes, :locations, :organizations, :group_parameters
+  include_in_clone :lookup_values, :locations, :organizations, :group_parameters
   exclude_from_clone :name, :title, :lookup_value_matcher
 
   # Clone the hostgroup
@@ -250,8 +220,6 @@ class Hostgroup < ApplicationRecord
       lv.match = new.lookup_value_match
       lv.host_or_hostgroup = new
     end
-
-    new.config_groups = config_groups
     new
   end
 
@@ -300,10 +268,6 @@ class Hostgroup < ApplicationRecord
     nil
   end
 
-  def remove_duplicated_nested_class
-    self.puppetclasses -= ancestors.map(&:puppetclasses).flatten
-  end
-
   # overwrite method in taxonomix, since hostgroup has ancestry
   def used_taxonomy_ids(type)
     return [] if new_record? && parent_id.blank?
@@ -317,5 +281,9 @@ class Hostgroup < ApplicationRecord
   def validate_subnet_types
     errors.add(:subnet, _("must be of type Subnet::Ipv4.")) if subnet.present? && subnet.type != 'Subnet::Ipv4'
     errors.add(:subnet6, _("must be of type Subnet::Ipv6.")) if subnet6.present? && subnet6.type != 'Subnet::Ipv6'
+  end
+
+  def validate_compute_profile
+    errors.add(:compute_profile, _('is not valid.')) unless ComputeProfile.authorized(:view_compute_profiles).visibles.where(id: compute_profile_id).any?
   end
 end
