@@ -4,6 +4,7 @@ import { EDITOR_HOST_ARR, EDITOR_HOST_FILTERED_ARR } from './EditorConstants';
 export const selectEditor = state => state.editor;
 
 export const selectValue = state => selectEditor(state).value;
+export const selectTemplateKindId = state => selectEditor(state).templateKindId;
 export const selectPreviewResult = state => selectEditor(state).previewResult;
 export const selectErrorText = state => selectEditor(state).errorText;
 export const selectMode = state => selectEditor(state).mode;
@@ -11,6 +12,9 @@ export const selectKeyBind = state => selectEditor(state).keyBinding;
 export const selectEditorName = state => selectEditor(state).editorName;
 export const selectChosenView = state => selectEditor(state).selectedView;
 export const selectTheme = state => selectEditor(state).theme;
+export const selectAutocompletion = state => selectEditor(state).autocompletion;
+export const selectLiveAutocompletion = state =>
+  selectEditor(state).liveAutocompletion;
 export const selectDiffType = state => selectEditor(state).diffViewType;
 export const selectIsMaximized = state => selectEditor(state).isMaximized;
 export const selectIsMasked = state => selectEditor(state).isMasked;

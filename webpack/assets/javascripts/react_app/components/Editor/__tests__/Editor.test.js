@@ -1,6 +1,5 @@
 import React from 'react';
 import { mount } from '@theforeman/test';
-
 import { testComponentSnapshotsWithFixtures } from '../../../common/testHelpers';
 import Editor from '../Editor';
 import { editorOptions } from '../Editor.fixtures';

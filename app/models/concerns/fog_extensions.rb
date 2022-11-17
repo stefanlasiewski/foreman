@@ -1,7 +1,7 @@
 module FogExtensions
 end
 
-require 'concerns/fog_extensions/model'
+require 'fog_extensions/model'
 Fog::Model.include FogExtensions::Model if defined? Fog::Model
 
 # Fog is required by bundler, and depending on the group configuration,
@@ -14,14 +14,6 @@ if Foreman::Model::EC2.available?
   Fog::AWS::Compute::Tag.include FogExtensions::AWS::Tag
   require 'fog/aws/models/compute/server'
   Fog::AWS::Compute::Server.include FogExtensions::AWS::Server
-end
-
-if Foreman::Model::GCE.available?
-  require 'fog/google'
-  require 'fog/compute/google/models/machine_type'
-  Fog::Compute::Google::MachineType.prepend FogExtensions::Google::MachineType
-  require 'fog/compute/google/models/server'
-  Fog::Compute::Google::Server.include FogExtensions::Google::Server
 end
 
 if Foreman::Model::Libvirt.available?

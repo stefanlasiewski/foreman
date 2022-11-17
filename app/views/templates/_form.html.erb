@@ -46,12 +46,13 @@
             </span>
           <% end %>
           <%= react_component('Editor', { data: {
+            dslCache: @dsl_cache.to_json,
             template: @template.template,
             locked: @template.locked,
             id: @template.id,
             type: 'templates',
             name: template_name_attribute(@template.class),
-            templateClass: @template.class.to_s,
+            templateClass: template_class_name(@template),
             title: @template.name,
             showImport: !@template.locked,
             showPreview: @template.support_preview?,

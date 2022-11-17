@@ -1,9 +1,14 @@
+import * as ace from 'ace-builds/src-noconflict/ace';
+
+ace.config.set('basePath', '/assets/ui/');
+ace.config.set('modePath', '');
+ace.config.set('themePath', '');
+
 jest.mock('jed');
 jest.mock('./assets/javascripts/react_app/Root/Context/ForemanContext', () => ({
   useForemanVersion: () => 'mocked_version',
   useForemanSettings: () => ({ perPage: 5 }),
   useForemanDocUrl: () => '/url',
-  usePaginationOptions: () => [5, 10, 20, 50],
   useForemanLocation: () => ({ title: 'location' }),
   useForemanOrganization: () => ({ title: 'organization' }),
 }));

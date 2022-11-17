@@ -19,9 +19,10 @@ import StorageContainer from './hosts/storage/vmware/';
 import PasswordStrength from './PasswordStrength';
 import BreadcrumbBar from './BreadcrumbBar';
 import FactChart from './FactCharts';
-import Pagination from './Pagination/Pagination';
+import Pagination from './Pagination';
 import AutoComplete from './AutoComplete';
 import SearchBar from './SearchBar';
+import ColumnSelector from './ColumnSelector';
 import Layout from './Layout';
 import EmptyState from './common/EmptyState';
 import ComponentWrapper from './common/ComponentWrapper/ComponentWrapper';
@@ -118,6 +119,7 @@ const componentRegistry = {
 const coreComponets = [
   { name: 'ReactApp', type: ReactApp },
   { name: 'SearchBar', type: SearchBar },
+  { name: 'ColumnSelector', type: ColumnSelector },
   { name: 'AutoComplete', type: AutoComplete },
   { name: 'AreaChart', type: AreaChart },
   { name: 'DonutChart', type: DonutChart },

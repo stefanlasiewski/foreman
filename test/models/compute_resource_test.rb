@@ -45,7 +45,7 @@ class ComputeResourceTest < ActiveSupport::TestCase
   test "random_password should return a string when set_console_password is true" do
     cr = compute_resources(:mycompute)
     cr.set_console_password = 1
-    assert_match /^[[:alnum:]]+$/, cr.send(:random_password) # Can't call protected methods directly
+    assert_match /^[[[:alnum:]]+=\/]+$/, cr.send(:random_password) # Can't call protected methods directly
   end
 
   test "attrs[:setpw] is set to nil if compute resource is not Libvirt or VMWare" do
@@ -126,8 +126,7 @@ class ComputeResourceTest < ActiveSupport::TestCase
 
   test '.providers returns merge of loaded builtin and registered providers' do
     ComputeResource.expects(:registered_providers).returns({'Libvirt' => 'Best::Provider::Libvirt', 'MyBest' => 'Best::Provider::MyBest'})
-    ComputeResource.expects(:supported_providers).returns({'Libvirt' => 'Foreman::Model::Libvirt', 'EC2' => 'Foreman::Model::EC2', 'GCE' => 'Foreman::Model::GCE'})
-    Fog::Compute.expects(:providers).twice.returns([:aws, :libvirt])
+    Fog::Compute.expects(:providers).at_least_once.returns([:aws, :libvirt])
     assert_equal(
       {
         'EC2' => 'Foreman::Model::EC2',

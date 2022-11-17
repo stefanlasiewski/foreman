@@ -5,9 +5,10 @@ class TemplateKind < ApplicationRecord
   has_many :provisioning_templates, :inverse_of => :template_kind
   has_many :os_default_templates
   validates :name, :presence => true, :uniqueness => true
+  scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
   scoped_search :on => :name
 
-  PXE = ["PXEGrub2", "PXELinux", "PXEGrub", "iPXE"]
+  PXE = Foreman::Provision::PXE_TEMPLATE_KINDS
 
   def self.default_template_labels
     {
@@ -24,6 +25,8 @@ class TemplateKind < ApplicationRecord
       "cloud-init" => N_("Cloud-init template"),
       "host_init_config" => N_("Host initial configuration template"),
       "registration" => N_("Registration template"),
+      "kexec" => N_("Discovery Kexec"),
+      "Bootdisk" => N_("Boot disk"),
     }
   end
 

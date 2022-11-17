@@ -5,12 +5,13 @@ class ReportImporter
   attr_reader :report, :report_scanners
 
   # When writing your own Report importer, provide feature(s) of authorized Smart Proxies
+  # via ReportImporter.register_smart_proxy_feature method. Do not override this method!
   def self.authorized_smart_proxy_features
     @authorized_smart_proxy_features ||= []
   end
 
   def self.register_smart_proxy_feature(feature)
-    @authorized_smart_proxy_features = (authorized_smart_proxy_features + [feature]).uniq
+    @authorized_smart_proxy_features = (authorized_smart_proxy_features + [feature.freeze]).uniq
   end
 
   def self.unregister_smart_proxy_feature(feature)
@@ -92,8 +93,8 @@ class ReportImporter
       msg   = log['log']['messages']['message']
       src   = log['log']['sources']['source']
 
-      message = Message.find_or_create msg
-      source  = Source.find_or_create src
+      message = Message.find_or_create_by(value: msg)
+      source  = Source.find_or_create_by(value: src)
 
       # Symbols get turned into strings via the JSON API, so convert back here if it matches
       # and expected log level. Log objects can't be created without one, so raise if not

@@ -68,6 +68,65 @@ module ForemanAnsible
       assert_nil @facts_parser.operatingsystem
     end
 
+    test 'RHEL 7 OS is correctly mapped' do
+      rhel7_facts = HashWithIndifferentAccess.new(read_json_fixture('facts/ansible_rhel_7_server.json'))
+      fact_parser = AnsibleFactParser.new(rhel7_facts)
+      assert_equal fact_parser.os_name, 'RedHat'
+    end
+
+    test 'RHEL 8 OS is correctly mapped' do
+      rhel8_facts = HashWithIndifferentAccess.new(read_json_fixture('facts/ansible_rhel_8.json'))
+      fact_parser = AnsibleFactParser.new(rhel8_facts)
+      assert_equal fact_parser.os_name, 'RedHat'
+    end
+
+    private
+
+    def expect_where(model, fact_name)
+      sample_mock = mock
+      model.expects(:where).
+        with(:name => fact_name).
+        returns(sample_mock)
+      sample_mock.expects(:first_or_create)
+    end
+  end
+
+  class WindowsFactParserTest < ActiveSupport::TestCase
+    setup do
+      facts_json = HashWithIndifferentAccess.new(read_json_fixture('/facts/ansible_facts_windows_2019.json'))
+      @facts_parser = AnsibleFactParser.new(facts_json)
+    end
+
+    test 'finds model' do
+      expect_where(Model, @facts_parser.facts[:ansible_product_name])
+      @facts_parser.model
+    end
+
+    test 'finds architecture' do
+      expect_where(Architecture, @facts_parser.facts[:ansible_architecture])
+      @facts_parser.architecture
+    end
+
+    test 'does not set environment' do
+      refute @facts_parser.environment
+    end
+
+    test 'calculates virtual reported data' do
+      refute @facts_parser.virtual
+    end
+
+    test 'calculates ram reported data' do
+      assert_equal 16384, @facts_parser.ram
+    end
+
+    test 'calculates sockets reported data' do
+      assert_equal 2, @facts_parser.sockets
+    end
+
+    test 'calculates cores reported data' do
+      assert_equal 2, @facts_parser.cores
+    end
+
     private
 
     def expect_where(model, fact_name)
@@ -209,7 +268,7 @@ module ForemanAnsible
   end
 
   # Tests for Windows parser
-  class WindowsFactParserTest < ActiveSupport::TestCase
+  class WindowsOSFactParserTest < ActiveSupport::TestCase
     context 'Windows 7' do
       setup do
         @facts_parser = AnsibleFactParser.new(
@@ -276,6 +335,62 @@ module ForemanAnsible
         assert_equal 'Microsoft Windows Server 2016 Standard', os.description
         assert_equal 'MicrosoftWindowsServer2016Standard', os.name
         assert os.valid?
+      end
+    end
+
+    context 'Windows Server 2016 without admin privileges' do
+      setup do
+        @facts_parser = AnsibleFactParser.new(
+          HashWithIndifferentAccess.new(
+            '_type' => 'ansible',
+            '_timestamp' => '2015-10-29 20:01:51 +0100',
+            'ansible_facts' => {
+              'ansible_architecture' => '64-Bit',
+              'ansible_distribution_major_version' => '10',
+              'ansible_distribution_version' => '10.0.14393.0',
+              'ansible_os_family' => 'Windows',
+              'ansible_system' => 'Win32NT',
+              'ansible_win_rm_certificate_expires' => '2021-01-23 15:08:48',
+              'ansible_windows_domain' => 'example.com',
+            }
+          )
+        )
+      end
+
+      test 'parses Windows Server correctly' do
+        os = @facts_parser.operatingsystem
+        assert_equal '10', os.major
+        assert_equal '10.0.143930', os.release
+        assert_equal '0.143930', os.minor
+        assert_equal 'Windows', os.family
+        assert_equal 'Microsoft Windows', os.description
+        assert_equal 'MicrosoftWindows', os.name
+        assert os.valid?
+      end
+    end
+  end
+
+  class CentOSStreamFactParserTest < ActiveSupport::TestCase
+    context 'CentOS Stream' do
+      setup do
+        facts_stream = HashWithIndifferentAccess.new(read_json_fixture('facts/ansible_centos_stream.json'))
+        facts_8_normal = HashWithIndifferentAccess.new(read_json_fixture('facts/ansible_centos_8.json'))
+        @fact_parser_stream = AnsibleFactParser.new(facts_stream)
+        @fact_parser_8_normal = AnsibleFactParser.new(facts_8_normal)
+      end
+
+      test 'should identify CentOS Stream' do
+        os = @fact_parser_stream.operatingsystem
+        assert_equal 'CentOS_Stream', os.name
+        assert_equal '8', os.major
+        assert_empty os.minor
+      end
+
+      test 'should identify CentOS 8' do
+        os = @fact_parser_8_normal.operatingsystem
+        assert_equal 'CentOS', os.name
+        assert_equal '8', os.major
+        assert_equal '4', os.minor
       end
     end
   end

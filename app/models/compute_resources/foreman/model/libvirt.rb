@@ -170,10 +170,15 @@ module Foreman::Model
       raise e
     end
 
+    def console_password_length(type)
+      # use an 8 character password for vnc (which is the allowed maximum) and 16 for everything else
+      type == 'vnc' ? 8 : 16
+    end
+
     def console(uuid)
       vm = find_vm_by_uuid(uuid)
       raise Foreman::Exception.new(N_("VM is not running!")) unless vm.ready?
-      password = random_password
+      password = random_password(console_password_length(vm.display[:type]))
       # Listen address cannot be updated while the guest is running
       # When we update the display password, we pass the existing listen address
       vm.update_display(:password => password, :listen => vm.display[:listen], :type => vm.display[:type])
@@ -237,6 +242,26 @@ module Foreman::Model
       normalized
     end
 
+    def self.terminate_connection(url = nil)
+      if url
+        local_names = ["libvirt_connection_#{url}"]
+      else
+        local_names = Thread.current.keys
+      end
+      local_names.each do |name|
+        if name.to_s.start_with?("libvirt_connection") && (conn = Thread.current[name])
+          Rails.logger.debug { "Terminating libvirt connection #{conn.object_id}: #{name}" }
+          # in test environment Fog::Libvirt::Compute::Mock does not respond to terminate
+          conn.terminate if conn.respond_to?(:terminate)
+          Thread.current[name] = nil
+        end
+      end
+    end
+
+    def disconnect
+      self.class.terminate_connection(url)
+    end
+
     protected
 
     def libvirt_connection_error
@@ -245,17 +270,17 @@ module Foreman::Model
     end
 
     def client
-      # WARNING potential connection leak
       tries ||= 3
-      Thread.current[url] ||= ::Fog::Compute.new(:provider => "Libvirt", :libvirt_uri => url)
+      key = "libvirt_connection_#{url}"
+      Thread.current[key] ||= begin
+        conn = ::Fog::Compute.new(:provider => "Libvirt", :libvirt_uri => url)
+        logger.debug { "Created libvirt connection #{conn.object_id}: #{url}" }
+        conn
+      end
     rescue ::Libvirt::RetrieveError
-      Thread.current[url] = nil
+      logger.debug { "Libvirt connection failed, trying again" }
+      Thread.current[key] = nil
       retry unless (tries -= 1).zero?
-    end
-
-    def disconnect
-      client.terminate if Thread.current[url]
-      Thread.current[url] = nil
     end
 
     def vm_instance_defaults
@@ -265,7 +290,7 @@ module Foreman::Model
         :volumes    => [new_volume].compact,
         :display    => { :type     => display_type,
                          :listen   => Setting[:libvirt_default_console_address],
-                         :password => random_password,
+                         :password => random_password(console_password_length(display_type)),
                          :port     => '-1' }
       )
     end

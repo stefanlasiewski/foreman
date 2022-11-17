@@ -14,12 +14,10 @@ From **provisioning** and **configuration** to **orchestration** and **monitorin
 * ServerFault tag: [Foreman](https://serverfault.com/questions/tagged/foreman)
 * Issues: [Redmine](https://projects.theforeman.org/issues)
 * Wiki: [Foreman wiki](https://projects.theforeman.org/projects/foreman/wiki/About)
-* Community and support: We use [Libera.Chat](https://libera.chat) IRC channels
+* Forum: [Foreman Community](https://community.theforeman.org)
+* Chat: We use [Libera.Chat](https://libera.chat) IRC channels
     * #theforeman for general support
     * #theforeman-dev for development chat
-* Mailing lists:
-    * [foreman-users](https://groups.google.com/forum/?fromgroups#!forum/foreman-users)
-    * [foreman-dev](https://groups.google.com/forum/?fromgroups#!forum/foreman-dev)
 
 Using [Puppet](https://www.theforeman.org/manuals/latest/#4.2ManagingPuppet), [Ansible](https://theforeman.org/plugins/foreman_ansible/), [Chef](https://theforeman.org/plugins/foreman_chef/), [Salt](https://theforeman.org/plugins/foreman_salt/) and Foreman's [smart proxy](https://www.theforeman.org/manuals/latest/#4.3SmartProxies) architecture, you can easily automate repetitive tasks, quickly deploy applications, and proactively manage change, both on-premise with VMs and bare-metal or in the cloud.
 
@@ -39,17 +37,17 @@ Foreman is a mature project, deployed in [many organizations](https://projects.t
 * and so [much more](https://theforeman.org/documentation.html)
 
 # Screenshots
-![Hosts list](http://i.imgur.com/VMMLRd3.png)
-![New host](http://i.imgur.com/wl9MCyz.png)
-![EC2](http://imgur.com/x6gCogZ.png)
-![Provisioning templates](http://imgur.com/J3szFIu.png)
-![Subnets](http://imgur.com/isBcyGb.png)
-![Compute Resource](http://imgur.com/BetWNzW.png)
-![Edit Puppet class](http://imgur.com/0KDClmy.png)
-![Reports](http://imgur.com/NxlP7yo.png)
-![Statistics](http://imgur.com/DKGjtFQ.png)
-![Partition tables](http://imgur.com/Gg80lzg.png)
-![Installation media](http://imgur.com/BsYcvoM.png)
+![Hosts list](http://imgur.com/6aNhT4r.png)
+![New host](http://imgur.com/QzK9G8d.png)
+![New host page](http://imgur.com/TXE5GCR.png)
+![EC2](http://imgur.com/f261Ifo.png)
+![Provisioning templates](https://imgur.com/453Gyev.png)
+![Subnets](http://imgur.com/O2fPz4y.png)
+![Compute Resource](http://imgur.com/Zg1wO3x.png)
+![Edit Puppet class](http://imgur.com/GkLLFij.png)
+![Reports](http://imgur.com/cJsGkOm.png)
+![Partition tables](http://imgur.com/nyUICe3.png)
+![Installation media](http://imgur.com/iyohTlW.png)
 
 # Installation
 Read the [quickstart section](https://theforeman.org/manuals/latest/quickstart_guide.html#QuickstartGuide) of the manual. If you know your setup has some specific needs, read the [installation scenarios section](https://theforeman.org/manuals/latest/#3.2.3InstallationScenarios).
@@ -74,7 +72,8 @@ Generally, follow the [Foreman guidelines](https://theforeman.org/contribute.htm
 * [Follow the rules](https://theforeman.org/contribute.html#SubmitPatches) about commit message style and create a Redmine issue. Doing this right will help reviewers to get your contribution merged faster.
 * We have a [development handbook](https://theforeman.org/handbook.html) to help developers understand how Foreman developers code.
 * [Rubocop](https://github.com/bbatsov/rubocop) will analyze your code, you can run it locally with `rake rubocop`.
-* All of our pull requests run the full test suite in our [Jenkins CI system](https://ci.theforeman.org/). Please include tests in your pull requests for any additions or changes in functionality
+* All of our pull requests run the full test suite in our [Jenkins CI system](https://ci.theforeman.org/). Please include tests in your pull requests for any additions or changes in functionality.
+* Please have a look at [Contributing.md](https://github.com/theforeman/foreman/blob/develop/CONTRIBUTING.md) for more information.
 
 # Media
 We keep a repository of talks, tutorials, articles about everything in the Foreman ecosystem in the [media section](https://theforeman.org/media.html) of our web. If you want to get yours published, just submit a pull request to [theforeman.org repository](https://github.com/theforeman/theforeman.org)
@@ -104,7 +103,6 @@ The following files and directories are exceptions:
 
 * app/views/unattended/ztp/provision.erb is (c) 2013, Juniper Networks under 2-clause BSD license.
 * lib/tasks/convert.rake is (c) 2008, Matson Systems, Inc. under Revised BSD license.
-* extras/noVNC/websockify is (c) 2011, Joel Martin under LGPL v3 license.
 * vendor/assets/fonts/ is (c) 2011-2016, Red Hat Inc. under SIL Open Font License v1.1 or LGPL v2.1 licenses.
 * vendor/assets/javascripts/jquery.flot.axislabels.js is (c) 2010 Xuan Luo under MIT license.
 * app/assets/images/RancherOS.png is (c) 2018 Rancher Labs, Inc.

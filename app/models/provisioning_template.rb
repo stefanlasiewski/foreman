@@ -37,6 +37,7 @@ class ProvisioningTemplate < Template
   # tested with scoped_search 3.2.0
   include Taxonomix
   include TemplateTax
+  scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
   scoped_search :on => :name,    :complete_value => true, :default_order => true
   scoped_search :on => :locked,  :complete_value => {:true => true, :false => false}
   scoped_search :on => :snippet, :complete_value => {:true => true, :false => false}
@@ -120,19 +121,11 @@ class ProvisioningTemplate < Template
   end
 
   def self.local_boot_name(kind)
-    "#{kind} default local boot"
-  end
-
-  def self.global_default_name(kind)
-    "#{kind} global default"
+    Setting["local_boot_#{kind}"]
   end
 
   def self.global_template_name_for(kind)
-    global_setting = Setting.find_by(:name => "global_#{kind}")
-    return global_setting.value if global_setting && global_setting.value.present?
-    global_template_name = global_default_name(kind)
-    Rails.logger.info "Could not find user defined global template from Settings for #{kind}, falling back to #{global_template_name}"
-    global_template_name
+    Setting["global_#{kind}"]
   end
 
   def self.build_pxe_default
@@ -226,6 +219,18 @@ class ProvisioningTemplate < Template
   def no_os_for_registration
     return unless template_kind&.name == 'registration'
     errors.add(:operatingsystems, N_("can't assign operating system to Registration template")) if operatingsystems.any?
+  end
+
+  def support_single_host_render?
+    !registration_template?
+  end
+
+  def registration_template?
+    try(:template_kind)&.name == 'registration'
+  end
+
+  def host_init_config_template?
+    try(:template_kind)&.name == 'host_init_config'
   end
 
   private

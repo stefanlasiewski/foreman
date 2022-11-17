@@ -28,7 +28,6 @@ module Foreman
 
     def settings_map
       {
-        'FOREMAN_UNATTENDED' => [:boolean, :unattended],
         'FOREMAN_REQUIRE_SSL' => [:boolean, :require_ssl],
         'FOREMAN_SUPPORT_JSONP' => [:boolean, :support_jsonp],
         'FOREMAN_MARK_TRANSLATED' => [:boolean, :mark_translated],
@@ -36,7 +35,6 @@ module Foreman
         'FOREMAN_WEBPACK_DEV_SERVER_HTTPS' => [:boolean, :webpack_dev_server_https],
         'FOREMAN_ASSETS_DEBUG' => [:boolean, :assets_debug],
         'FOREMAN_HSTS_ENABLED' => [:boolean, :hsts_enabled],
-        'FOREMAN_RAILS' => [:string, :rails],
         'FOREMAN_DOMAIN' => [:string, :domain],
         'FOREMAN_FQDN' => [:string, :fqdn],
         'FOREMAN_CORS_DOMAINS' => [:list, :cors_domains],

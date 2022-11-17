@@ -136,14 +136,6 @@ class ActiveSupport::TestCase
     User.current = @one
   end
 
-  def unattended?
-    SETTINGS[:unattended].nil? || SETTINGS[:unattended]
-  end
-
-  def skip_without_unattended
-    skip("unattended mode is disabled") unless unattended?
-  end
-
   def self.disable_orchestration
     # This disables the DNS/DHCP orchestration
     Resolv::DNS.any_instance.stubs(:getname).returns("foo.fqdn")
@@ -184,7 +176,12 @@ class ActiveSupport::TestCase
 
   def read_json_fixture(file)
     json = File.expand_path(File.join('..', 'static_fixtures', file), __FILE__)
-    JSON.parse(File.read(json))
+    result = JSON.parse(File.read(json))
+    if file.start_with? "reports"
+      result["config_report"]
+    else
+      result
+    end
   end
 
   def assert_with_errors(condition, model)
@@ -198,7 +195,7 @@ class ActiveSupport::TestCase
   def refute_with_errors(condition, model, field = nil, match = nil)
     refute condition, "#{model.inspect} errors: #{model.errors.full_messages.join(';')}"
     if field
-      model_errors = model.errors.map { |a, m| model.errors.full_message(a, m) unless field == a }.compact
+      model_errors = model.errors.map { |error| error.full_message unless field == error.attribute }.compact
       assert model_errors.blank?, "#{model} contains #{model_errors}, it should not contain any"
       if match
         assert model.errors[field].find { |e| e.match(match) }.present?,

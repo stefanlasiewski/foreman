@@ -4,12 +4,13 @@ import { HashRouter, Route, Redirect, Switch } from 'react-router-dom';
 import { STATUS } from '../../../../constants';
 import Slot from '../../../common/Slot';
 import { DEFAULT_TAB } from '../../consts';
+import TabsWithHashHistory from './Tabs';
 
 const TabRouter = ({ children, tabs, hostName, response, status, router }) => (
   <HashRouter>
     <>
-      {children}
-      <Switch>
+      <TabsWithHashHistory tabs={children} />
+      <Switch ouiaId="tab-router-switch">
         <Route path="/" exact>
           <Redirect to={`/${DEFAULT_TAB}`} />
         </Route>

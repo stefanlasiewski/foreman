@@ -1,30 +1,20 @@
 @import '~@theforeman/vendor/scss/variables';
 
 $caption_font_weight: 600;
-/* stylelint-disable-next-line */
-$background_image: linear-gradient(
-  to right,
-  #005e8c,
-  #084c75,
-  #0a3a5e,
-  #082948,
-  #041a33
-);
+$background_image: url('../LoginPage/background.svg');
 
 #login-page {
   height: 100%;
 
-  #login-footer-text {
-    position: fixed;
-    bottom: 0;
-    padding: 30px;
-    color: $color-pf-white;
-    font-size: 14px;
+  .login-pf-page-footer-link[href*='foreman-login-footer-text'] {
+    pointer-events: none;
+    cursor: default;
   }
 
   .login-pf {
     background: none;
     background-image: $background_image;
+    background-size: contain;
 
     .login-pf-header {
       margin-bottom: 0 !important; // conflicts with patternfly-sass gem.

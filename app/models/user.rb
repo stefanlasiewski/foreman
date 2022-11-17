@@ -83,7 +83,7 @@ class User < ApplicationRecord
 
   validates :mail, :email => true, :allow_blank => true
   validates :mail, :presence => true, :on => :update,
-                   :if => proc { |u| !AuthSourceHidden.where(:id => u.auth_source_id).any? && (u.mail_was.present? || (User.current == u && !User.current.hidden?)) }
+            :if => proc { |u| !AuthSourceHidden.where(:id => u.auth_source_id).any? && (u.mail_enabled || (User.current == u && !User.current.hidden?)) }
 
   validates :locale, :format => { :with => /\A\w{2}([_-]\w{2})?\Z/ }, :allow_blank => true, :if => proc { |user| user.respond_to?(:locale) }
   before_validation :normalize_locale
@@ -97,7 +97,8 @@ class User < ApplicationRecord
   end
 
   validates :login, :presence => true, :uniqueness => {:case_sensitive => false, :message => N_("already exists")},
-                    :format => {:with => /\A[[:alnum:]_\-@\.\\$#+]*\Z/}, :length => {:maximum => 100}
+                    :format => {:with => /\A[[:alnum:]_\-@\.\\$#+]*\Z/}, :length => {:maximum => 100},
+                    :exclusion => { in: %w(current_user) }
   validates :auth_source_id, :presence => true
   validates :password_hash, :presence => true, :if => proc { |user| user.manage_password? }
   validates :password, :confirmation => true, :if => proc { |user| user.manage_password? },
@@ -117,6 +118,7 @@ class User < ApplicationRecord
   after_create :welcome_mail
   after_create :set_default_widgets
 
+  scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
   scoped_search :on => :login, :complete_value => :true
   scoped_search :on => :firstname, :complete_value => :true
   scoped_search :on => :lastname, :complete_value => :true
@@ -173,12 +175,13 @@ class User < ApplicationRecord
     end
   end
 
-  def can?(permission, subject = nil)
+  # See Authorizer#can? for parameter documentation
+  def can?(permission, subject = nil, cache = true)
     if admin?
       true
     else
       @authorizer ||= Authorizer.new(self)
-      @authorizer.can?(permission, subject)
+      @authorizer.can?(permission, subject, cache)
     end
   end
 
@@ -370,17 +373,17 @@ class User < ApplicationRecord
   end
 
   def upgrade_password(pass)
-    logger.info "Upgrading password for user #{login} to bcrypt"
+    logger.info "Upgrading password for user #{login} to configured algorithm"
     self.password_salt = salt_password
     self.password_hash = hash_password(pass)
     update_columns(password_salt: password_salt, password_hash: password_hash)
   end
 
   def matching_password?(pass)
-    return false if password_hash.nil?
+    return false if password_hash.nil? || pass.nil?
     type = Foreman::PasswordHash.detect_implementation(password_salt)
     return false if password_hash != hash_password(pass, type)
-    upgrade_password(pass) if type != :bcrypt
+    upgrade_password(pass) if type != Setting[:password_hash]&.to_sym
     true
   end
 
@@ -557,9 +560,9 @@ class User < ApplicationRecord
     # If an invalid data returned from an authentication source for any attribute(s) then set its value as nil
     saved_attrs = {}
     unless user.valid?
-      user.errors.each do |attr|
-        saved_attrs[attr] = user[attr]
-        user[attr] = nil
+      user.errors.each do |error|
+        saved_attrs[error.attribute] = user[error.attribute]
+        user[error.attribute] = nil
       end
     end
 
@@ -612,12 +615,12 @@ class User < ApplicationRecord
     MailNotification[:welcome].deliver(:user => self)
   end
 
-  def salt_password(type = :bcrypt)
+  def salt_password(type = Setting[:password_hash])
     hasher = Foreman::PasswordHash.new(type)
-    hasher.generate_salt(Setting[:bcrypt_cost])
+    hasher.generate_salt
   end
 
-  def hash_password(pass, type = :bcrypt)
+  def hash_password(pass, type = Setting[:password_hash])
     telemetry_duration_histogram(:login_pwhash_duration, :ms, algorithm: type) do
       hasher = Foreman::PasswordHash.new(type)
       hasher.hash_secret(pass, password_salt)

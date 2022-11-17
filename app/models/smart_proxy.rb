@@ -22,10 +22,13 @@ class SmartProxy < ApplicationRecord
   validates :name, :uniqueness => true, :presence => true
   validates :url, :presence => true, :url_schema => ['http', 'https'],
     :uniqueness => { :message => N_('Only one declaration of a proxy is allowed') }
+  has_many :infrastructure_host_facets, :class_name => '::HostFacets::InfrastructureFacet', :dependent => :nullify
+  has_many :smart_proxy_hosts, :through => :infrastructure_host_facets, :source => :host
 
   # There should be no problem with associating features before the proxy is saved as the whole operation is in a transaction
   before_save :sanitize_url, :associate_features
 
+  scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
   scoped_search :on => :name, :complete_value => :true
   scoped_search :on => :url, :complete_value => :true
   scoped_search :relation => :features, :on => :name, :rename => :feature, :complete_value => :true

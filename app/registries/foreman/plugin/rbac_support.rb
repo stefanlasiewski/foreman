@@ -2,7 +2,7 @@ module Foreman
   class Plugin
     class RbacSupport
       # These plugins can be extended by plugins through plugin API
-      AUTO_EXTENDED_ROLES = [Role::VIEWER, Role::MANAGER, Role::ORG_ADMIN, Role::SYSTEM_ADMIN]
+      AUTO_EXTENDED_ROLES = [Role::VIEWER, Role::MANAGER, Role::ORG_ADMIN, Role::SYSTEM_ADMIN, Role::SITE_MANAGER]
 
       def add_all_permissions_to_default_roles(all_permissions)
         view_permissions = all_permissions.where("name LIKE :name", :name => "view_%")
@@ -82,7 +82,8 @@ module Foreman
         condition_hash.merge! opts[:condition_hash] if opts[:condition_hash]
         conditions = "resource_type = :resource_type"
         conditions << (" AND " + opts[:condition]) if opts[:condition]
-        all_permissions = Permission.where(conditions, condition_hash)
+        sanitized = ActiveRecord::Base.sanitize_sql_for_conditions([conditions, condition_hash])
+        all_permissions = Permission.where(sanitized)
         all_permissions.reject do |permission|
           permission_already_included? role, permission, opts
         end

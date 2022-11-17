@@ -28,6 +28,7 @@ class HttpProxy < ApplicationRecord
     end
   }
 
+  scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
   scoped_search :on => :name
   scoped_search :on => :url
 
@@ -40,13 +41,23 @@ class HttpProxy < ApplicationRecord
     uri.to_s
   end
 
+  def ssl_cert_store
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.set_default_paths
+    if cacert.present?
+      Foreman::Util.add_ca_bundle_to_store(cacert, cert_store)
+    end
+    cert_store
+  end
+
   def test_connection(url)
     RestClient::Request.execute(
       method: :head,
       url: url,
       proxy: full_url,
       timeout: 5,
-      open_timeout: 5
+      open_timeout: 5,
+      ssl_cert_store: ssl_cert_store
     )
   rescue Excon::Error::Socket => e
     e.message

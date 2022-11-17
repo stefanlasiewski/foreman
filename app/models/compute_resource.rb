@@ -48,7 +48,6 @@ class ComputeResource < ApplicationRecord
       'EC2'       => 'Foreman::Model::EC2',
       'Vmware'    => 'Foreman::Model::Vmware',
       'Openstack' => 'Foreman::Model::Openstack',
-      'GCE'       => 'Foreman::Model::GCE',
     }
   end
 
@@ -126,7 +125,7 @@ class ComputeResource < ApplicationRecord
   end
 
   def connection_options
-    http_proxy ? {:proxy => http_proxy.full_url} : {}
+    http_proxy ? {:proxy => http_proxy.full_url, :ssl_cert_store => http_proxy.ssl_cert_store} : {}
   end
 
   # Override this method to specify provider name
@@ -424,9 +423,10 @@ class ComputeResource < ApplicationRecord
     self.url = url.chomp("/") unless url.empty?
   end
 
-  def random_password
+  def random_password(characters = 16)
     return nil unless set_console_password?
-    SecureRandom.hex(8)
+    # characters returned by base64 are 4/3 of size, so limit to size
+    SecureRandom.base64(characters)[0..characters - 1]
   end
 
   def nested_attributes_for(type, opts)
@@ -452,7 +452,7 @@ class ComputeResource < ApplicationRecord
     attributes = Array.wrap(attributes).map { |mac| Net::Validations.normalize_mac(mac) } if name == 'mac'
     Host.authorized(:view_hosts, Host).joins(:primary_interface).
       where(:nics => {:primary => true}).
-      where("nics.#{name}" => attributes).
+      where(ActiveRecord::Base.sanitize_sql("nics.#{name}") => attributes).
       readonly(false).
       first
   end

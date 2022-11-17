@@ -272,11 +272,11 @@ class PluginTest < ActiveSupport::TestCase
       name 'Awesome compute'
       compute_resource Awesome::Provider::MyAwesome
     end
-    assert _(ComputeResource.providers.keys).must_include 'MyAwesome'
-    assert _(ComputeResource.providers.values).must_include 'Awesome::Provider::MyAwesome'
+    assert_includes ComputeResource.providers.keys, 'MyAwesome'
+    assert_includes ComputeResource.providers.values, 'Awesome::Provider::MyAwesome'
     assert_equal ComputeResource.provider_class('MyAwesome'), 'Awesome::Provider::MyAwesome'
-    assert _(ComputeResource.registered_providers.keys).must_include 'MyAwesome'
-    assert _(ComputeResource.registered_providers.values).must_include 'Awesome::Provider::MyAwesome'
+    assert_includes ComputeResource.registered_providers.keys, 'MyAwesome'
+    assert_includes ComputeResource.registered_providers.values, 'Awesome::Provider::MyAwesome'
   end
 
   def test_invalid_compute_resource
@@ -485,6 +485,8 @@ class PluginTest < ActiveSupport::TestCase
     Foreman::Plugin.register :test_plugin do
       add_resource_permissions_to_default_roles ["Test::Resource"], :except => [:create_test]
     end
+    Foreman::Plugin.find(:test_plugin).finalize_setup!
+
     manager = Role.find_by :name => "Manager"
     org_admin = Role.find_by :name => "Organization admin"
     viewer = Role.find_by :name => "Viewer"
@@ -499,6 +501,8 @@ class PluginTest < ActiveSupport::TestCase
     Foreman::Plugin.register :test_plugin do
       add_permissions_to_default_roles "Viewer" => [:misc_test]
     end
+    Foreman::Plugin.find(:test_plugin).finalize_setup!
+
     assert viewer.permissions.find_by :name => "misc_test"
   end
 
@@ -509,9 +513,12 @@ class PluginTest < ActiveSupport::TestCase
         permission :edit_test, { :controller_name => [:test] }
         permission :create_test, { :controller_name => [:test] }
         permission :misc_test, { :controller_name => [:test] }
+        permission :restricted, { :controller_name => [:test] }
       end
-      add_all_permissions_to_default_roles
+      add_all_permissions_to_default_roles(except: [:restricted])
     end
+    Foreman::Plugin.find(:test_plugin).finalize_setup!
+
     manager = Role.find_by :name => "Manager"
     viewer = Role.find_by :name => "Viewer"
     org_admin = Role.find_by :name => "Organization admin"
@@ -529,6 +536,11 @@ class PluginTest < ActiveSupport::TestCase
       assert permission.roles.include?(org_admin)
       refute permission.roles.include?(viewer)
     end
+
+    permission = Permission.find_by(:name => 'restricted')
+    refute permission.roles.include?(manager)
+    refute permission.roles.include?(org_admin)
+    refute permission.roles.include?(viewer)
   end
 
   def test_add_dashboard_widget

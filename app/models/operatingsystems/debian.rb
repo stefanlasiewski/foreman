@@ -2,8 +2,9 @@ class Debian < Operatingsystem
   PXEFILES = {:kernel => "linux", :initrd => "initrd.gz"}
 
   def pxedir(medium_provider = nil)
-    # support ubuntu focal(20), which moved pxe files to legacy_image
-    if (guess_os == 'ubuntu' && major.to_i >= 20)
+    if is_subiquity? # support Ubuntu 22.04, which drops legacy_image support
+      'casper'
+    elsif (guess_os == 'ubuntu' && major.to_i >= 20) # support ubuntu focal(20), which moved pxe files to legacy_image
       'dists/$release/main/installer-$arch/current/legacy-images/netboot/' + guess_os + '-installer/$arch'
     else
       'dists/$release/main/installer-$arch/current/images/netboot/' + guess_os + '-installer/$arch'
@@ -59,11 +60,29 @@ class Debian < Operatingsystem
     s.presence || description
   end
 
+  def pxe_file_names(medium_provider)
+    if is_subiquity?
+      {
+        kernel: 'vmlinuz',
+        initrd: 'initrd',
+      }
+    else
+      super
+    end
+  end
+
   private
 
   # tries to guess if this an ubuntu or a debian os
   def guess_os
     (name =~ /ubuntu/i) ? "ubuntu" : "debian"
+  end
+
+  def is_subiquity?
+    return false if guess_os != "ubuntu"
+    return false if major.to_i < 20
+    return false if major.to_i == 20 && minor.to_i <= 2
+    true # Ubuntu release 20.04.3 or newer
   end
 
   def transform_vars(vars)

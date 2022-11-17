@@ -8,10 +8,13 @@ oses:
 test_on:
 - debian4dhcp
 - ubuntu4dhcp
+description: |
+  A finish template executed at the end of a network provisioning done using preseed based
+  installer, typically DEB based distributions. This template renders to a shell script.
 -%>
 <%
   # safemode renderer does not support unary negation
-  puppet_enabled = host_puppet_server.present? || host_param_true?('force-puppet')
+  puppet_enabled = !host_param_true?('skip-puppet-setup') && (host_puppet_server.present? || host_param_true?('force-puppet'))
   salt_enabled = host_param('salt_master') ? true : false
   chef_enabled = @host.respond_to?(:chef_proxy) && @host.chef_proxy
 -%>
@@ -28,6 +31,9 @@ test_on:
 /bin/sed -i "s/^search.*$/search <%= @host.domain %>/g" /etc/resolv.conf
 /bin/sed -i "s/.*dns-search.*/\tdns-search <%= @host.domain %>/g" /etc/network/interfaces
 /bin/sed -i "s/^<%= @host.ip %>.*/<%= @host.ip %>\t<%= @host.shortname %>.<%= @host.domain %>\t<%= @host.shortname %>/g" /etc/hosts
+<% end -%>
+
+<% unless !(@host.operatingsystem.name == "Ubuntu" && @host.operatingsystem.major.to_i > 20 || (@host.operatingsystem.major.to_i == 20 && @host.operatingsystem.minor.to_i >= 3)) || dhcp -%>
 /bin/echo <%= @host.shortname %> > /etc/hostname
 /bin/hostname  <%= @host.shortname %>.<%= @host.domain %>
 <% end -%>
@@ -51,7 +57,7 @@ echo 'root:<%= root_pass -%>' | /usr/sbin/chpasswd -e
 <% end -%>
 
 <% if puppet_enabled %>
-<% if host_param_true?('enable-puppetlabs-repo') || host_param_true?('enable-puppetlabs-puppet6-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
+<% if host_param_true?('enable-puppetlabs-repo') || host_param_true?('enable-official-puppet7-repo') || host_param_true?('enable-puppetlabs-puppet6-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
 <%= snippet 'puppetlabs_repo' %>
 <% end -%>
 <%= snippet 'puppet_setup' %>
@@ -62,6 +68,7 @@ echo 'root:<%= root_pass -%>' | /usr/sbin/chpasswd -e
 <% end -%>
 
 <%= snippet 'preseed_networking_setup' -%>
+<%= snippet 'ansible_provisioning_callback' -%>
 <%= snippet 'efibootmgr_netboot' -%>
 <%= snippet 'eject_cdrom' -%>
 <%= snippet 'built' -%>

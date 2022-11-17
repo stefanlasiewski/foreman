@@ -15,7 +15,7 @@ end
 FactoryBot.define do
   factory :ptable do
     sequence(:name) { |n| "ptable#{n}" }
-    layout { 'zerombr\nclearpart --all    --initlabel\npart /boot --fstype ext3 --size=<%= 10 * 10 %> --asprimary\npart /     --f   stype ext3 --size=1024 --grow\npart swap  --recommended' }
+    layout { "zerombr\nclearpart --all    --initlabel\npart /boot --fstype ext3 --size=<%= 10 * 10 %> --asprimary\npart /     --fstype ext3 --size=1024 --grow\npart swap  --recommended" }
     os_family { 'Redhat' }
     organizations { [Organization.find_by_name('Organization 1')] }
     locations { [Location.find_by_name('Location 1')] }
@@ -23,6 +23,12 @@ FactoryBot.define do
     trait :ubuntu do
       sequence(:name) { |n| "ubuntu default#{n}" }
       layout { "d-i partman-auto/disk string /dev/sda\nd-i partman-auto/method string regular..." }
+      os_family { 'Debian' }
+    end
+
+    trait :ubuntu_autoinstall do
+      sequence(:name) { |n| "ubuntu default autoinstall#{n}" }
+      layout { "storage:\n  layout:\n    name: lvm\n" }
       os_family { 'Debian' }
     end
 
@@ -309,8 +315,17 @@ FactoryBot.define do
         operatingsystem { FactoryBot.build(:for_snapshots_debian_10) }
       end
 
+      factory :host_for_snapshots_ipv4_dhcp_ubuntu18 do
+        operatingsystem { FactoryBot.build(:for_snapshots_ubuntu_18) }
+      end
+
       factory :host_for_snapshots_ipv4_dhcp_ubuntu20 do
+        ptable { FactoryBot.build(:ptable, :ubuntu_autoinstall) }
         operatingsystem { FactoryBot.build(:for_snapshots_ubuntu_20) }
+      end
+
+      factory :host_for_snapshots_ipv4_dhcp_rhel9 do
+        operatingsystem { FactoryBot.build(:for_snapshots_rhel9) }
       end
     end
 
@@ -512,6 +527,10 @@ FactoryBot.define do
 
     trait :with_registration_facet do
       association :registration_facet, factory: :registration_facet, strategy: :build
+    end
+
+    trait :with_infrastructure_facet do
+      association :infrastructure_facet, factory: :infrastructure_facet, strategy: :build
     end
   end
 

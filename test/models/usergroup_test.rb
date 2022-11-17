@@ -32,7 +32,7 @@ class UsergroupTest < ActiveSupport::TestCase
     invalid_name_list.each do |name|
       usergroup.name = name
       refute usergroup.valid?, "Can update usergroup with invalid name #{name}"
-      assert_includes usergroup.errors.keys, :name
+      assert_includes usergroup.errors.attribute_names, :name
     end
   end
 
@@ -201,7 +201,7 @@ class UsergroupTest < ActiveSupport::TestCase
   end
 
   test "receipients_for provides subscribers of notification recipients" do
-    users = [FactoryBot.create(:user, :with_mail_notification), FactoryBot.create(:user)]
+    users = [FactoryBot.create(:user, :with_mail_notification, :mail_enabled => true), FactoryBot.create(:user)]
     notification = users[0].mail_notifications.first.name
     usergroup = FactoryBot.create(:usergroup)
     usergroup.users << users
@@ -232,7 +232,8 @@ class UsergroupTest < ActiveSupport::TestCase
       LdapFluff.any_instance.stubs(:valid_group?).returns(false)
 
       refute @external.save
-      assert_equal @external.errors.first, [:name, 'is not found in the authentication source']
+      assert_equal @external.errors.first.attribute, :name
+      assert_equal @external.errors.first.message, 'is not found in the authentication source'
     end
 
     test "delete user if not in LDAP directory" do

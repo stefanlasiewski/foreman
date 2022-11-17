@@ -66,6 +66,17 @@ class BaseMacrosTest < ActiveSupport::TestCase
     assert_equal '', @scope.pxe_kernel_options
   end
 
+  describe '#previous_revision' do
+    test "should return previous revision of a host" do
+      host = FactoryBot.build(:host)
+      host.name = 'oldname'
+      host.save!
+      host.update(name: 'newname')
+      host.save!
+      assert_equal 'oldname', @scope.previous_revision(host).name
+    end
+  end
+
   describe '#host_uptime_seconds' do
     test 'should return host uptime in seconds' do
       host = FactoryBot.create(:host)
@@ -139,6 +150,13 @@ class BaseMacrosTest < ActiveSupport::TestCase
     end
   end
 
+  test 'URI::Generic jail test' do
+    allowed = [:host, :path, :port, :query, :scheme]
+    allowed.each do |m|
+      assert URI::HTTP::Jail.allowed?(m), "Method #{m} is not available in URI::HTTP::Jail while should be allowed."
+    end
+  end
+
   context 'subnet helpers' do
     setup do
       host = FactoryBot.build(:host)
@@ -172,6 +190,36 @@ class BaseMacrosTest < ActiveSupport::TestCase
       assert_raises Foreman::Renderer::Errors::WrongSubnetError do
         @scope.subnet_param(nil, 'myparam')
       end
+    end
+  end
+
+  describe '#save_to_file' do
+    test "should zero a file on nil content" do
+      command = @scope.save_to_file('/tmp/test', nil)
+      assert_equal command, 'cp /dev/null /tmp/test'
+    end
+
+    test "should zero a file on empty string content" do
+      command = @scope.save_to_file('/tmp/test', nil)
+      assert_equal command, 'cp /dev/null /tmp/test'
+    end
+
+    test "should add a missing newline" do
+      delimiter = 'EOF-e6fb375b'
+      command = @scope.save_to_file('/tmp/test', 'echo hello')
+      assert_equal command, "cat << #{delimiter} > /tmp/test\necho hello\n#{delimiter}"
+    end
+
+    test "should encode content as base64" do
+      delimiter = 'EOF-e6fb375b'
+      base64 = Base64.encode64('echo hello')
+      command = @scope.save_to_file('/tmp/test', 'echo hello', verbatim: true)
+      assert_equal command, "cat << #{delimiter} | base64 -d > /tmp/test\n#{base64}#{delimiter}"
+    end
+
+    test "should properly escape filename" do
+      command = @scope.save_to_file('/tmp/a file with spaces', nil)
+      assert_equal command, 'cp /dev/null /tmp/a\ file\ with\ spaces'
     end
   end
 end

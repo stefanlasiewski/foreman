@@ -1,6 +1,7 @@
 # The audit class is part of audited plugin
 module AuditExtensions
   extend ActiveSupport::Concern
+  include HasManyCommon
 
   REDACTED = N_('[redacted]')
 
@@ -23,7 +24,7 @@ module AuditExtensions
     end
 
     def self.humanize_class_name
-      _("Audit")
+      N_("Audit")
     end
 
     serialize :audited_changes
@@ -221,8 +222,8 @@ module AuditExtensions
 
   def fix_auditable_type
     # STI Host class should use the stub module instead of Host::Base
-    self.auditable_type = "Host::Base" if auditable_type =~ /Host::/
-    self.associated_type = "Host::Base" if associated_type =~ /Host::/
+    self.auditable_type = "Host::Base" if auditable_type =~ /^(::)?Host::/
+    self.associated_type = "Host::Base" if associated_type =~ /^(::)?Host::/
     self.auditable_type = auditable.type if ["Taxonomy", "LookupKey"].include?(auditable_type) && auditable
     self.associated_type = associated.type if ["Taxonomy", "LookupKey"].include?(associated_type) && associated
     self.auditable_type = auditable.type if auditable_type =~ /Nic::/

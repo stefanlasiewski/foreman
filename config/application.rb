@@ -56,10 +56,7 @@ else
       end
     end
     Bundler.require(*Rails.groups)
-    optional_bundler_groups = %w[assets]
-    if SETTINGS[:unattended]
-      optional_bundler_groups += %w[ec2 fog gce libvirt openstack ovirt vmware]
-    end
+    optional_bundler_groups = %w[assets ec2 fog libvirt openstack ovirt vmware]
     optional_bundler_groups.each do |group|
       Bundler.require(group)
     rescue LoadError
@@ -72,17 +69,26 @@ end
 # load the corresponding bit of fog
 require 'fog/ovirt' if defined?(::OVIRT)
 
-require_dependency File.expand_path('../app/models/application_record.rb', __dir__)
-require_dependency File.expand_path('../lib/foreman.rb', __dir__)
-require_dependency File.expand_path('../lib/timed_cached_store.rb', __dir__)
-require_dependency File.expand_path('../lib/foreman/exception', __dir__)
-require_dependency File.expand_path('../lib/core_extensions', __dir__)
-require_dependency File.expand_path('../lib/foreman/logging', __dir__)
-require_dependency File.expand_path('../lib/foreman/http_proxy', __dir__)
-require_dependency File.expand_path('../lib/foreman/middleware/catch_json_parse_errors', __dir__)
-require_dependency File.expand_path('../lib/foreman/middleware/logging_context_request', __dir__)
-require_dependency File.expand_path('../lib/foreman/middleware/logging_context_session', __dir__)
-require_dependency File.expand_path('../lib/foreman/middleware/telemetry', __dir__)
+require File.expand_path('../lib/foreman', __dir__)
+require File.expand_path('../lib/timed_cached_store', __dir__)
+require File.expand_path('../lib/foreman/exception', __dir__)
+require File.expand_path('../lib/core_extensions', __dir__)
+require File.expand_path('../lib/foreman/force_ssl', __dir__)
+require File.expand_path('../lib/foreman/logging', __dir__)
+require File.expand_path('../lib/foreman/http_proxy', __dir__)
+require File.expand_path('../lib/foreman/middleware/logging_context_request', __dir__)
+require File.expand_path('../lib/foreman/middleware/logging_context_session', __dir__)
+require File.expand_path('../lib/foreman/middleware/telemetry', __dir__)
+require File.expand_path('../lib/foreman/middleware/libvirt_connection_cleaner', __dir__)
+
+# Ensure ApplicationRecord is loaded early and can be used inside migrations.
+# Can probably be removed once we migrate to Zeitwerk.
+require File.expand_path('../app/models/concerns/host_mix', __dir__)
+require File.expand_path('../app/models/concerns/has_many_common', __dir__)
+require File.expand_path('../app/models/concerns/strip_whitespace', __dir__)
+require File.expand_path('../app/models/concerns/parameterizable', __dir__)
+require File.expand_path('../app/models/concerns/audit_associations', __dir__)
+require File.expand_path('../app/models/application_record', __dir__)
 
 if SETTINGS[:support_jsonp]
   if File.exist?(File.expand_path('../Gemfile.in', __dir__))
@@ -104,7 +110,6 @@ module Foreman
     # -- all .rb files in that directory are automatically loaded.
 
     # Autoloading
-    config.autoload_paths += %W(#{config.root}/lib)
     config.autoload_paths += %W(#{config.root}/app/models/power_manager)
     config.autoload_paths += %W(#{config.root}/app/models/auth_sources)
     config.autoload_paths += %W(#{config.root}/app/models/compute_resources)
@@ -126,6 +131,13 @@ module Foreman
     # Only load the plugins named here, in the order given (default is alphabetical).
     # :all can be used as a placeholder for all plugins not explicitly named.
     # config.plugins = [ :exception_notification, :ssl_requirement, :all ]
+
+    config.force_ssl = SETTINGS[:require_ssl]
+    config.ssl_options = {
+      redirect: {
+        exclude: ->(request) { Foreman::ForceSsl.new(request).allows_http? },
+      },
+    }
 
     # Set Time.zone default to the specified zone and make Active Record auto-convert to this zone.
     # Run "rake -D time" for a list of tasks for finding time zone names. Default is UTC.
@@ -163,6 +175,17 @@ module Foreman
     # like if you have constraints or database-specific column types
     config.active_record.schema_format = :sql
 
+    # Starting 6.1.6.1 Rails forced users to explicitly list all the classes
+    # that are allowed to be loaded by Psych
+    # (https://github.com/rails/rails/pull/45584#issuecomment-1183255990)
+    config.active_record.yaml_column_permitted_classes = [
+      Symbol,
+      Time,
+      ActiveSupport::HashWithIndifferentAccess,
+      ActiveSupport::TimeZone,
+      ActiveSupport::TimeWithZone,
+    ]
+
     # enables JSONP support in the Rack middleware
     config.middleware.use Rack::JSONP if SETTINGS[:support_jsonp]
 
@@ -194,9 +217,6 @@ module Foreman
     # Disable noisy logging of requests for assets
     config.assets.quiet = true
 
-    # Catching Invalid JSON Parse Errors with Rack Middleware
-    config.middleware.use Foreman::Middleware::CatchJsonParseErrors
-
     # When operating behind a reverse proxy, this provides a valid remote ip in request.remote_ip
     # the middleware is enabled by default however we minimize the trusted proxies list
     #
@@ -214,8 +234,9 @@ module Foreman
     # Add apidoc hash in headers for smarter caching
     config.middleware.use Apipie::Middleware::ChecksumInHeaders
 
-    # Add telemetry
+    # Add telemetry and connection cleaner
     config.middleware.use Foreman::Middleware::Telemetry
+    config.middleware.use Foreman::Middleware::LibvirtConnectionCleaner
 
     # New config option to opt out of params "deep munging" that was used to address security vulnerability CVE-2013-0155.
     config.action_dispatch.perform_deep_munge = false
@@ -299,21 +320,6 @@ module Foreman
         end
         child.helper helpers
       end
-
-      Facets.register(HostFacets::ReportedDataFacet, :reported_data) do
-        set_dependent_action :destroy
-        template_compatibility_properties :cores, :virtual, :sockets, :ram, :uptime_seconds
-      end
-
-      Facets.register(ForemanRegister::RegistrationFacet, :registration_facet) do
-        set_dependent_action :destroy
-      end
-
-      Plugin.all.each do |plugin|
-        plugin.to_prepare_callbacks.each(&:call)
-      end
-
-      Plugin.graphql_types_registry.realise_extensions
     end
 
     # Use the database for sessions instead of the cookie-based default
@@ -341,6 +347,8 @@ module Foreman
     end
 
     config.after_initialize do
+      require 'fog_extensions'
+
       init_dynflow unless Foreman.in_rake?('db:create') || Foreman.in_rake?('db:drop')
       setup_auditing
     end
@@ -363,6 +371,7 @@ module Foreman
 
     def setup_auditing
       Audit.include AuditSearch
+      Audit.include HasManyCommon
     end
   end
 

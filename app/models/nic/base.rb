@@ -66,6 +66,7 @@ module Nic
 
     belongs_to_host :inverse_of => :interfaces, :class_name => "Host::Base"
 
+    scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
     scoped_search :on => :mac, :complete_value => true, :only_explicit => true
     scoped_search :on => :ip, :complete_value => true, :only_explicit => true
     scoped_search :on => :name, :complete_value => true, :only_explicit => true
@@ -224,11 +225,8 @@ module Nic
       []
     end
 
-    # we don't consider host as managed if we are in non-unattended mode
-    # in which case host managed? flag can be true but we should consider
-    # everything as unmanaged
     def host_managed?
-      host&.managed? && SETTINGS[:unattended]
+      host&.managed?
     end
 
     def require_ip4_validation?(from_compute = true)

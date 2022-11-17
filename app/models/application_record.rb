@@ -1,7 +1,10 @@
-require_relative 'concerns/audit_associations'
-
 class ApplicationRecord < ActiveRecord::Base
   extend ApipieDSL::Class
+
+  include HostMix
+  include HasManyCommon
+  include StripWhitespace
+  include Parameterizable::ById
 
   apipie :prop_group, name: :basic_model_props do
     property :id, Integer, desc: "Numerical ID of the #{@meta[:friendly_name] || @meta[:class_scope]}"
@@ -35,4 +38,15 @@ class ApplicationRecord < ActiveRecord::Base
       @graphql_type || superclass.try(:graphql_type)
     end
   end
+
+  def <=>(other)
+    return nil unless respond_to? :name
+    name <=> other.try(:name)
+  end
+
+  def id_and_type
+    "#{id}-#{self.class.table_name.humanize}"
+  end
+  alias_attribute :to_label, :name_method
+  alias_attribute :to_s, :to_label
 end

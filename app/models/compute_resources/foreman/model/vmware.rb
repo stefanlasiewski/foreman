@@ -244,6 +244,7 @@ module Foreman::Model
         "centos7_64Guest" => "CentOS 7 (64-bit)",
         "centos7Guest" => "CentOS 7 (32-bit)",
         "centos8_64Guest" => "CentOS 8 (64-bit)",
+        "centos9_64Guest" => "CentOS Stream 9 (64-bit)",
         "centosGuest" => "CentOS 4/5 (32-bit)",
         "coreos64Guest" => "CoreOS Linux (64-bit)",
         "darwin10_64Guest" => "Mac OS 10.6 (64-bit)",
@@ -330,6 +331,7 @@ module Foreman::Model
         "rhel7_64Guest" => "Red Hat Enterprise Linux 7 (64-bit)",
         "rhel7Guest" => "Red Hat Enterprise Linux 7 (32-bit)",
         "rhel8_64Guest" => "Red Hat Enterprise Linux 8 (64 bit)",
+        "rhel9_64Guest" => "Red Hat Enterprise Linux 9 (64 bit)",
         "sjdsGuest" => "Sun Java Desktop System",
         "sles10_64Guest" => "Suse Linux Enterprise Server 10 (64-bit)",
         "sles10Guest" => "Suse Linux Enterprise Server 10 (32-bit)",
@@ -407,9 +409,13 @@ module Foreman::Model
       "VirtualLsiLogicController"
     end
 
+    # vSphere guest H/W versions
+    # see https://kb.vmware.com/s/article/1003746 for H/W versions table index
     def vm_hw_versions
       {
         'Default' => _("Default"),
+        'vmx-19' => '19 (ESXi 7.0 U2)',
+        'vmx-18' => '18 (ESXi 7.0 U1)',
         'vmx-17' => '17 (ESXi 7.0)',
         'vmx-15' => '15 (ESXi 6.7 U2)',
         'vmx-14' => '14 (ESXi 6.7)',
@@ -580,7 +586,7 @@ module Foreman::Model
     end
 
     def vnc_console(vm)
-      values = { :port => unused_vnc_port(vm.hypervisor), :password => random_password, :enabled => true }
+      values = { :port => unused_vnc_port(vm.hypervisor), :password => random_password(8), :enabled => true }
       vm.config_vnc(values)
       WsProxy.start(:host => vm.hypervisor, :host_port => values[:port], :password => values[:password]).merge(:type => 'vnc')
     end

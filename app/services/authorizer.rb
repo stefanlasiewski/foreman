@@ -10,17 +10,24 @@ class Authorizer
     @base_collection = options.delete(:collection)
   end
 
+  # Check if the current user has a specific permission on the subject.
+  # First parameter is the permission to check.
+  # Second parameter is the subject record which must have an id field.
+  # If subject is not passed, this method checks if the user has the given permission.
+  # Third parameter is if the allowed resources for the permission should be cached.
+  # This is useful if we need to check multiple subjects against the same permission.
+  # Caching increases memory load and should be avoided for resources that could have millions of records.
   def can?(permission, subject = nil, cache = true)
     return false if user.nil? || user.disabled?
     return true if user.admin?
 
     if subject.nil?
-      user.permissions.where(:name => permission).present?
+      user.permissions.exists?(:name => permission)
     else
       return collection_cache_lookup(subject, permission) if cache
 
       find_collection(subject.class, :permission => permission).
-        where(:id => subject.id).any?
+        exists?(subject.id)
     end
   end
 

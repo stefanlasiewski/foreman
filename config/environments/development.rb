@@ -52,13 +52,15 @@ Foreman::Application.configure do
       Bullet.rails_logger = true
       Bullet.add_footer = true
       Bullet.counter_cache_enable = false
-      Bullet.add_whitelist :type => :n_plus_one_query, :class_name => "Puppetclass", :association => :environments
-      Bullet.add_whitelist :type => :n_plus_one_query, :class_name => "Puppetclass", :association => :class_params
     end
   end
 
   # Allow disabling the webpack dev server from the settings
   config.webpack.dev_server.enabled = SETTINGS.fetch(:webpack_dev_server, true)
   config.webpack.dev_server.https = SETTINGS.fetch(:webpack_dev_server_https, false)
+
+  config.hosts += SETTINGS[:hosts]
   config.hosts << SETTINGS[:fqdn]
+  # Backporting from Rails 7.0
+  config.hosts += (ENV['RAILS_DEVELOPMENT_HOSTS'] || '').split(',')
 end

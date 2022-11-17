@@ -3,14 +3,16 @@ kind: snippet
 name: insights
 model: ProvisioningTemplate
 snippet: true
-%>
+description: |
+  Installs and registers the insights client on RHEL, typically used
+  in the Kickstart provisioning and host init templates.
+-%>
 <% if @host.operatingsystem.name == 'RedHat' -%>
 echo '#'
 echo '# Installing Insights client'
 echo '#'
 
 yum install -y insights-client
-insights-client --test-connection
 insights-client --register
 
 <% end -%>

@@ -7,7 +7,12 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
 
       get :operatingsystem_template, params: { id: os.id }, session: set_session_user
       assert_response :success
-      assert_not_nil JSON.parse(@response.body)['template']['name']
+
+      response = JSON.parse(@response.body)['template']
+      template_name = Setting[:default_host_init_config_template]
+
+      assert_includes response['path'], Template.find_by(name: template_name).id.to_s
+      assert response['name'], template_name
     end
 
     test 'without template' do
@@ -15,8 +20,12 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
       os.os_default_templates = []
 
       get :operatingsystem_template, params: { id: os.id }, session: set_session_user
+
+      response = JSON.parse(@response.body)['template']
+
       assert_response :success
-      assert_nil JSON.parse(@response.body)['template']['name']
+      assert_includes response['os_path'], os.id.to_s
+      assert_nil response['name']
     end
   end
 
@@ -40,8 +49,11 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
     end
 
     test 'with params ignored in URL' do
+      features = [FactoryBot.create(:feature, name: 'Registration'), FactoryBot.create(:feature, name: 'Templates')]
+      proxy = FactoryBot.create(:smart_proxy, features: features)
+
       params = {
-        smart_proxy_id: smart_proxies(:one).id,
+        smart_proxy_id: proxy.id,
         insecure: true,
         jwt_expiration: 23,
       }
@@ -49,7 +61,7 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
       post :create, params: params, session: set_session_user
       command = JSON.parse(@response.body)['command']
 
-      assert_includes command, "curl -sS --insecure '#{smart_proxies(:one).url}/register"
+      assert_includes command, "curl -sS --insecure '#{proxy.url}/register"
       refute command.include?('smart_proxy_id')
       refute command.include?('insecure=true')
       refute command.include?('jwt_expiration')
@@ -119,6 +131,15 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
       child_hg_from_response = JSON.parse(@response.body)['hostGroups']
                                    .find { |hg| hg['id'] == child_hg.id }
       assert_equal os.id, child_hg_from_response['inherited_operatingsystem_id']
+    end
+
+    test 'show smart proxies with Templates and Registration features only' do
+      features = [FactoryBot.create(:feature, name: 'Registration'), FactoryBot.create(:feature, name: 'Templates')]
+      proxy = FactoryBot.create(:smart_proxy, features: features)
+
+      get :form_data, session: set_session_user
+      response_proxies = JSON.parse(@response.body)['smartProxies']
+      assert_equal response_proxies[0]['id'], proxy.id
     end
   end
 end

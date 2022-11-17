@@ -7,12 +7,14 @@ export const SearchBarProps = {
       useKeyShortcuts: true,
     },
     bookmarks: {
+      id: 'searchBar',
       url: '/api/bookmarks',
       canCreate: true,
       documentationUrl: '/doc/url',
     },
     controller: 'models',
   },
+  setAutocompleteSearchQuery: jest.fn(),
 };
 
 export const mockResults = [

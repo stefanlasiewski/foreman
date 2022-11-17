@@ -16,8 +16,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 require_dependency 'foreman/plugin/logging'
-require_dependency 'foreman/plugin/rbac_registry'
-require_dependency 'foreman/plugin/rbac_support'
 require_dependency 'foreman/plugin/report_scanner_registry'
 require_dependency 'foreman/plugin/report_origin_registry'
 require_dependency 'foreman/plugin/medium_providers_registry'
@@ -75,11 +73,6 @@ module Foreman #:nodoc:
         define_singleton_method("#{name}_registry") do
           registries[name] ||= registry
         end
-      end
-
-      def medium_providers
-        Foreman::Deprecation.deprecation_warning('2.5', 'Plugin.medium_providers is deprecated, use Plugin.medium_providers_registry instead')
-        medium_providers_registry
       end
 
       def def_field(*names)
@@ -165,8 +158,10 @@ module Foreman #:nodoc:
     def_field :name, :description, :url, :author, :author_url, :version, :path
     attr_reader :id, :logging, :provision_methods, :compute_resources, :to_prepare_callbacks,
       :facets, :rbac_registry, :dashboard_widgets, :info_providers, :smart_proxy_references,
-      :renderer_variable_loaders, :host_ui_description, :ping_extension, :status_extension,
+      :renderer_variable_loaders, :host_ui_description, :hostgroup_ui_description, :ping_extension, :status_extension,
       :allowed_registration_vars, :observable_events
+
+    delegate :fact_importer_registry, :fact_parser_registry, :graphql_types_registry, :medium_providers_registry, :report_scanner_registry, :report_origin_registry, to: :class
 
     # Lists plugin's roles:
     # Foreman::Plugin.find('my_plugin').registered_roles
@@ -177,7 +172,7 @@ module Foreman #:nodoc:
     def initialize(id)
       @id = id.to_sym
       @logging = Plugin::Logging.new(@id)
-      @rbac_registry = Plugin::RbacRegistry.new
+      @rbac_registry = Plugin::RbacRegistry.new(@id)
       @provision_methods = {}
       @compute_resources = []
       @to_prepare_callbacks = []
@@ -202,22 +197,6 @@ module Foreman #:nodoc:
     def migrations_paths
       return [] unless engine
       engine.paths['db/migrate'].existent
-    end
-
-    def fact_importer_registry
-      self.class.fact_importer_registry
-    end
-
-    def fact_parser_registry
-      self.class.fact_parser_registry
-    end
-
-    def report_scanner_registry
-      self.class.report_scanner_registry
-    end
-
-    def report_origin_registry
-      self.class.report_origin_registry
     end
 
     def after_initialize
@@ -322,6 +301,13 @@ module Foreman #:nodoc:
       end
     end
 
+    # This method gets called once the Foreman is fully initialized
+    # It finalizes the plugin initialization process
+    def finalize_setup!
+      rbac_registry.setup!
+      ActiveSupport.run_load_hooks(@id, self)
+    end
+
     # Adds setting definition
     #
     # ===== Example
@@ -360,60 +346,32 @@ module Foreman #:nodoc:
       Foreman::AccessControl.map do |map|
         map.permission name, hash, options
       end
-
-      return false if pending_migrations || Rails.env.test?
-      Permission.where(:name => name).first_or_create(:resource_type => options[:resource_type])
     end
 
     # Add a new role if it doesn't exist
     def role(name, permissions, description = '')
-      default_roles[name] = permissions
-      return false if pending_migrations || Rails.env.test? || User.unscoped.find_by_login(User::ANONYMOUS_ADMIN).nil?
-      Role.without_auditing do
-        Filter.without_auditing do
-          Plugin::RoleLock.new(id).register_role name, permissions, rbac_registry, description
-        end
-      end
-    rescue PermissionMissingException => e
-      Rails.logger.warn(_("Could not create role '%{name}': %{message}") % {:name => name, :message => e.message})
-      return false if Foreman.in_rake?
-      Rails.logger.error(_('Cannot continue because some permissions were not found, please run rake db:seed and retry'))
-      raise e
+      rbac_registry.register_role(name, permissions, description)
     end
 
     # Add plugin permissions to core's Manager and Viewer roles
     # Usage:
     # add_resource_permissions_to_default_roles ['MyPlugin::FirstResource', 'MyPlugin::SecondResource'], :except => [:skip_this_permission]
     def add_resource_permissions_to_default_roles(resources, opts = {})
-      return if Foreman.in_setup_db_rake? || !permission_table_exists?
-      Role.without_auditing do
-        Filter.without_auditing do
-          Plugin::RbacSupport.new.add_resource_permissions_to_default_roles resources, opts
-        end
-      end
+      rbac_registry.added_resource_permissions << [resources, opts]
     end
 
     # Add plugin permissions to Manager and Viewer roles. Use this for permissions without resource_type or to handle special cases
     # Usage:
     # add_permissions_to_default_roles 'Role Name' => [:first_permission, :second_permission]
     def add_permissions_to_default_roles(args)
-      return if Foreman.in_setup_db_rake? || !permission_table_exists?
-      Role.without_auditing do
-        Filter.without_auditing do
-          Plugin::RbacSupport.new.add_permissions_to_default_roles args
-        end
-      end
+      rbac_registry.modified_roles.merge!(args)
     end
 
     # Add plugin permissions to Manager and Viewer roles. Use this method if there are no special cases that need to be taken care of.
     # Otherwise add_permissions_to_default_roles or add_resource_permissions_to_default_roles might be the methods you are looking for.
-    def add_all_permissions_to_default_roles
-      return if Foreman.in_setup_db_rake? || !permission_table_exists?
-      Role.without_auditing do
-        Filter.without_auditing do
-          Plugin::RbacSupport.new.add_all_permissions_to_default_roles(Permission.where(:name => @rbac_registry.permission_names))
-        end
-      end
+    def add_all_permissions_to_default_roles(except: [])
+      rbac_registry.add_all_permissions_to_default_roles = true
+      rbac_registry.default_roles_permissions_blocklist = except
     end
 
     def pending_migrations
@@ -593,10 +551,6 @@ module Foreman #:nodoc:
       Foreman::Telemetry.instance.add_histogram(name, description, instance_labels, buckets)
     end
 
-    def medium_providers
-      self.class.medium_providers
-    end
-
     def smart_proxy_reference(hash)
       @smart_proxy_references << ProxyReferenceRegistry.new_reference(hash)
     end
@@ -613,14 +567,12 @@ module Foreman #:nodoc:
       @status_extension = block
     end
 
-    delegate :graphql_types_registry, to: :class
-
     def extend_graphql_type(type:, with_module: nil, &block)
       graphql_types_registry.register_extension(type: type, with_module: with_module, &block)
     end
 
-    def register_graphql_query_field(field_name, type, field_type)
-      graphql_types_registry.register_plugin_query_field(field_name, type, field_type)
+    def register_graphql_query_field(field_name, type, field_type, options = nil)
+      graphql_types_registry.register_plugin_query_field(field_name, type, field_type, options)
     end
 
     def register_graphql_mutation_field(field_name, mutation_class)
@@ -629,6 +581,10 @@ module Foreman #:nodoc:
 
     def describe_host(&block)
       @host_ui_description = UI.describe_host(&block)
+    end
+
+    def describe_hostgroup(&block)
+      @hostgroup_ui_description = UI.describe_hostgroup(&block)
     end
 
     def extend_allowed_registration_vars(var)
@@ -648,12 +604,6 @@ module Foreman #:nodoc:
         send(:include, mod.to_s.constantize)
       end
       allowed_template_helpers(*(mod.public_instance_methods - Module.public_instance_methods))
-    end
-
-    def permission_table_exists?
-      exists = Permission.connection.table_exists?(Permission.table_name)
-      Rails.logger.debug("Not adding permissions from plugin #{@id} to default roles - permissions table not found") if !exists && !Rails.env.test?
-      exists
     end
   end
 end

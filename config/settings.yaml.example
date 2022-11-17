@@ -2,8 +2,6 @@
 # You must restart the Rack server after changing any of these values
 # because they are cached at startup.
 #
-:unattended: true
-
 :require_ssl: false
 
 #JSONP or "JSON with padding" is a complement to the base JSON data format.
@@ -31,15 +29,17 @@
 # so only change this if you know what you're doing.
 :hsts_enabled: true
 
-# Ruby on Rails version (available: 5.2, 6.0)
-# Defaults to 6.0
-#:rails: 6.0
-
 # Local administrative settings for application domain, fqdn, foreman URL,
 # administrator email address etc. If you don't have a Puppet provisioning
 # system you may want to change to setup your project on your local machine.
 :domain: 'localdomain.net'
 :fqdn: 'localhost.localdomain.net'
+
+# Configure hostnames for ActionDispatch::HostAuthorization
+# Only hostnames are supported. Regular expressions and IP addresses/ranges are not.
+# https://guides.rubyonrails.org/v6.1/configuring.html#configuring-middleware
+:hosts:
+# - host.example.com
 
 # List of Domains allowed for Cross-Origin Resource Sharing
 # :cors_domains:

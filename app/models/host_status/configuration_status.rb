@@ -22,15 +22,17 @@ module HostStatus
     end
 
     def expected_report_interval
-      (reported_origin_interval + default_report_interval).minutes
+      (reported_origin_interval.presence || default_report_interval).to_i.minutes
     end
 
     def reported_origin_interval
-      if last_report.origin &&
-         (interval = Setting[:"#{last_report.origin.downcase}_interval"])
-        interval.to_i
-      else
-        default_report_interval
+      if last_report.origin
+        if host.params.has_key? "#{last_report.origin.downcase}_interval"
+          interval = host.params["#{last_report.origin.downcase}_interval"]
+        else
+          interval = Setting[:"#{last_report.origin.downcase}_interval"]
+        end
+        interval
       end
     end
 
@@ -91,6 +93,8 @@ module HostStatus
     end
 
     def relevant?(options = {})
+      # Do not calculate global status from legacy configuration when plugin is present.
+      return false if Foreman::Plugin.installed?('foreman_host_reports')
       handle_options(options)
 
       host.configuration? || last_report.present? || Setting[:always_show_configuration_status]
@@ -109,10 +113,11 @@ module HostStatus
     end
 
     def status_link
-      return nil if last_report.nil?
-      return nil unless User.current.can?(:view_config_reports, last_report)
+      return @config_status_link if defined?(@config_status_link)
+      return @config_status_link = nil if last_report.nil?
+      return @config_status_link = nil unless User.current.can?(:view_config_reports, last_report, false)
 
-      last_report && Rails.application.routes.url_helpers.config_report_path(last_report)
+      @config_status_link = last_report && Rails.application.routes.url_helpers.config_report_path(last_report)
     end
 
     private
@@ -133,11 +138,7 @@ module HostStatus
     end
 
     def default_report_interval
-      if host.params.has_key? 'outofsync_interval'
-        host.params['outofsync_interval']
-      else
-        Setting[:outofsync_interval]
-      end
+      Setting[:outofsync_interval]
     end
 
     def out_of_sync_disabled?

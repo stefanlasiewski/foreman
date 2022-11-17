@@ -14,6 +14,7 @@ require 'rfauxfactory'
 require 'webmock/minitest'
 require 'webmock'
 require 'robottelo/reporter/attributes'
+require 'test_report_helper'
 
 # FactoryBot 5 changed the default to 'true'
 FactoryBot.use_parent_strategy = false
@@ -183,11 +184,11 @@ class GraphQLQueryTestCase < ActiveSupport::TestCase
   let(:variables) { {} }
   let(:context_user) { FactoryBot.create(:user, :admin) }
   let(:context) { { current_user: context_user } }
-  let(:result) { ForemanGraphqlSchema.execute(query, variables: variables, context: context) }
+  let(:result) { ForemanGraphqlSchema.execute(query, context: context, variables: variables) }
 
   def assert_record(expected, actual, type_name: nil)
     assert_not_nil expected
-    type_name ||= ForemanGraphqlSchema.resolve_type(nil, expected, nil)&.name || expected.class.name
+    type_name ||= ForemanGraphqlSchema.resolve_type(nil, expected, nil)&.graphql_name || expected.class.name
     assert_equal Foreman::GlobalId.encode(type_name, expected.id), actual['id']
   end
 
@@ -196,7 +197,7 @@ class GraphQLQueryTestCase < ActiveSupport::TestCase
     assert_equal expected.count, actual['totalCount']
 
     expected_global_ids = expected.map do |r|
-      t_name = type_name || ForemanGraphqlSchema.resolve_type(nil, r, nil)&.name || r.class.name
+      t_name = type_name || ForemanGraphqlSchema.resolve_type(nil, r, nil)&.graphql_name || r.class.name
       Foreman::GlobalId.encode(t_name, r.id)
     end
     actual_global_ids = actual['edges'].map { |e| e['node']['id'] }

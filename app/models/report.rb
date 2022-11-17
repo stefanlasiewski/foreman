@@ -11,6 +11,7 @@ class Report < ApplicationRecord
   has_many :messages, :through => :logs
   has_many :sources, :through => :logs
   has_one :hostgroup, :through => :host
+  has_one :host_owner, through: :host, source: :owner, source_type: 'User'
 
   has_one :organization, :through => :host
   has_one :location, :through => :host
@@ -20,18 +21,27 @@ class Report < ApplicationRecord
 
   def self.inherited(child)
     child.instance_eval do
-      scoped_search :relation => :host,         :on => :name,  :complete_value => true, :rename => :host
-      scoped_search :relation => :organization, :on => :name,  :complete_value => true, :rename => :organization
-      scoped_search :relation => :location,     :on => :name,  :complete_value => true, :rename => :location
-      scoped_search :relation => :messages,     :on => :value,                          :rename => :log, :only_explicit => true
-      scoped_search :relation => :sources,      :on => :value,                          :rename => :resource, :only_explicit => true
-      scoped_search :relation => :hostgroup,    :on => :name,  :complete_value => true, :rename => :hostgroup
-      scoped_search :relation => :hostgroup,    :on => :title, :complete_value => true, :rename => :hostgroup_fullname
-      scoped_search :relation => :hostgroup,    :on => :title, :complete_value => true, :rename => :hostgroup_title
+      scoped_search :relation => :host, :on => :name, :complete_value => true, :rename => :host
+      scoped_search :relation => :host_owner,
+        :on => :id,
+        :complete_value => true,
+        :rename => :host_owner_id,
+        :only_explicit => true,
+        :validator => ->(value) { ScopedSearch::Validators::INTEGER.call(value) },
+        :value_translation => ->(value) { value == 'current_user' ? User.current.id : value },
+        :special_values => %w[current_user]
+      scoped_search :relation => :organization, :on => :name, :complete_value => true, :rename => :organization
+      scoped_search :relation => :location, :on => :name, :complete_value => true, :rename => :location
+      scoped_search :relation => :messages, :on => :value, :rename => :log, :only_explicit => true
+      scoped_search :relation => :sources, :on => :value, :rename => :resource, :only_explicit => true
+      scoped_search :relation => :hostgroup, :on => :name, :complete_value => true, :rename => :hostgroup
+      scoped_search :relation => :hostgroup, :on => :title, :complete_value => true, :rename => :hostgroup_fullname
+      scoped_search :relation => :hostgroup, :on => :title, :complete_value => true, :rename => :hostgroup_title
 
       scoped_search :on => :reported_at, :complete_value => true, :default_order => :desc, :rename => :reported, :only_explicit => true, :aliases => [:last_report]
-      scoped_search :on => :host_id,     :complete_value => false, :only_explicit => true
+      scoped_search :on => :host_id, :complete_value => false, :only_explicit => true
       scoped_search :on => :origin
+      scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
     end
     super
   end
@@ -85,7 +95,7 @@ class Report < ApplicationRecord
     loop do
       Report.transaction do
         batch_start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        report_ids = where(cond).reorder('').limit(batch_size).pluck(:id)
+        report_ids = where(sanitize_sql(cond)).reorder('').limit(batch_size).pluck(:id)
         if report_ids.count > 0
           log_count = Log.unscoped.where(:report_id => report_ids).reorder('').delete_all
           count = where(:id => report_ids).reorder('').delete_all

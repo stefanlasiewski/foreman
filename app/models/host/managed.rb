@@ -162,7 +162,7 @@ class Host::Managed < Host::Base
     property :comment, String, desc: 'Returns comment/description of this host'
   end
   class Jail < ::Safemode::Jail
-    allow :id, :name, :created_at, :diskLayout, :puppetmaster, :puppet_server, :puppet_ca_server, :operatingsystem, :os, :ptable, :hostgroup,
+    allow :id, :name, :created_at, :diskLayout, :puppet_server, :puppet_ca_server, :operatingsystem, :os, :ptable, :hostgroup,
       :url_for_boot, :hostgroup, :compute_resource, :domain, :ip, :ip6, :mac, :shortname, :architecture,
       :model, :certname, :capabilities, :provider, :subnet, :subnet6, :token, :location, :organization, :provision_method,
       :image_build?, :pxe_build?, :otp, :realm, :nil?, :indent, :primary_interface,
@@ -171,11 +171,6 @@ class Host::Managed < Host::Base
       :multiboot, :jumpstart_path, :install_path, :miniroot, :medium, :bmc_nic, :templates_used, :owner, :owner_type,
       :ssh_authorized_keys, :pxe_loader, :global_status, :get_status, :puppetca_token, :last_report, :build?, :smart_proxies, :host_param,
       :virtual, :ram, :sockets, :cores, :params, :pxe_loader_efi?, :comment
-
-    def puppetmaster
-      Foreman::Deprecation.deprecation_warning('3.0', 'Host#puppetmaster is deprecated, please use host_puppet_server macro instead')
-      @source.puppet_server
-    end
   end
 
   scope :recent, lambda { |interval = Setting[:outofsync_interval]|
@@ -221,43 +216,47 @@ class Host::Managed < Host::Base
   # Host::Managed.with("failed") --> all reports which have a failed counter > 0
   # Host::Managed.with("failed",20) --> all reports which have a failed counter > 20
   scope :with, lambda { |*arg|
-    with_config_status.where("(host_status.status >> #{HostStatus::ConfigurationStatus.bit_mask(arg[0].to_s)}) > #{arg[1] || 0}")
+    cond = "(host_status.status >> #{HostStatus::ConfigurationStatus.bit_mask(arg[0].to_s)}) > #{arg[1] || 0}"
+    with_config_status.where(sanitize_sql(cond))
   }
 
   scope :with_error, lambda {
-    with_config_status.where("(host_status.status > 0) and (
+    cond = "(host_status.status > 0) and (
       #{HostStatus::ConfigurationStatus.is('failed')} or
       #{HostStatus::ConfigurationStatus.is('failed_restarts')}
-    )")
+      )"
+
+    with_config_status.where(sanitize_sql(cond))
   }
 
   scope :without_error, lambda {
-    with_config_status.where("
-      #{HostStatus::ConfigurationStatus.is_not('failed')} and
-      #{HostStatus::ConfigurationStatus.is_not('failed_restarts')}
-    ")
+    cond = "#{HostStatus::ConfigurationStatus.is_not('failed')} and
+      #{HostStatus::ConfigurationStatus.is_not('failed_restarts')}"
+
+    with_config_status.where(sanitize_sql(cond))
   }
 
   scope :with_changes, lambda {
-    with_config_status.where("(host_status.status > 0) and (
+    cond = "(host_status.status > 0) and (
       #{HostStatus::ConfigurationStatus.is('applied')} or
-      #{HostStatus::ConfigurationStatus.is('restarted')}
-    )")
+      #{HostStatus::ConfigurationStatus.is('restarted')})"
+    with_config_status.where(sanitize_sql(cond))
   }
 
   scope :without_changes, lambda {
-    with_config_status.where("
-      #{HostStatus::ConfigurationStatus.is_not('applied')} and
-      #{HostStatus::ConfigurationStatus.is_not('restarted')}
-    ")
+    cond = "#{HostStatus::ConfigurationStatus.is_not('applied')} and
+      #{HostStatus::ConfigurationStatus.is_not('restarted')}"
+
+    with_config_status.where(sanitize_sql(cond))
   }
 
   scope :with_pending_changes, lambda {
-    with_config_status.where("(host_status.status > 0) AND (#{HostStatus::ConfigurationStatus.is('pending')})")
+    cond = "(host_status.status > 0) AND (#{HostStatus::ConfigurationStatus.is('pending')})"
+    with_config_status.where(sanitize_sql(cond))
   }
 
   scope :without_pending_changes, lambda {
-    with_config_status.where(HostStatus::ConfigurationStatus.is_not('pending').to_s)
+    with_config_status.where(sanitize_sql(HostStatus::ConfigurationStatus.is_not('pending').to_s))
   }
 
   scope :successful, -> { without_changes.without_error.without_pending_changes }
@@ -292,66 +291,48 @@ class Host::Managed < Host::Base
   validates :location_id,     :presence => true, :if => proc { |host| host.managed? }
   validate :compute_resource_in_taxonomy, :if => proc { |host| host.managed? && host.compute_resource_id.present? }
 
-  if SETTINGS[:unattended]
-    # define before orchestration is included so we can prepare object before VM is tried to be deleted
-    before_destroy :disassociate!, :if => proc { |host| host.uuid && !Setting[:destroy_vm_on_host_delete] }
-    # handles all orchestration of smart proxies.
-    include Orchestration
-    # DHCP orchestration delegation
-    delegate :dhcp?, :dhcp_records, :to => :primary_interface
-    # DNS orchestration delegation
-    delegate :dns?, :dns6?, :reverse_dns?, :reverse_dns6?, :dns_record, :to => :primary_interface
-    # IP delegation
-    delegate :mac_based_ipam?, :required_ip_addresses_set?, :compute_provides_ip?, :ip_available?, :ip6_available?, :to => :primary_interface
-    include Orchestration::Compute
-    include Rails.application.routes.url_helpers
-    # TFTP orchestration delegation
-    delegate :tftp?, :tftp6?, :tftp, :tftp6, :generate_pxe_template, :to => :provision_interface
-    include Orchestration::Puppetca
-    include Orchestration::SSHProvision
-    include Orchestration::Realm
-    include HostTemplateHelpers
-    delegate :require_ip4_validation?, :require_ip6_validation?, :to => :provision_interface
+  # define before orchestration is included so we can prepare object before VM is tried to be deleted
+  before_destroy :disassociate!, :if => proc { |host| host.uuid && !Setting[:destroy_vm_on_host_delete] }
+  # handles all orchestration of smart proxies.
+  include Orchestration
+  # DHCP orchestration delegation
+  delegate :dhcp?, :dhcp_records, :to => :primary_interface
+  # DNS orchestration delegation
+  delegate :dns?, :dns6?, :reverse_dns?, :reverse_dns6?, :dns_record, :to => :primary_interface
+  # IP delegation
+  delegate :mac_based_ipam?, :required_ip_addresses_set?, :compute_provides_ip?, :ip_available?, :ip6_available?, :to => :primary_interface
+  include Orchestration::Compute
+  include Rails.application.routes.url_helpers
+  # TFTP orchestration delegation
+  delegate :tftp?, :tftp6?, :tftp, :tftp6, :generate_pxe_template, :to => :provision_interface
+  include Orchestration::Puppetca
+  include Orchestration::SSHProvision
+  include Orchestration::Realm
+  include HostTemplateHelpers
+  delegate :require_ip4_validation?, :require_ip6_validation?, :to => :provision_interface
 
-    validates :architecture_id, :presence => true, :if => proc { |host| host.managed }
-    validates :root_pass, :length => {:minimum => 8, :message => _('should be 8 characters or more')},
-                          :presence => {:message => N_('should not be blank - consider setting a global or host group default')},
-                          :if => proc { |host| host.managed && !host.image_build? && build? }
-    validates :ptable_id, :presence => {:message => N_("can't be blank unless a custom partition has been defined")},
-                          :if => proc { |host| host.managed && host.disk.empty? && !Foreman.in_rake? && !host.image_build? && host.build? }
-    validates :provision_method, :inclusion => {:in => proc { provision_methods }, :message => N_('is unknown')}, :if => proc { |host| host.managed? }
-    validates :medium_id, :presence => true,
-                          :if => proc { |host| host.validate_media? }
-    validates :medium_id, :inclusion => {:in => proc { |host| host.operatingsystem.medium_ids },
-                                         :message => N_('must belong to host\'s operating system')},
-                          :if => proc { |host| host.operatingsystem && host.medium }
-    validate :provision_method_in_capabilities
-    validate :short_name_periods
-    validate :check_interfaces
-    before_validation :set_compute_attributes, :on => :create, :if => proc { compute_attributes_empty? }
-    validate :check_if_provision_method_changed, :on => :update, :if => proc { |host| host.managed }
-    validates :uuid, uniqueness: { :allow_blank => true }
-  else
-    def fqdn
-      facts['fqdn'] || name
-    end
-
-    def compute?
-      false
-    end
-
-    def compute_provides?(attr)
-      false
-    end
-
-    def without_orchestration
-      yield
-    end
-  end
+  validates :architecture_id, :presence => true, :if => proc { |host| host.managed }
+  validates :root_pass, :length => {:minimum => 8, :message => _('should be 8 characters or more')},
+                        :presence => {:message => N_('should not be blank - consider setting a global or host group default')},
+                        :if => proc { |host| host.managed && !host.image_build? && build? }
+  validates :ptable_id, :presence => {:message => N_("can't be blank unless a custom partition has been defined")},
+                        :if => proc { |host| host.managed && host.disk.empty? && !Foreman.in_rake? && !host.image_build? && host.build? }
+  validates :provision_method, :inclusion => {:in => proc { provision_methods }, :message => N_('is unknown')}, :if => proc { |host| host.managed? }
+  validates :medium_id, :presence => true,
+                        :if => proc { |host| host.validate_media? }
+  validates :medium_id, :inclusion => {:in => proc { |host| host.operatingsystem.medium_ids },
+                                       :message => N_('must belong to host\'s operating system')},
+                        :if => proc { |host| host.operatingsystem && host.medium }
+  validate :provision_method_in_capabilities
+  validate :short_name_periods
+  validate :check_interfaces
+  before_validation :set_compute_attributes, :on => :create, :if => proc { compute_attributes_empty? }
+  validate :check_if_provision_method_changed, :on => :update, :if => proc { |host| host.managed }
+  validates :uuid, uniqueness: { :allow_blank => true }
 
   before_validation :set_hostgroup_defaults, :set_ip_address
   after_validation :ensure_associations
-  before_validation :set_certname, :if => proc { |h| h.managed? && Setting[:use_uuid_for_certificates] } if SETTINGS[:unattended]
+  before_validation :set_certname, :if => proc { |h| h.managed? && Setting[:use_uuid_for_certificates] }
   after_validation :trigger_nic_orchestration, :if => proc { |h| h.managed? && h.changed? }, :on => :update
   before_validation :validate_dns_name_uniqueness
 
@@ -504,31 +485,6 @@ autopart"', desc: 'to render the content of host partition table'
     errors.empty?
   end
 
-  # counts each association of a given host
-  # e.g. how many hosts belongs to each os
-  # returns sorted hash
-  def self.count_distribution(association)
-    output = []
-    data = group("#{Host.table_name}.#{association}_id").reorder('').count
-    associations = association.to_s.camelize.constantize.where(:id => data.keys).all
-    data.each do |k, v|
-      output << {:label => associations.detect { |a| a.id == k }.to_label, :data => v } unless v == 0
-    rescue
-      logger.info "skipped #{k} as it has has no label"
-    end
-    output
-  end
-
-  # counts each association of a given host for HABTM relationships
-  # TODO: Merge these two into one method
-  # e.g. how many hosts belongs to each os
-  # returns sorted hash
-  def self.count_habtm(association)
-    counter = Host::Managed.joins(association.tableize.to_sym).group("#{association.tableize.to_sym}.id").reorder('').count
-    # Puppetclass.find(counter.keys.compact)...
-    association.camelize.constantize.find(counter.keys.compact).map { |i| {:label => i.to_label, :data => counter[i.id]} }
-  end
-
   def self.provision_methods
     {
       'build' => N_('Network Based'),
@@ -549,7 +505,7 @@ autopart"', desc: 'to render the content of host partition table'
   end
 
   def can_be_built?
-    managed? && SETTINGS[:unattended] && !image_build? && !build?
+    managed? && !image_build? && !build?
   end
 
   def hostgroup_inherited_attributes
@@ -600,13 +556,10 @@ autopart"', desc: 'to render the content of host partition table'
   end
 
   def inherited_attributes
-    inherited_attrs = %w{domain_id}
-    if SETTINGS[:unattended]
-      inherited_attrs.concat(%w{operatingsystem_id architecture_id compute_resource_id})
-      inherited_attrs << "subnet_id" unless compute_provides?(:ip)
-      inherited_attrs << "subnet6_id" unless compute_provides?(:ip6)
-      inherited_attrs.concat(%w{medium_id ptable_id pxe_loader}) unless image_build?
-    end
+    inherited_attrs = %w{domain_id operatingsystem_id architecture_id compute_resource_id}
+    inherited_attrs << "subnet_id" unless compute_provides?(:ip)
+    inherited_attrs << "subnet6_id" unless compute_provides?(:ip6)
+    inherited_attrs.concat(%w{medium_id ptable_id pxe_loader}) unless image_build?
     inherited_attrs
   end
 
@@ -619,7 +572,7 @@ autopart"', desc: 'to render the content of host partition table'
   end
 
   def set_ip_address
-    return unless SETTINGS[:unattended] && (new_record? || managed?)
+    return unless new_record? || managed?
     interfaces.select { |nic| nic.managed }.each do |nic|
       nic.ip  = nic.subnet.unused_ip(mac).suggest_ip if nic.subnet.present? && nic.ip.blank?
       nic.ip6 = nic.subnet6.unused_ip(mac).suggest_ip if nic.subnet6.present? && nic.ip6.blank?
@@ -684,12 +637,12 @@ autopart"', desc: 'to render the content of host partition table'
   def root_pass
     return self[:root_pass] if self[:root_pass].present?
     return hostgroup.try(:root_pass) if hostgroup.try(:root_pass).present?
-    Setting[:root_pass]
+    crypt_pass(Setting[:root_pass], :root)
   end
 
   def root_pass_source
-    return N_("host") if self[:root_pass].present?
-    return N_("hostgroup") if hostgroup.try(:root_pass).present?
+    return N_("host") if root_pass_present?
+    return N_("hostgroup") if hostgroup.try(:root_pass_present?)
     return N_("global setting") if Setting[:root_pass].present?
     nil
   end
@@ -749,7 +702,7 @@ autopart"', desc: 'to render the content of host partition table'
   def bmc_available?
     ipmi = bmc_nic
     return false if ipmi.nil?
-    (ipmi.password.present? && ipmi.username.present? && %w(IPMI Redfish).include?(ipmi.provider)) || ipmi.provider == 'SSH'
+    (ipmi.credentials_present? && %w(IPMI Redfish).include?(ipmi.provider)) || ipmi.provider == 'SSH'
   end
   alias_method :bmc_available, :bmc_available?
 
@@ -945,7 +898,7 @@ autopart"', desc: 'to render the content of host partition table'
   # checks if the host association is a valid association for this host
   def ensure_associations
     status = true
-    if SETTINGS[:unattended] && managed? && os && !image_build?
+    if managed? && os && !image_build?
       %w{ptable medium architecture}.each do |e|
         value = send(e.to_sym)
         next if value.blank?
@@ -975,7 +928,7 @@ autopart"', desc: 'to render the content of host partition table'
   end
 
   def short_name_periods
-    errors.add(:name, _("must not include periods")) if (managed? && shortname && shortname.include?(".") && SETTINGS[:unattended])
+    errors.add(:name, _("must not include periods")) if (managed? && shortname && shortname.include?("."))
   end
 
   # we need this so when attribute like build changes we trigger tftp orchestration so token is updated on tftp
@@ -1033,5 +986,9 @@ autopart"', desc: 'to render the content of host partition table'
 
   def compute_resource_in_taxonomy
     validate_association_taxonomy(:compute_resource)
+  end
+
+  def root_pass_present?
+    self[:root_pass].present?
   end
 end

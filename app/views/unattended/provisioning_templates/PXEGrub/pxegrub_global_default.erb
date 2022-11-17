@@ -2,12 +2,16 @@
 kind: PXEGrub
 name: PXEGrub global default
 model: ProvisioningTemplate
-%>
-<%# Used to boot unknown hosts, do not associate or change the name. %>
+description: |
+  The template to render Grub bootloader configuration for unknown hosts.
+  The output is deployed on the host's subnet TFTP proxy.
+  Do not associate or change the name.
+  This template is for legacy Grub 1.x, you are probably looking for Grub2.
+-%>
 <%
   # Grub1 only supports numeric default statement, this allows conversion to number. First define
   # array of directories we will search for EFI booloaders:
-  paths = ["fedora", "redhat", "centos", "debian", "ubuntu", "sles", "opensuse", "Microsoft", "EFI"]
+  paths = ["fedora", "redhat", "centos", "rocky", "debian", "ubuntu", "sles", "opensuse", "Microsoft", "EFI"]
   # Add remaining entries to it and use this to convert to number:
   items = paths.push("local_chain_hd0", "discovery")
   # Read default setting but since "local" is missing, use the first path available.
@@ -27,7 +31,7 @@ timeout=20
   url = default_template_url(profile[:template], profile[:hostgroup])
   case profile[:pxe_type]
   when 'kickstart'
-    append = "ks=#{url} ksdevice=bootif network kssendmac ks.sendmac inst.ks.sendmac"
+    append = "inst.ks=#{url} ksdevice=bootif network inst.ks.sendmac"
   when 'preseed'
     locale = profile[:hostgroup].params['lang'] || 'en_US'
     append = "interface=auto url=#{url} ramdisk_size=10800 root=/dev/rd/0 rw auto hostname=unassigned-hostname locale=#{locale} console-setup/ask_detect=false console-setup/layout=USA console-setup/variant=USA"

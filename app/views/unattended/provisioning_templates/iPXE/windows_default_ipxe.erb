@@ -4,14 +4,19 @@ name: Windows default iPXE
 model: ProvisioningTemplate
 oses:
 - Windows
-%>#!ipxe
+description: |
+  The template to render iPXE installation script for Windows
+  The output is deployed on the host's subnet TFTP proxy.
+  See https://ipxe.org/scripting for more details
+-%>
+#!ipxe
 
 echo Trying to ping Gateway: ${netX/gateway}
 ping --count 1 ${netX/gateway} || echo Ping to Gateway failed or ping command not available.
 echo Trying to ping DNS: ${netX/dns}
 ping --count 1 ${netX/dns} || echo Ping to DNS failed or ping command not available.
 
-set boot-url tftp://${next-server}/
+set boot-url tftp://<%= foreman_request_addr %>/
 kernel ${boot-url}<%= @host.operatingsystem.bootfile(medium_provider,:kernel) %>
 
 initrd <%= foreman_url('script') %> peSetup.cmd

@@ -3,7 +3,6 @@ class ApplicationController < ActionController::Base
 
   include Foreman::Controller::Flash
   include Foreman::Controller::Authorize
-  include Foreman::Controller::RequireSsl
 
   protect_from_forgery with: :exception # See ActionController::RequestForgeryProtection for details
   rescue_from Exception, :with => :generic_exception if Rails.env.production?
@@ -23,7 +22,7 @@ class ApplicationController < ActionController::Base
   before_action :session_expiry, :update_activity_time, :unless => proc { |c| c.remote_user_provided? || c.api_request? }
   before_action :set_taxonomy, :require_mail, :check_empty_taxonomy
   before_action :authorize
-  before_action :welcome, :only => :index, :unless => :api_request?
+  before_action :welcome, :find_selected_columns, :only => :index, :unless => :api_request?
   prepend_before_action :allow_webpack, if: -> { Rails.configuration.webpack.dev_server.enabled }
   around_action :set_timezone
 

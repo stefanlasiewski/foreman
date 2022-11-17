@@ -15,14 +15,14 @@ class BondTest < ActiveSupport::TestCase
     assert bond.virtual
   end
 
-  test 'attached devices are stripped and downcased' do
+  test 'attached devices are stripped, case is preserved due to identifiers like on HPE Superdome Flex 280' do
     bond = FactoryBot.build_stubbed(:nic_bond, :attached_devices => 'Eth0, ETH1 ,   eth2    ')
-    assert_equal "eth0,eth1,eth2", bond.attached_devices
+    assert_equal "Eth0,ETH1,eth2", bond.attached_devices
   end
 
   test 'attached devices can be also specified as an array' do
     bond = FactoryBot.build_stubbed(:nic_bond, :attached_devices => ['Eth0', 'ETH1 ', '   eth2    '])
-    assert_equal "eth0,eth1,eth2", bond.attached_devices
+    assert_equal "Eth0,ETH1,eth2", bond.attached_devices
   end
 
   test 'attached devices interfaces can be accessed as an array' do
@@ -66,13 +66,13 @@ class BondTest < ActiveSupport::TestCase
   test 'identifier is required for managed bonds' do
     bond = FactoryBot.build(:nic_bond, :attached_devices => 'eth0,eth1,eth2', :managed => true, :identifier => '')
     refute bond.valid?
-    assert_includes bond.errors.keys, :identifier
+    assert_includes bond.errors.attribute_names, :identifier
   end
 
   test 'identifier is not required for unmanaged bonds' do
     bond = FactoryBot.build(:nic_bond, :attached_devices => 'eth0,eth1,eth2', :managed => false, :identifier => '')
     bond.valid?
-    refute_includes bond.errors.keys, :identifier
+    refute_includes bond.errors.attribute_names, :identifier
   end
 
   context '#children_mac_addresses' do

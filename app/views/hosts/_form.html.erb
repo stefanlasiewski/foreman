@@ -10,7 +10,7 @@
     <ul class="nav nav-tabs" data-tabs="tabs">
       <li class="active"><a href="#primary" id='host_tab' data-toggle="tab"><%= _('Host') %></a></li>
 
-      <% if SETTINGS[:unattended] and @host.managed %>
+      <% if @host.managed %>
         <% if authorized_for(:controller => "Compute::Resources::Vms", :action => :create) %>
           <li id="compute_resource_tab" <%= display? !(@host.compute_resource_id  || params[:host] && params[:host][:compute_resource_id].present?)%>><a href="#compute_resource" data-toggle="tab"><%= _('Virtual Machine') %></a></li>
         <% end %>
@@ -31,7 +31,11 @@
       <div class="tab-pane active" id="primary">
         <%= text_f f, :name, :size => "col-md-4", :value => name_field(@host),
             :input_group_btn => randomize_mac_link,
-            :help_inline => _("This value is used also as the host's primary interface name.") %>
+            :help_inline => _("This value is used also as the host's primary interface name."),
+            :data => { 'append_domain_name_for_hosts' => Setting[:append_domain_name_for_hosts],
+              'managed' => @host.managed?
+            }
+        %>
 
         <% if show_organization_tab?  %>
           <%= host_taxonomy_select(f, Organization) %>
@@ -58,7 +62,7 @@
             :user_set => user_set?(:compute_resource_id) },
           { :class => 'host-form-compute-resource-handle',
             :label => _('Deploy On'), :disabled => (!@host.new_record? || @host.uuid.present?), :'data-url' => compute_resource_selected_hosts_path,
-            :help_inline => :indicator } if SETTINGS[:unattended] && @host.new_record? || @host.compute_resource_id %>
+            :help_inline => :indicator } if @host.new_record? || @host.compute_resource_id %>
 
         <% if @host.new_record? && visible_compute_profiles(@host).any? %>
         <%# only show compute_profile select box for new hosts. It is not relevant for existing hosts as the VM attributes defined could
@@ -72,7 +76,7 @@
             },
             { :class => 'host-form-compute-resource-handle',
               :label => _("Compute profile"), :'data-url' => compute_resource_selected_hosts_path,
-              :help_inline => :indicator } if SETTINGS[:unattended] %>
+              :help_inline => :indicator } %>
         </div>
         <% end %>
 
@@ -101,7 +105,7 @@
         <%= render 'hosts/interfaces', :host => @host, :f => f %>
       </div>
 
-      <%= render('hosts/unattended', :f => f) if SETTINGS[:unattended] and @host.managed %>
+      <%= render('hosts/unattended', :f => f) if @host.managed %>
 
       <div class="tab-pane"  id="params">
 
@@ -137,6 +141,6 @@
 
     <%= hidden_field_tag 'bare_metal_capabilities', @host.bare_metal_capabilities, :disabled => true %>
     <%= f.hidden_field :overwrite? %>
-    <%= submit_or_cancel f, @host.overwrite?, :cancel_path => resource_prev_url_with_search_filters || (@host.new_record? ? hosts_path : host_path(:id => @host.name_was)) %>
+    <%= submit_or_cancel f, @host.overwrite?, :cancel_path => resource_prev_url_with_search_filters || (@host.new_record? ? hosts_path : current_host_details_path(@host)) %>
   <% end %>
 <% end %>

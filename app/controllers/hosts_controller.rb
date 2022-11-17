@@ -33,6 +33,8 @@ class HostsController < ApplicationController
   before_action :set_host_type, :only => [:update]
   before_action :find_multiple, :only => MULTIPLE_ACTIONS
   before_action :validate_power_action, :only => :update_multiple_power_state
+  # index action is already included in ApplicationController
+  before_action(:only => SEARCHABLE_ACTIONS.without('index')) { find_selected_columns }
 
   helper :hosts, :reports, :interfaces
 
@@ -46,9 +48,8 @@ class HostsController < ApplicationController
     respond_to do |format|
       format.html do
         @hosts = search.includes(included_associations).paginate(:page => params[:page], :per_page => params[:per_page])
-        # SQL optimizations queries
-        @last_report_ids = ConfigReport.where(:host_id => @hosts.map(&:id)).group(:host_id).maximum(:id)
-        @last_reports = ConfigReport.where(:id => @last_report_ids.values)
+        # SQL optimization
+        preload_reports
         # rendering index page for non index page requests (out of sync hosts etc)
         @hostgroup_authorizer = Authorizer.new(User.current, :collection => @hosts.map(&:hostgroup_id).compact.uniq)
         render :index if title && (@title = title)
@@ -96,7 +97,7 @@ class HostsController < ApplicationController
     @host.managed = true if (params[:host] && params[:host][:managed].nil?)
     forward_url_options
     if @host.save
-      process_success :success_redirect => host_path(@host)
+      process_success :success_redirect => current_host_details_path(@host)
     else
       load_vars_for_ajax
       offer_to_overwrite_conflicts
@@ -114,7 +115,7 @@ class HostsController < ApplicationController
       attributes = @host.apply_inherited_attributes(host_params)
       attributes.delete(:compute_resource_id)
       if @host.update(attributes)
-        process_success :success_redirect => host_path(@host)
+        process_success :success_redirect => current_host_details_path(@host)
       else
         taxonomy_scope
         load_vars_for_ajax
@@ -176,7 +177,14 @@ class HostsController < ApplicationController
 
   def review_before_build
     @build = @host.build_status_checker
-    render :layout => false
+    respond_to do |format|
+      format.html do
+        render :layout => false
+      end
+      format.json do
+        render :json => @build.to_json
+      end
+    end
   end
 
   def setBuild
@@ -189,26 +197,68 @@ class HostsController < ApplicationController
           else
             message = _("Enabled %s for rebuild on next boot, but failed to power cycle the host")
           end
-          process_success :success_msg => message % @host, :success_redirect => :back
+          respond_to do |format|
+            format.html do
+              process_success :success_msg => message % @host, :success_redirect => :back
+            end
+            format.json do
+              render :json => { :success_msg => message % @host }
+            end
+          end
         rescue => error
           message = _('Failed to reboot %s.') % @host
           warning(message)
           Foreman::Logging.exception(message, error)
-          process_success :success_msg => _("Enabled %s for rebuild on next boot") % @host, :success_redirect => :back
+          respond_to do |format|
+            format.html do
+              process_success :success_msg => _("Enabled %s for rebuild on next boot") % @host, :success_redirect => :back
+            end
+            format.json do
+              render :json => { :success_msg => _("Enabled %s for rebuild on next boot") % @host }
+            end
+          end
         end
       else
-        process_success :success_msg => _("Enabled %s for rebuild on next boot") % @host, :success_redirect => :back
+        respond_to do |format|
+          format.html do
+            process_success :success_msg => _("Enabled %s for rebuild on next boot") % @host, :success_redirect => :back
+          end
+          format.json do
+            render :json => { :success_msg => _("Enabled %s for rebuild on next boot") % @host }
+          end
+        end
       end
     else
-      process_error :redirect => :back, :error_msg => _("Failed to enable %{host} for installation: %{errors}") % { :host => @host, :errors => @host.errors.full_messages }
+      respond_to do |format|
+        format.html do
+          process_error :redirect => :back, :error_msg => _("Failed to enable %{host} for installation: %{errors}") % { :host => @host, :errors => @host.errors.full_messages }
+        end
+        format.json do
+          render :json => { :errors => @host.errors.full_messages }, :status => :internal_server_error
+        end
+      end
     end
   end
 
   def cancelBuild
     if @host.built(false)
-      process_success :success_msg => _("Canceled pending build for %s") % @host.name, :success_redirect => :back
+      respond_to do |format|
+        format.html do
+          process_success :success_msg => _("Canceled pending build for %s") % @host.name, :success_redirect => :back
+        end
+        format.json do
+          render :json => { :success_msg => _("Canceled pending build for %s") % @host.name }
+        end
+      end
     else
-      process_error :redirect => :back, :error_msg => _("Failed to cancel pending build for %{hostname} with the following errors: %{errors}") % {:hostname => @host.name, :errors => @host.errors.full_messages.join(', ')}
+      respond_to do |format|
+        format.html do
+          process_error :redirect => :back, :error_msg => _("Failed to cancel pending build for %{hostname} with the following errors: %{errors}") % {:hostname => @host.name, :errors => @host.errors.full_messages.join(', ')}
+        end
+        format.json do
+          render :json => { :errors => @host.errors.full_messages.join(', ') }, :status => :internal_server_error
+        end
+      end
     end
   end
 
@@ -279,6 +329,7 @@ class HostsController < ApplicationController
   def forget_status
     status = @host.host_statuses.find(params[:status])
     status.delete
+    @host.refresh_global_status!
     respond_to do |format|
       format.html do
         redirect_to host_path(@host)
@@ -474,6 +525,7 @@ class HostsController < ApplicationController
       success = true
       forward_url_options(host)
       begin
+        host.built(false) if host.build? && host.token_expired?
         host.setBuild
         host.power.reset if host.supports_power_and_running? && reboot
       rescue => error
@@ -606,12 +658,17 @@ class HostsController < ApplicationController
   end
 
   def statuses
+    host_statuses = @host.host_statuses
+    # Do not show legacy configuration report when Host Report is installed.
+    if Foreman::Plugin.installed?('foreman_host_reports')
+      host_statuses = host_statuses.where("type != 'HostStatus::ConfigurationStatus'")
+    end
     statuses = {
       global: @host.global_status,
       captions: HostStatus.status_registry.map do |status_class|
         status_class.status_name
       end,
-      statuses: @host.host_statuses.map do |status|
+      statuses: host_statuses.map do |status|
         {
           id: status.id,
           name: status.name,
@@ -627,6 +684,11 @@ class HostsController < ApplicationController
   end
 
   private
+
+  def preload_reports
+    @last_report_ids = ConfigReport.where(:host_id => @hosts.map(&:id)).reorder('').group(:host_id).maximum(:id)
+    @last_reports = ConfigReport.where(:id => @last_report_ids.values)
+  end
 
   def resource_base
     @resource_base ||= Host.authorized(current_permission, Host)
@@ -871,5 +933,9 @@ class HostsController < ApplicationController
     path_hash = main_app.routes.recognize_path(session["redirect_to_url_#{controller_name}"])
     return default_redirection if (path_hash.nil? || (path_hash && path_hash[:action] != 'index'))
     { :success_redirect => saved_redirect_url_or(send("#{controller_name}_url")) }
+  end
+
+  def current_host_details_path(host)
+    Setting['host_details_ui'] ? host_details_page_path(host) : host_path(host)
   end
 end

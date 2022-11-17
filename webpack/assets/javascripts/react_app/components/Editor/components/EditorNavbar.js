@@ -39,10 +39,13 @@ const EditorNavbar = ({
   template,
   theme,
   themes,
+  autocompletion,
+  liveAutocompletion,
   toggleMaskValue,
   toggleModal,
   toggleRenderView,
   value,
+  templateKindId,
   renderedEditorValue,
   previewResult,
   searchQuery,
@@ -57,7 +60,11 @@ const EditorNavbar = ({
   const handleSafeModeChange = ({ currentTarget: { checked: newChecked } }) => {
     setSafemode(newChecked);
     const newRenderPath = newChecked ? safemodeRenderPath : renderPath;
-    previewTemplate({ host: selectedHost, renderPath: newRenderPath });
+    previewTemplate({
+      host: selectedHost,
+      renderPath: newRenderPath,
+      templateKindId,
+    });
   };
   const selectedRenderPath = safemode ? safemodeRenderPath : renderPath;
 
@@ -97,7 +104,11 @@ const EditorNavbar = ({
                   if (!isRendering) toggleRenderView();
                   changeTab('preview');
                   if (selectedHost.id === '')
-                    fetchAndPreview(selectedRenderPath);
+                    fetchAndPreview(
+                      selectedRenderPath,
+                      templateKindId,
+                      !showHostSelector
+                    );
                 }
               }}
             />
@@ -109,7 +120,11 @@ const EditorNavbar = ({
                 placeholder={__('Select Host...')}
                 isLoading={isFetchingHosts}
                 onChange={host =>
-                  previewTemplate({ host, renderPath: selectedRenderPath })
+                  previewTemplate({
+                    host,
+                    renderPath: selectedRenderPath,
+                    templateKindId,
+                  })
                 }
                 searchQuery={searchQuery}
                 onToggle={onHostSelectToggle}
@@ -137,6 +152,7 @@ const EditorNavbar = ({
                         previewTemplate({
                           host: selectedHost,
                           renderPath: selectedRenderPath,
+                          templateKindId,
                         })
                       }
                     >
@@ -157,7 +173,6 @@ const EditorNavbar = ({
         hosts={hosts}
         value={value}
         renderPath={renderPath}
-        previewTemplate={previewTemplate}
         showImport={showImport}
         showHide={showHide}
         showPreview={showPreview}
@@ -181,6 +196,8 @@ const EditorNavbar = ({
         keyBindings={keyBindings}
         theme={theme}
         themes={themes}
+        autocompletion={autocompletion}
+        liveAutocompletion={liveAutocompletion}
       />
     </div>
   );
@@ -204,6 +221,8 @@ EditorNavbar.propTypes = {
   isSelectOpen: PropTypes.bool.isRequired,
   keyBinding: PropTypes.string.isRequired,
   keyBindings: PropTypes.array.isRequired,
+  autocompletion: PropTypes.bool.isRequired,
+  liveAutocompletion: PropTypes.bool.isRequired,
   mode: PropTypes.string.isRequired,
   modes: PropTypes.array.isRequired,
   onHostSearch: PropTypes.func.isRequired,
@@ -234,6 +253,7 @@ EditorNavbar.propTypes = {
   toggleModal: PropTypes.func.isRequired,
   toggleRenderView: PropTypes.func.isRequired,
   value: PropTypes.string.isRequired,
+  templateKindId: PropTypes.string,
 };
 
 EditorNavbar.defaultProps = {
@@ -244,6 +264,7 @@ EditorNavbar.defaultProps = {
   showHide: false,
   template: '',
   showHostSelector: true,
+  templateKindId: '',
 };
 
 export default EditorNavbar;

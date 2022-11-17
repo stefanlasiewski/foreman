@@ -1,13 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import {
-  Popover,
-  Dropdown,
-  MenuItem,
-  Button,
-  Icon,
-  OverlayTrigger,
-} from 'patternfly-react';
+import { Dropdown, MenuItem, Button, Icon } from 'patternfly-react';
+import { Popover, PopoverPosition } from '@patternfly/react-core';
 import { translate as __ } from '../../../common/I18n';
 
 const EditorSettings = ({
@@ -19,10 +13,17 @@ const EditorSettings = ({
   modes,
   theme,
   themes,
+  autocompletion,
+  liveAutocompletion,
 }) => (
-  <OverlayTrigger
-    overlay={
-      <Popover placement="bottom" title={__('Settings')} id="cog-popover">
+  <Popover
+    id="cog-popover"
+    position={PopoverPosition.bottom}
+    enableFlip={false}
+    hasAutoWidth
+    headerContent={__('Settings')}
+    bodyContent={
+      <div>
         <div className="cog-popover-dropdown">
           <div className="cog-popover-dropdown-title">{__('Syntax')}</div>
           <Dropdown disabled={selectedView === 'preview'} id="mode-dropdown">
@@ -74,16 +75,44 @@ const EditorSettings = ({
             </Dropdown.Menu>
           </Dropdown>
         </div>
-      </Popover>
+        <div className="cog-popover-dropdown">
+          <div className="cog-popover-dropdown-title">
+            {__('Autocompletion')}
+          </div>
+          <div className="dropdown btn-group">
+            <input
+              id="autocompletion-checkbox"
+              name="autocompletion"
+              type="checkbox"
+              checked={autocompletion}
+              onChange={e => changeSetting({ autocompletion: !autocompletion })}
+            />
+          </div>
+        </div>
+        <div className="cog-popover-dropdown">
+          <div className="cog-popover-dropdown-title">
+            {__('Live Autocompletion')}
+          </div>
+          <div className="dropdown btn-group">
+            <input
+              id="live-autocompletion-checkbox"
+              name="liveAutocompletion"
+              type="checkbox"
+              checked={liveAutocompletion}
+              disabled={!autocompletion}
+              onChange={e =>
+                changeSetting({ liveAutocompletion: !liveAutocompletion })
+              }
+            />
+          </div>
+        </div>
+      </div>
     }
-    placement="bottom"
-    trigger={['click']}
-    rootClose
   >
     <Button className="editor-button" id="cog-btn" bsStyle="link">
       <Icon size="lg" name="cog" />
     </Button>
-  </OverlayTrigger>
+  </Popover>
 );
 
 EditorSettings.propTypes = {
@@ -95,6 +124,8 @@ EditorSettings.propTypes = {
   modes: PropTypes.array.isRequired,
   theme: PropTypes.string.isRequired,
   themes: PropTypes.array.isRequired,
+  autocompletion: PropTypes.bool.isRequired,
+  liveAutocompletion: PropTypes.bool.isRequired,
 };
 
 export default EditorSettings;

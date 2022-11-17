@@ -1,23 +1,24 @@
 import store from './react_app/redux';
-import * as ToastActions from './react_app/redux/actions/toasts';
 
 import { notify, clear } from './foreman_toast_notifications';
 
 jest.unmock('jquery');
 jest.unmock('./foreman_toast_notifications');
+jest.mock('@reduxjs/toolkit', () => ({
+  ...jest.requireActual('@reduxjs/toolkit'),
+  nanoid: jest.fn(() => 42)
+}))
 
 describe('Notifications', () => {
   describe('notify', () => {
     const testNotification = ({ notification, expected }) => {
       notify(notification);
 
-      expect(ToastActions.addToast).toHaveBeenCalledWith(expected);
-      expect(store.dispatch).toHaveBeenCalled();
+      expect(store.dispatch).toHaveBeenCalledWith({payload: {key: 42, toast: expected}, type: 'toasts/addToast'});
     };
 
     beforeEach(() => {
       store.dispatch = jest.fn();
-      ToastActions.addToast = jest.fn();
     });
 
     it('should dispatch a notification action without link', () => {
@@ -69,18 +70,14 @@ describe('Notifications', () => {
   });
 
   describe('clear', () => {
-    const clearToastsAction = 'clearToastsAction';
-
     beforeEach(() => {
       store.dispatch = jest.fn();
-      ToastActions.clearToasts = jest.fn(() => clearToastsAction);
     });
 
     it('should dispatch a clear notification action', () => {
       clear();
 
-      expect(ToastActions.clearToasts).toHaveBeenCalled();
-      expect(store.dispatch).toHaveBeenCalledWith(clearToastsAction);
+      expect(store.dispatch).toHaveBeenCalledWith({payload: undefined, type: 'toasts/clearToasts'});
     });
   });
 });

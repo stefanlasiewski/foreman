@@ -27,5 +27,15 @@ module Foreman
     def secure_encryption_key
       SecureRandom.hex(ActiveSupport::MessageEncryptor.key_len / 2)
     end
+
+    # Adds a ca cert bundle with multiple ca certs to a
+    # OpenSSL::X509::Store certificate
+    def self.add_ca_bundle_to_store(ca_bundle, cert_store)
+      Tempfile.open('cert.pem', Rails.root.join('tmp')) do |f|
+        f.write(ca_bundle)
+        f.flush
+        cert_store.add_file(f.path)
+      end
+    end
   end
 end

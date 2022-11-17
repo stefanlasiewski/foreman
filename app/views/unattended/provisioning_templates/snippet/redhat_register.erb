@@ -3,73 +3,71 @@ kind: snippet
 name: redhat_register
 model: ProvisioningTemplate
 snippet: true
+description: |
+  Red Hat Registration Snippet
+
+  General parameters:
+
+    redhat_install_agent = [true|false]         Install the management agent.  For Spacewalk,
+                                                this is OSAD.  For Katello, this is katello-agent.
+
+    redhat_install_host_tools = [true|false]    Install the katello-host-tools yum/dnf plugins.
+
+    redhat_install_host_tracer_tools = [true|false]  Install the katello-host-tools Tracer yum/dnf plugin.
+
+    activation_key = <key>                      Activation key string, not needed if using
+                                                subscription-manager with username/password
+
+    atomic = [true|false]                       Whether or not this system is Atomic
+
+  Parameters for use with subscription-manager (Red Hat CDN, Satellite, or Katello)
+
+    subscription_manager = 'true'               You're going to use subscription-manager
+
+    subscription_manager_auto_attach = 'false'  Run attach --auto after registering.
+
+    subscription_manager_username = <username>  Username for subscription-manager
+
+    subscription_manager_password = <password>  Password for subscription-manager
+
+    subscription_manager_certpkg_url = <url>    Custom certificate package URL
+
+    subscription_manager_atomic_url = <url>     Script used for configuring Atomic servers
+                                                for subscription-manager
+
+    subscription_manager_org = <org name>       Organization name, if required
+
+    subscription_manager_repos = <repos>        Additional repositories to enable
+                                                after registration.
+                                                Seperate multiple repositories with commas.
+
+    subscription_manager_override_repos_cost = <cost>  Override repository cost
+
+    subscription_manager_pool = <pool>          Specific subscription pool to use
+
+    only_subscription_manager_repos = 'true'    dnf/yum should only use repos managed by sub-man
+
+    http-proxy = <host>                         Proxy hostname to be used for registration
+
+    http-proxy-port = <port>                    Proxy port to be used for registration
+
+    http-proxy-user = <user>                    Proxy user to be used for registration
+
+    http-proxy-password = <password>            Proxy password to be used for registration
+
+    syspurpose_role                             Sets the system purpose role
+
+    syspurpose_usage                            Sets the system purpose usage
+
+    syspurpose_sla                              Sets the system purpose SLA
+
+    syspurpose_addons                           Sets the system purpose add-ons. Separate multiple
+                                                values with commas.
+
+  Set these parameters if you're using rhnreg_ks:
+
+    spacewalk_host = <hostname>                 Hostname of Spacewalk server
 -%>
-<%#
-# Red Hat Registration Snippet
-#
-# General parameters:
-#
-#   redhat_install_agent = [true|false]         Install the management agent.  For Spacewalk,
-#                                               this is OSAD.  For Katello, this is katello-agent.
-#
-#   redhat_install_host_tools = [true|false]    Install the katello-host-tools yum/dnf plugins.
-#
-#   redhat_install_host_tracer_tools = [true|false]  Install the katello-host-tools Tracer yum/dnf plugin.
-#
-#   activation_key = <key>                      Activation key string, not needed if using
-#                                               subscription-manager with username/password
-#
-#   atomic = [true|false]                       Whether or not this system is Atomic
-#
-# Parameters for use with subscription-manager (Red Hat CDN, Satellite, or Katello)
-#
-#   subscription_manager = 'true'               You're going to use subscription-manager
-#
-#   subscription_manager_auto_attach = 'false'  Run attach --auto after registering. 
-#
-#   subscription_manager_username = <username>  Username for subscription-manager
-#
-#   subscription_manager_password = <password>  Password for subscription-manager
-#
-#   subscription_manager_certpkg_url = <url>    Custom certificate package URL
-#
-#   subscription_manager_atomic_url = <url>     Script used for configuring Atomic servers
-#                                               for subscription-manager
-#
-#   subscription_manager_org = <org name>       Organization name, if required
-#
-#   subscription_manager_repos = <repos>        Additional repositories to enable
-#                                               after registration.
-#                                               Seperate multiple repositories with commas.
-#
-#   subscription_manager_override_repos_cost = <cost>  Override repository cost
-#
-#   subscription_manager_pool = <pool>          Specific subscription pool to use
-#
-#   only_subscription_manager_repos = 'true'    dnf/yum should only use repos managed by sub-man
-#
-#   http-proxy = <host>                         Proxy hostname to be used for registration
-#
-#   http-proxy-port = <port>                    Proxy port to be used for registration
-#
-#   http-proxy-user = <user>                    Proxy user to be used for registration
-#
-#   http-proxy-password = <password>            Proxy password to be used for registration
-#
-#   syspurpose_role                             Sets the system purpose role
-#
-#   syspurpose_usage                            Sets the system purpose usage
-#
-#   syspurpose_sla                              Sets the system purpose SLA
-#
-#   syspurpose_addons                           Sets the system purpose add-ons. Separate multiple
-#                                               values with commas.
-#
-# Set these parameters if you're using rhnreg_ks:
-#
-#   spacewalk_host = <hostname>                 Hostname of Spacewalk server
-#
-%>
 
 <%
   # Katello or subscription-manager:
@@ -110,19 +108,27 @@ snippet: true
   echo "Starting the subscription-manager registration process"
 
   <% if !atomic %>
-    if [ -f /usr/bin/dnf ]; then
-      dnf -y install subscription-manager
-    else
-      yum -t -y install subscription-manager
+    # Avoid timeout accessing unreachable repo on air gapped infrastructure,
+    #  assuming subscription-manager is installed in custom packages section.
+    if ! rpm --query --quiet subscription-manager ; then
+      if [ -f /usr/bin/dnf ]; then
+        dnf -y install subscription-manager
+      else
+        yum -t -y install subscription-manager
+      fi
     fi
   <% end %>
 
   <%- if (host_param('syspurpose_role') || host_param('syspurpose_usage') || host_param('syspurpose_sla') || host_param('syspurpose_addons')) %>
     <%- if !atomic %>
-      if [ -f /usr/bin/dnf ]; then
-        dnf -y install subscription-manager-syspurpose
-      else
-        yum -t -y install subscription-manager-syspurpose
+      # Avoid timeout accessing unreachable repo on air gapped infrastructure,
+      #  assuming subscription-manager-syspurpose is installed in custom packages section.
+      if ! rpm --query --quiet subscription-manager-syspurpose ; then
+        if [ -f /usr/bin/dnf ]; then
+          dnf -y install subscription-manager-syspurpose
+        else
+          yum -t -y install subscription-manager-syspurpose
+        fi
       fi
     <%- end %>
 

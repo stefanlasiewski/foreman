@@ -8,7 +8,7 @@ export const STATUS = {
 
 export const getControllerSearchProps = (
   controller,
-  id = 'searchBar',
+  id = `searchBar-${controller}`,
   canCreate = true
 ) => ({
   controller,
@@ -19,6 +19,7 @@ export const getControllerSearchProps = (
     useKeyShortcuts: true,
   },
   bookmarks: {
+    id,
     url: '/api/bookmarks',
     canCreate,
     documentationUrl: getManualURL('4.1.5Searching'),

@@ -1,3 +1,5 @@
+require 'foreman/util'
+
 module Foreman
   class SettingManager
     class << self
@@ -14,6 +16,10 @@ module Foreman
       def define(context_name, &block)
         new(context_name).instance_eval(&block)
       end
+
+      def validations
+        @validations ||= Validations.new
+      end
     end
 
     def initialize(context_name)
@@ -25,14 +31,64 @@ module Foreman
       CategoryMapper.new(@context_name, category_name.to_s).instance_eval(&block)
     end
 
+    class Validations
+      def initialize
+        @validates = {}
+        @validates_with = {}
+      end
+
+      def setup!
+        @validates.each do |name, validations_ary|
+          validations_ary.each do |validations|
+            _wrap_validation_if(name, validations)
+            Setting.validates(:value, validations)
+          end
+        end
+        @validates_with.each do |name, validations_ary|
+          validations_ary.each do |(args, block)|
+            options = args.extract_options!
+            _wrap_validation_if(name, options)
+            options[:attributes] = [:value]
+            args << options
+            Setting.validates_with(*args, &block)
+          end
+        end
+      end
+
+      def validates(name, validations, **opts)
+        if validations.is_a?(Proc)
+          validates_with name, ValueLambdaValidator, opts.merge(proc: validations)
+        else
+          @validates[name] ||= []
+          @validates[name] << validations
+        end
+      end
+
+      def validates_with(name, *args, &block)
+        @validates_with[name] ||= []
+        @validates_with[name] << [args, block]
+      end
+
+      private
+
+      def _wrap_validation_if(setting_name, options)
+        options[:if] = [
+          ->(setting) { setting.name == setting_name.to_s },
+          *options[:if],
+        ]
+      end
+    end
+
     class ValueLambdaValidator < ActiveModel::Validator
       def validate(record)
         return true if options[:allow_blank] && record.value.blank?
-        record.errors.add(:value, :invalid) unless options[:proc].call(record.value)
+        record.errors.add(:value, :invalid, message: _(options[:message])) unless options[:proc].call(record.value)
       end
     end
 
     class CategoryMapper
+      include Foreman::Util
+
       attr_reader :context_name, :category_name
 
       def initialize(context_name, category_name)
@@ -84,10 +140,7 @@ module Foreman
       end
 
       def _inline_validates(name, validations)
-        if validations.is_a?(Proc)
-          validates_with name, ValueLambdaValidator, proc: validations
-          return
-        elsif validations.is_a?(Regexp)
+        if validations.is_a?(Regexp)
           validations = { format: { with: validations } }
         elsif validations.is_a?(Symbol)
           validations = { validations => true }
@@ -95,25 +148,17 @@ module Foreman
         validates(name, validations)
       end
 
-      def validates(name, validations)
-        _wrap_validation_if(name, validations)
-        Setting.validates(:value, validations)
+      def validates(name, validations, **opts)
+        SettingManager.validations.validates(name, validations, **opts)
       end
 
       def validates_with(name, *args, &block)
-        options = args.extract_options!
-        _wrap_validation_if(name, options)
-        options[:attributes] = [:value]
-        args << options
-        Setting.validates_with(*args, &block)
-      end
-
-      def _wrap_validation_if(setting_name, options)
-        options[:if] = [
-          ->(setting) { setting.name == setting_name.to_s },
-          *options[:if],
-        ]
+        SettingManager.validations.validates_with(name, *args, &block)
       end
     end
   end
+end
+
+Rails.application.config.to_prepare do
+  Foreman::SettingManager.validations.setup!
 end

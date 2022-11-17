@@ -29,7 +29,7 @@ class HostsControllerTest < ActionController::TestCase
   test 'create_valid' do
     Host.any_instance.stubs(:valid?).returns(true)
     post :create, params: { :host => {:name => "test"} }, session: set_session_user
-    assert_redirected_to host_url(assigns('host'))
+    assert_redirected_to host_details_page_url(assigns('host'))
   end
 
   test "should get index" do
@@ -101,7 +101,7 @@ class HostsControllerTest < ActionController::TestCase
         },
        }, session: set_session_user
     end
-    assert_redirected_to host_url(assigns['host'])
+    assert_redirected_to host_details_page_url(assigns['host'])
   end
 
   context "with libvirt" do
@@ -186,7 +186,7 @@ class HostsControllerTest < ActionController::TestCase
       assert new_host.puppet_proxy.present?
       assert_equal hostgroup.puppet_proxy, new_host.puppet_proxy
     end
-    assert_redirected_to host_url(assigns['host'])
+    assert_redirected_to host_details_page_url(assigns['host'])
   end
 
   test "should get edit" do
@@ -210,7 +210,7 @@ class HostsControllerTest < ActionController::TestCase
   def test_update_valid
     Host.any_instance.stubs(:valid?).returns(true)
     put :update, params: { :id => Host.first.name, :host => {:name => "Updated_#{Host.first.name}"} }, session: set_session_user
-    assert_redirected_to host_url(assigns(:host))
+    assert_redirected_to host_details_page_url(assigns(:host))
   end
 
   test "should destroy host" do
@@ -1006,7 +1006,7 @@ class HostsControllerTest < ActionController::TestCase
     new_password = "topsecret"
     put :update, params: { :commit => "Update", :id => @host.name, :host => {:interfaces_attributes => {"0" => {:id => bmc1.id, :password => new_password, :mac => bmc1.mac} } } }, session: set_session_user
     @host = Host.find(@host.id)
-    assert_equal new_password, @host.interfaces.bmc.first.password
+    assert_equal new_password, @host.interfaces.bmc.first.password_unredacted
   end
 
   test "test non admin multiple action" do
@@ -1047,6 +1047,15 @@ class HostsControllerTest < ActionController::TestCase
     status = ::HostStatus::BuildStatus.create!(host_id: host.id)
     post :forget_status, params: {:id => host.id, :status => status.id}, session: set_session_user
     refute host.host_statuses.include?(status)
+  end
+
+  test "#forget_status refresh the global state" do
+    host = FactoryBot.create(:host, :managed)
+    failed_status = ::HostStatus::BuildStatus.create!(host_id: host.id)
+    failed_status.stubs(:to_global).returns(2)
+    failed_status.stubs(:relevant?).returns(true)
+    post :forget_status, params: {:id => host.id, :status => failed_status.id}, session: set_session_user
+    assert_equal 0, host.global_status
   end
 
   test "#disassociate shows error when used on non-CR host" do
@@ -1361,7 +1370,7 @@ class HostsControllerTest < ActionController::TestCase
   test 'failed cancelBuild shows errors' do
     @request.env['HTTP_REFERER'] = hosts_path
     HostsController.any_instance.stubs(:resource_finder).returns(@host)
-    @host.errors[:test] << 'my error'
+    @host.errors.add(:test, 'my error')
     @host.interfaces = [] # force save failure
     get :cancelBuild, params: { id: @host.name }, session: set_session_user
 
@@ -1423,7 +1432,7 @@ class HostsControllerTest < ActionController::TestCase
           host: { compute_attributes: { scsi_controllers: { 'scsiControllers' => scsi_controllers, 'volumes' => [volume_params] }.to_json } },
         }, session: set_session_user
 
-        assert_redirected_to host_path(@vmware_host.to_param)
+        assert_redirected_to host_details_page_path(@vmware_host.to_param)
       end
     end
   end

@@ -7,6 +7,7 @@ module Katello
         'net.interface.bond0.mac_address' => '52:54:00:6D:40:72',
         'net.interface.eth0.mac_address' => '00:00:00:00:00:12',
         'net.interface.eth0.ipv4_address' => '192.168.0.1',
+        'net.interface.eth0.ipv6_address.link' => '2001:db8::5230:dd:7741:8a',
         'net.interface.eth0.1.mac_address' => '00:00:00:00:00:12',
         'net.interface.eth0.1.ipv4_address' => '192.168.0.2',
         'net.interface.eth1.permanent_mac_address' => '52:54:00:6D:40:72',
@@ -15,6 +16,14 @@ module Katello
         'net.interface.eth2.permanent_mac_address' => '52:54:00:D8:27:F7',
         'net.interface.eth3.ipv4_address' => 'Unknown',
         'net.interface.eth3.mac_address' => '00:00:00:00:00:14',
+        'net.interface.eno1.ipv6_address.global' => '2001:db8::1105',
+        'net.interface.eno1.ipv6_address.global_list' => '2001:db8::1105',
+        'net.interface.eno1.ipv6_address.link' => 'fe80::62bc:d32c:f0c6:af7a',
+        'net.interface.eno1.ipv6_address.link_list' => 'fe80::62bc:d32c:f0c6:af7a',
+        'net.interface.eno1.ipv6_netmask.global' => '64',
+        'net.interface.eno1.ipv6_netmask.global_list' => '64',
+        'net.interface.eno1.ipv6_netmask.link' => '64',
+        'net.interface.eno1.ipv6_netmask.link_list' => '64',
       }
     end
     let(:parser) { RhsmFactParser.new(@facts) }
@@ -32,19 +41,26 @@ module Katello
     end
 
     def test_get_facts_for_interface_with_ip
-      expected_eth0 = {
+      expected = {
         'link' => true,
         'macaddress' => @facts['net.interface.eth0.mac_address'],
         'ipaddress' => @facts['net.interface.eth0.ipv4_address'],
       }
-      assert_equal expected_eth0, parser.get_facts_for_interface('eth0')
+      assert_equal expected, parser.get_facts_for_interface('eth0')
+    end
+
+    def test_get_facts_for_interface_with_ip6
+      expected = {
+        'link' => true,
+        'ipaddress6' => @facts['net.interface.eno1.ipv6_address.global'],
+      }
+      assert_equal expected, parser.get_facts_for_interface('eno1')
     end
 
     def test_get_facts_for_interface_without_ip
       expected_eth2 = {
         'link' => true,
         'macaddress' => @facts['net.interface.eth2.permanent_mac_address'],
-        'ipaddress' => nil,
       }
       assert_equal expected_eth2, parser.get_facts_for_interface('eth2')
     end
@@ -170,6 +186,24 @@ module Katello
       assert_equal parser.operatingsystem.name, 'Amazon'
       assert_equal parser.operatingsystem.major, '2'
       assert_equal parser.operatingsystem.minor, '2'
+    end
+
+    def test_operatingsystem_centos_stream
+      @facts['distribution.name'] = 'CentOS Stream'
+      @facts['distribution.version'] = '8'
+      @facts['distribution.id'] = '8'
+
+      assert_equal parser.operatingsystem.name, 'CentOS_Stream'
+      assert_equal parser.operatingsystem.major, '8'
+      assert_equal parser.operatingsystem.minor, ''
+    end
+
+    def test_operatingsystem_centos_8
+      @facts['distribution.name'] = 'CentOS Linux'
+      @facts['distribution.version'] = '8'
+
+      assert_equal parser.operatingsystem.name, 'CentOS'
+      assert_equal parser.operatingsystem.major, '8'
     end
 
     def test_uname_architecture

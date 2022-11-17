@@ -6,6 +6,8 @@ module ForemanAnsible
     def operatingsystem
       args = { :name => os_name, :major => os_major, :minor => os_minor }
       args[:release_name] = os_release_name if os_name == 'Debian' || os_name == 'Ubuntu'
+      # for Ansible, the CentOS Stream can be identified by missing minor version only
+      args[:name] = "CentOS_Stream" if os_name == 'CentOS' && os_minor.blank?
       return @local_os if local_os(args).present?
       return @new_os if new_os(args).present?
       logger.debug do
@@ -77,14 +79,17 @@ module ForemanAnsible
 
     def os_name
       if facts[:ansible_os_family] == 'Windows'
-        facts[:ansible_os_name].tr(" \n\t", '') ||
-            facts[:ansible_distribution].tr(" \n\t", '')
+        windows_os_name.tr(" \n\t", '')
       else
+        # RHEL 7 is marked as either RedHatEnterpriseServer or RedHatEnterpriseWorkstation, RHEL 8 is lsb id is RedHatEnterprise
+        # but we always consider it just RHEL on this level, workstation is differentiated below
         distribution = facts[:ansible_lsb].try(:[], 'id') || facts[:ansible_distribution]
 
-        if distribution == 'RedHat' &&
-            facts[:ansible_lsb].try(:[], 'id') == 'RedHatEnterpriseWorkstation'
-          distribution += '_Workstation'
+        case distribution
+        when 'RedHatEnterprise', 'RedHatEnterpriseServer'
+          distribution = 'RedHat'
+        when 'RedHatEnterpriseWorkstation'
+          distribution = 'RedHat_Workstation'
         end
 
         distribution
@@ -93,10 +98,14 @@ module ForemanAnsible
 
     def os_description
       if facts[:ansible_os_family] == 'Windows'
-        facts[:ansible_os_name].strip || facts[:ansible_distribution].strip
+        windows_os_name
       else
         facts[:ansible_lsb] && facts[:ansible_lsb]['description']
       end
+    end
+
+    def windows_os_name
+      (facts[:ansible_os_name] || facts[:ansible_distribution] || 'Microsoft Windows').strip
     end
   end
 end

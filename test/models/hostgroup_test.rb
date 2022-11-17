@@ -223,6 +223,8 @@ class HostgroupTest < ActiveSupport::TestCase
 
   test "root_pass inherited from settings if blank" do
     Setting[:root_pass] = '12345678'
+    PasswordCrypt.expects(:crypt_gnu_compatible?).at_least_once.returns(true)
+    PasswordCrypt.expects(:passw_crypt).with(Setting[:root_pass]).at_least_once.returns(Setting[:root_pass])
     hostgroup = FactoryBot.build(:hostgroup, :root_pass => '')
     assert_equal '12345678', hostgroup.root_pass
     hostgroup.save!
@@ -231,6 +233,8 @@ class HostgroupTest < ActiveSupport::TestCase
 
   test "root_pass inherited from settings if group and parent are blank" do
     Setting[:root_pass] = '12345678'
+    PasswordCrypt.expects(:crypt_gnu_compatible?).at_least_once.returns(true)
+    PasswordCrypt.expects(:passw_crypt).with(Setting[:root_pass]).at_least_once.returns(Setting[:root_pass])
     parent = FactoryBot.create(:hostgroup, :root_pass => '')
     hostgroup = FactoryBot.build(:hostgroup, :parent => parent, :root_pass => '')
     assert_equal '12345678', hostgroup.root_pass
@@ -279,12 +283,12 @@ class HostgroupTest < ActiveSupport::TestCase
     subnet6 = FactoryBot.create(:subnet_ipv6, :domains => [domain], :vlanid => 4)
     hostgroup = FactoryBot.build(:hostgroup, :subnet => subnet, :subnet6 => subnet6)
     refute_valid hostgroup
-    assert_includes hostgroup.errors.keys, :subnet_id
+    assert_includes hostgroup.errors.attribute_names, :subnet_id
 
     subnet6 = FactoryBot.create(:subnet_ipv6, :domains => [domain], :vlanid => nil)
     hostgroup = FactoryBot.build(:hostgroup, :subnet => subnet, :subnet6 => subnet6)
     refute_valid hostgroup
-    assert_includes hostgroup.errors.keys, :subnet_id
+    assert_includes hostgroup.errors.attribute_names, :subnet_id
   end
 
   test 'with both subnet and subnet6 should be valid if MTU is consistent between subnets' do
@@ -301,7 +305,7 @@ class HostgroupTest < ActiveSupport::TestCase
     subnet6 = FactoryBot.create(:subnet_ipv6, :domains => [domain], :mtu => 1500)
     hostgroup = FactoryBot.build(:hostgroup, :subnet => subnet, :subnet6 => subnet6)
     refute_valid hostgroup
-    assert_includes hostgroup.errors.keys, :subnet_id
+    assert_includes hostgroup.errors.attribute_names, :subnet_id
   end
 
   context "#clone" do
@@ -362,8 +366,8 @@ class HostgroupTest < ActiveSupport::TestCase
     hostgroup.subnet6 = subnetv4
 
     refute hostgroup.valid?, "Can't be valid with invalid subnet types: #{hostgroup.errors.messages}"
-    assert_includes hostgroup.errors.keys, :subnet
-    assert_includes hostgroup.errors.keys, :subnet6
+    assert_includes hostgroup.errors.attribute_names, :subnet
+    assert_includes hostgroup.errors.attribute_names, :subnet6
   end
 
   context "recreating host configs" do

@@ -4,7 +4,7 @@ import IntegrationTestHelper from '../../../common/IntegrationTestHelper';
 
 import { editorOptions, serverRenderResponse } from '../Editor.fixtures';
 import Editor, { reducers } from '../index';
-import * as EditorActions from '../EditorActions';
+import * as EditorActions from '../EditorActions'
 
 jest.mock('../../../redux/API');
 

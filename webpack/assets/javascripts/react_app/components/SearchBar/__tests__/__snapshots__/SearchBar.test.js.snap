@@ -1,35 +1,40 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`AutoComplete rendering renders AutoComplete 1`] = `
-<div
-  className="search-bar input-group"
-  id="search-bar"
+<Provider
+  store={
+    Object {
+      "dispatch": [Function],
+      "getState": [Function],
+      "replaceReducer": [Function],
+      "subscribe": [Function],
+      Symbol(Symbol.observable): [Function],
+    }
+  }
 >
-  <Connect(AutoComplete)
-    controller="models"
-    handleSearch={[Function]}
-    id="searchBar"
+  <SearchBar
+    data={
+      Object {
+        "autocomplete": Object {
+          "id": "searchBar",
+          "searchQuery": null,
+          "url": "model/auto_complete_search",
+          "useKeyShortcuts": true,
+        },
+        "bookmarks": Object {
+          "canCreate": true,
+          "documentationUrl": "/doc/url",
+          "id": "searchBar",
+          "url": "/api/bookmarks",
+        },
+        "controller": "models",
+      }
+    }
+    initialQuery=""
+    onBookmarkClick={[Function]}
+    onSearch={[Function]}
     searchQuery=""
-    url="model/auto_complete_search"
-    useKeyShortcuts={true}
+    setAutocompleteSearchQuery={[MockFunction]}
   />
-  <div
-    className="input-group-btn"
-  >
-    <SearchButton
-      className=""
-      onClick={[Function]}
-    >
-      Search
-    </SearchButton>
-    <Connect(Bookmarks)
-      canCreate={true}
-      controller="models"
-      documentationUrl="/doc/url"
-      onBookmarkClick={[Function]}
-      searchQuery=""
-      url="/api/bookmarks"
-    />
-  </div>
-</div>
+</Provider>
 `;

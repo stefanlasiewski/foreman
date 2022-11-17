@@ -14,31 +14,31 @@ import {
   WARNING_STATUS_STATE,
 } from './Constants';
 
-const StatusIcon = ({ statusNumber, label }) => {
+const StatusIcon = ({ statusNumber, label, style }) => {
   switch (statusNumber) {
     case OK_STATUS_STATE:
       return (
-        <span className="status-success">
-          <CheckCircleIcon /> {label}
+        <span className="status-success" style={style}>
+          <CheckCircleIcon noVerticalAlign /> {label}
         </span>
       );
     case WARNING_STATUS_STATE:
       return (
-        <span className="status-warning">
-          <ExclamationTriangleIcon /> {label}
+        <span className="status-warning" style={style}>
+          <ExclamationTriangleIcon noVerticalAlign /> {label}
         </span>
       );
 
     case ERROR_STATUS_STATE:
       return (
-        <span className="status-error">
-          <ExclamationCircleIcon /> {label}
+        <span className="status-error" style={style}>
+          <ExclamationCircleIcon noVerticalAlign /> {label}
         </span>
       );
     case NA_STATUS_STATE:
       return (
-        <span className="disabled">
-          <BanIcon /> {label}
+        <span className="disabled" style={style}>
+          <BanIcon noVerticalAlign /> {label}
         </span>
       );
     default:
@@ -49,11 +49,13 @@ const StatusIcon = ({ statusNumber, label }) => {
 StatusIcon.propTypes = {
   label: PropTypes.string,
   statusNumber: PropTypes.number,
+  style: PropTypes.shape({}),
 };
 
 StatusIcon.defaultProps = {
   label: '',
   statusNumber: undefined,
+  style: undefined,
 };
 
 export default StatusIcon;

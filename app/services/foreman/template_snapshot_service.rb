@@ -34,6 +34,14 @@ module Foreman
       new.ubuntu4dhcp
     end
 
+    def self.ubuntu_autoinst4dhcp
+      new.ubuntu_autoinst4dhcp
+    end
+
+    def self.rhel9_dhcp
+      new.rhel9_dhcp
+    end
+
     def self.render_template(template, host_name = :host4dhcp)
       host_stub = send(host_name.to_sym)
       source = Foreman::Renderer::Source::Snapshot.new(template)
@@ -55,6 +63,13 @@ module Foreman
         "force-puppet" => "true",
         "remote_execution_create_user" => "true",
         "blacklist_kernel_modules" => "amodule",
+        "subscription_manager_org" => "Org",
+        "activation_key" => "key",
+        "host_registration_insights" => "true",
+        "syspurpose_role" => "Red Hat Enterprise Linux Server",
+        "syspurpose_usage" => "Development/Test",
+        "syspurpose_sla" => "Self-Support",
+        "syspurpose_addons" => "first addon, second addon, third addon",
       }
       host_params.each_pair do |name, value|
         FactoryBot.build(:host_parameter, host: host, name: name, value: value)
@@ -135,8 +150,24 @@ module Foreman
     end
 
     def ubuntu4dhcp
+      host = FactoryBot.build(:host_for_snapshots_ipv4_dhcp_ubuntu18,
+        name: 'snapshot-ipv4-dhcp-ubuntu18',
+        subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
+        interfaces: [ipv4_interface])
+      define_host_params(host)
+    end
+
+    def ubuntu_autoinst4dhcp
       host = FactoryBot.build(:host_for_snapshots_ipv4_dhcp_ubuntu20,
         name: 'snapshot-ipv4-dhcp-ubuntu20',
+        subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
+        interfaces: [ipv4_interface])
+      define_host_params(host)
+    end
+
+    def rhel9_dhcp
+      host = FactoryBot.build(:host_for_snapshots_ipv4_dhcp_rhel9,
+        name: 'snapshot-ipv4-dhcp-rhel9',
         subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
         interfaces: [ipv4_interface])
       define_host_params(host)

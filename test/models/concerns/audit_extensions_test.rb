@@ -15,14 +15,13 @@ class AuditExtensionsTest < ActiveSupport::TestCase
   end
 
   test "audit's change is filtered when data is encrypted" do
-    setting = settings(:attributes63)
-    setting.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
-    setting.value = '654321'
+    Setting.any_instance.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
+    setting = Foreman.settings.set_user_value('root_pass', '87654321')
     as_admin do
       assert setting.save
     end
     a = Audit.where(auditable_type: 'Setting')
-    assert_equal "[redacted]", a.last.audited_changes["value"][1]
+    assert_equal "[redacted]", a.last.audited_changes["value"]
   end
 
   context "with multiple taxonomies" do

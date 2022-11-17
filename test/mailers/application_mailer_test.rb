@@ -3,7 +3,6 @@ require 'test_helper'
 class ApplicationMailerTest < ActiveSupport::TestCase
   setup do
     ActionMailer::Base.deliveries = []
-    Setting::Email.load_defaults
     Setting[:delivery_method] = :test
   end
 
@@ -34,7 +33,7 @@ class ApplicationMailerTest < ActiveSupport::TestCase
   end
 
   test 'foreman server header is set' do
-    assert_equal mail.header['X-Foreman-Server'].to_s, 'foreman.some.host.fqdn'
+    assert_equal mail.header['X-Foreman-Server'].to_s, 'foreman.example.com'
   end
 
   test 'application mailer can use external css' do

@@ -42,6 +42,7 @@ class AnsibleFactParser < FactParser
   # This method overrides app/services/fact_parser.rb on Foreman and returns
   # an array of interface names, ['eth0', 'wlan1', etc...]
   def get_interfaces
+    return [] if facts[:ansible_os_family] == 'Windows'
     pref = facts[:ansible_default_ipv4] &&
         facts[:ansible_default_ipv4]['interface']
     if pref.present?
@@ -87,6 +88,14 @@ class AnsibleFactParser < FactParser
 
   def cores
     facts['ansible_processor_cores'].to_i
+  end
+
+  def kernel_version
+    facts['ansible_kernel']
+  end
+
+  def bios
+    facts.dig('facter_dmi', 'bios') || {}
   end
 
   private

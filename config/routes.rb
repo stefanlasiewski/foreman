@@ -269,16 +269,22 @@ Foreman::Application.routes.draw do
     end
   end
 
-  resources :filters, except: [:show] do
+  resources :filters, except: [:show, :new, :edit] do
     member do
       patch 'disable_overriding'
+      get 'edit', to: 'react#index'
     end
     collection do
+      get 'new', to: 'react#index', as: 'new'
       get 'auto_complete_search'
     end
   end
 
-  resources :permissions, only: [:index]
+  resources :permissions, only: [:index] do
+    collection do
+      get 'show_resource_types_with_translations'
+    end
+  end
 
   resources :auth_source_ldaps, except: [:show, :index] do
     collection do
@@ -319,128 +325,129 @@ Foreman::Application.routes.draw do
     end
   end
 
-  if SETTINGS[:unattended]
-    resources :provisioning_templates, only: [] do
+  resources :provisioning_templates, only: [] do
+    collection do
+      get 'build_pxe_default'
+    end
+  end
+
+  scope 'templates' do
+    resources :ptables, except: [:show] do
+      member do
+        get 'clone_template'
+        get 'lock'
+        get 'unlock'
+        get 'export'
+        post 'preview'
+      end
       collection do
-        get 'build_pxe_default'
+        post 'preview'
+        get 'revision'
+        get 'auto_complete_search'
       end
     end
 
-    scope 'templates' do
-      resources :ptables, except: [:show] do
-        member do
-          get 'clone_template'
-          get 'lock'
-          get 'unlock'
-          get 'export'
-          post 'preview'
-        end
-        collection do
-          post 'preview'
-          get 'revision'
-          get 'auto_complete_search'
-        end
+    resources :provisioning_templates, except: [:show] do
+      member do
+        get 'clone_template'
+        get 'lock'
+        get 'unlock'
+        get 'export'
+        post 'preview'
       end
-
-      resources :provisioning_templates, except: [:show] do
-        member do
-          get 'clone_template'
-          get 'lock'
-          get 'unlock'
-          get 'export'
-          post 'preview'
-        end
-        collection do
-          post 'preview'
-          get 'revision'
-          get 'auto_complete_search'
-        end
+      collection do
+        post 'preview'
+        get 'revision'
+        get 'auto_complete_search'
       end
     end
+  end
 
-    constraints(id: /[^\/]+/) do
-      resources :domains, except: [:show] do
-        collection do
-          get 'auto_complete_search'
-        end
-      end
-
-      resources :operatingsystems, except: [:show] do
-        member do
-          get 'bootfiles'
-          get 'clone'
-        end
-        collection do
-          get 'auto_complete_search'
-        end
-      end
-    end
-    resources :media, except: [:show] do
+  constraints(id: /[^\/]+/) do
+    resources :domains, except: [:show] do
       collection do
         get 'auto_complete_search'
       end
     end
 
-    resources :models, except: [:show, :index] do
+    resources :operatingsystems, except: [:show] do
+      member do
+        get 'bootfiles'
+        get 'clone'
+      end
       collection do
         get 'auto_complete_search'
       end
     end
-    match 'models' => 'react#index', :via => :get
+  end
 
-    resources :architectures, except: [:show] do
-      collection do
-        get 'auto_complete_search'
-      end
+  resources :media, except: [:show] do
+    member do
+      get 'clone'
     end
+    collection do
+      get 'auto_complete_search'
+    end
+  end
 
-    constraints(id: /[^\/]+/) do
-      resources :compute_resources do
-        member do
-          post 'template_selected'
-          post 'instance_type_selected'
-          post 'cluster_selected'
-          get 'resource_pools'
-          post 'ping'
-          put 'associate'
-          put 'refresh_cache'
-        end
-        constraints(id: /[^\/]+/) do
-          resources :vms, controller: "compute_resources_vms" do
-            member do
-              put 'power'
-              put 'pause'
-              put 'associate'
-              get 'console'
-              get 'import'
-            end
+  resources :models, except: [:show, :index] do
+    collection do
+      get 'auto_complete_search'
+    end
+  end
+  match 'models' => 'react#index', :via => :get
+
+  resources :architectures, except: [:show] do
+    collection do
+      get 'auto_complete_search'
+    end
+  end
+
+  constraints(id: /[^\/]+/) do
+    resources :compute_resources do
+      member do
+        post 'template_selected'
+        post 'instance_type_selected'
+        post 'cluster_selected'
+        get 'resource_pools'
+        post 'ping'
+        put 'associate'
+        put 'refresh_cache'
+      end
+      constraints(id: /[^\/]+/) do
+        resources :vms, controller: "compute_resources_vms" do
+          member do
+            put 'power'
+            put 'pause'
+            put 'associate'
+            get 'console'
+            get 'import'
           end
         end
-        collection do
-          get 'auto_complete_search'
-          get 'provider_selected'
-          put 'test_connection'
-        end
-        resources :images, except: [:show]
-        resources :key_pairs, except: [:new, :edit, :update]
       end
-
-      resources :realms, except: [:show] do
-        collection do
-          get 'auto_complete_search'
-        end
-      end
-    end
-
-    resources :subnets, except: [:show] do
       collection do
         get 'auto_complete_search'
-        get 'import'
-        post 'create_multiple'
-        post 'freeip'
+        get 'provider_selected'
+        put 'test_connection'
       end
+      resources :images, except: [:show]
+      resources :key_pairs, except: [:new, :edit, :update]
     end
 
+    resources :realms, except: [:show] do
+      collection do
+        get 'auto_complete_search'
+      end
+    end
+  end
+
+  resources :subnets, except: [:show] do
+    collection do
+      get 'auto_complete_search'
+      get 'import'
+      post 'create_multiple'
+      post 'freeip'
+    end
   end
 
   resources :widgets, controller: 'dashboard', only: [:show, :create, :destroy] do
@@ -466,8 +473,8 @@ Foreman::Application.routes.draw do
   # get for all unattended scripts
   get 'unattended/(:kind/(:id(:format)))', controller: 'unattended', action: 'host_template', format: 'text'
 
-  get 'userdata/meta-data', controller: 'userdata', action: 'metadata', format: 'text'
-  get 'userdata/user-data', controller: 'userdata', action: 'userdata', format: 'text'
+  get 'userdata/(:mac)/user-data', controller: 'userdata', action: 'userdata', format: 'text'
+  get 'userdata/(:mac)/meta-data', controller: 'userdata', action: 'metadata', format: 'text'
 
   resources :tasks, only: [:show]
 
@@ -544,9 +551,9 @@ Foreman::Application.routes.draw do
   end
 
   match 'host_statuses' => 'react#index', :via => :get
-  match 'host_wizard' => 'react#index', :via => :get
   constraints(id: /[^\/]+/) do
-    match 'experimental/hosts/:id' => 'react#index', :via => :get, :as => :host_details_page
+    match 'new/hosts/:id' => 'react#index', :via => :get, :as => :host_details_page
   end
+  get 'page-not-found' => 'react#index'
   get 'links/:type(/:section)' => 'links#show', :as => 'external_link', :constraints => { section: %r{.*} }
 end

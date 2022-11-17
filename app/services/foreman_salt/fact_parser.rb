@@ -84,16 +84,26 @@ module ForemanSalt
       true
     end
 
+    def bios
+      {:version => facts[:bios_version], :release_date => facts[:biosreleasedate]}
+    end
+
     private
 
     def os_hash
-      name = facts[:os]
+      name = case facts[:os]
+             when 'CentOS', 'CentOS Linux'
+               'CentOS'
+             when 'CentOS Stream'
+               'CentOS_Stream'
+             else
+               facts[:os]
+             end
+
       (_, major, minor, sub) = /(\d+)\.?(\d+)?\.?(\d+)?/.match(facts[:osrelease]).to_a
       minor = "" if minor.nil?
-      if name == 'CentOS'
-        if sub
-          minor += '.' + sub
-        end
+      if name == 'CentOS' && sub
+        minor += '.' + sub
       end
       { :name => name, :major => major, :minor => minor }
     end

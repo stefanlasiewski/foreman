@@ -17,7 +17,7 @@ import './editor.scss';
 class Editor extends React.Component {
   componentDidMount() {
     const {
-      data: { hosts, templateClass, locked, template, type },
+      data: { hosts, templateClass, locked, template, type, dslCache },
       initializeEditor,
       isMasked,
       isRendering,
@@ -39,6 +39,7 @@ class Editor extends React.Component {
       showError,
       template,
       type,
+      dslCache,
     };
     initializeEditor(initializeData);
   }
@@ -91,16 +92,21 @@ class Editor extends React.Component {
       selectedView,
       showError,
       theme,
+      autocompletion,
+      liveAutocompletion,
       toggleMaskValue,
       toggleModal,
       toggleRenderView,
       value,
+      templateKindId,
     } = this.props;
 
     const editorViewProps = {
       value: isRendering ? previewResult : value,
       mode: isRendering ? 'Text' : mode,
       theme,
+      autocompletion,
+      liveAutocompletion,
       keyBinding,
       onChange: isRendering ? noop : changeEditorValue,
       readOnly: readOnly || isRendering,
@@ -131,7 +137,10 @@ class Editor extends React.Component {
           mode={isRendering ? 'Text' : mode}
           theme={theme}
           keyBinding={keyBinding}
+          autocompletion={autocompletion}
+          liveAutocompletion={liveAutocompletion}
           value={value}
+          templateKindId={templateKindId}
           renderedEditorValue={renderedEditorValue}
           diffViewType={diffViewType}
           template={template}
@@ -201,6 +210,8 @@ class Editor extends React.Component {
           diffViewType={diffViewType}
           mode={mode}
           theme={theme}
+          autocompletion={autocompletion}
+          liveAutocompletion={liveAutocompletion}
           keyBinding={keyBinding}
           readOnly={readOnly}
           isMaximized={isMaximized}
@@ -235,6 +246,7 @@ Editor.propTypes = {
     hosts: PropTypes.array,
     locked: PropTypes.bool,
     type: PropTypes.string,
+    dslCache: PropTypes.string,
   }).isRequired,
   selectedHost: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
@@ -266,10 +278,13 @@ Editor.propTypes = {
   selectedView: PropTypes.string.isRequired,
   showError: PropTypes.bool.isRequired,
   theme: PropTypes.string.isRequired,
+  autocompletion: PropTypes.bool.isRequired,
+  liveAutocompletion: PropTypes.bool.isRequired,
   toggleMaskValue: PropTypes.func.isRequired,
   toggleModal: PropTypes.func.isRequired,
   toggleRenderView: PropTypes.func.isRequired,
   value: PropTypes.string.isRequired,
+  templateKindId: PropTypes.string,
   renderedEditorValue: PropTypes.string.isRequired,
   isSelectOpen: PropTypes.bool.isRequired,
   searchQuery: PropTypes.string.isRequired,
@@ -278,6 +293,10 @@ Editor.propTypes = {
   onSearchClear: PropTypes.func.isRequired,
   isSearchingHosts: PropTypes.bool.isRequired,
   fetchAndPreview: PropTypes.func.isRequired,
+};
+
+Editor.defaultProps = {
+  templateKindId: '',
 };
 
 export default Editor;

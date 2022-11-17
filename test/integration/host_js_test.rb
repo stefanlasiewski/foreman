@@ -28,10 +28,14 @@ class HostJSTest < IntegrationTestWithJavascript
   end
 
   describe "show page" do
+    test "switch to the new UI" do
+      visit host_path(@host)
+      click_link 'New UI'
+      find('h5', :text => @host.fqdn)
+    end
+
     test "has proper title and links" do
-      visit hosts_path
-      click_link @host.fqdn
-      assert_breadcrumb_text(@host.fqdn)
+      visit host_path @host
       assert page.has_link?("Properties", :href => "#properties")
       assert page.has_link?("Metrics", :href => "#metrics")
       assert page.has_link?("Templates", :href => "#template")
@@ -58,6 +62,148 @@ class HostJSTest < IntegrationTestWithJavascript
 
       page.assert_selector('#host-show-tabs li.active', count: 1, text: "Properties")
       page.assert_selector('#host-show-tabs-content div.active', count: 1, text: /Properties/)
+    end
+  end
+
+  describe 'new host details page' do
+    setup do
+      Setting[:host_details_ui] = true
+    end
+
+    teardown do
+      Setting[:host_details_ui] = false
+    end
+
+    test "assert breadcrumbs" do
+      visit hosts_path
+      click_link @host.fqdn
+      find('.pf-c-breadcrumb__item', :text => @host.fqdn)
+    end
+
+    test "switch between hosts" do
+      host = FactoryBot.create(:host)
+      visit host_details_page_path(host)
+      find('.pf4-breadcrumb-switcher button').click
+      find('a', :text => @host.name).click
+      find('h5', :text => @host.fqdn)
+    end
+
+    test "new show page" do
+      visit hosts_path
+      click_link @host.fqdn
+      find('h5', :text => @host.fqdn)
+    end
+
+    test "edit page" do
+      visit host_details_page_path(@host)
+      click_button 'Edit'
+      assert @host.hostname.start_with? page.find('#host_name').value
+    end
+
+    test "clone host" do
+      visit host_details_page_path(@host)
+      find('#hostdetails-kebab').click
+      click_button 'Clone'
+      assert_equal '', page.find('#host_name').value
+    end
+
+    test "delete host redirects to hosts index" do
+      host = FactoryBot.create(:host)
+      visit host_details_page_path(host)
+      find('#hostdetails-kebab').click
+      click_button 'Delete'
+      click_button 'Delete host'
+      assert_current_path hosts_path
+      assert_raises(ActiveRecord::RecordNotFound) do
+        Host.find(host.id)
+      end
+    end
+
+    test "all audit redirect to audit page" do
+      visit host_details_page_path(@host)
+      find('a', :text => /All audits/).click
+      assert_current_path audits_path(search: "host=#{@host.fqdn}")
+    end
+
+    test "manage host statuses modal" do
+      visit host_details_page_path(@host)
+      find('a', :text => /Manage all statuses/).click
+      find('h1', :text => /Manage host statuses/)
+    end
+
+    describe 'create and redirect' do
+      test 'redirects correctly with second nic being primary' do
+        compute_resource = FactoryBot.create(:compute_resource, :libvirt)
+        os = FactoryBot.create(:ubuntu14_10, :with_associations)
+        Nic::Managed.any_instance.stubs(:dns_conflict_detected?).returns(true)
+        visit new_host_path
+
+        fill_in 'host_name', :with => 'newhost1'
+        select2 'Organization 1', :from => 'host_organization_id'
+        wait_for_ajax
+        select2 'Location 1', :from => 'host_location_id'
+        wait_for_ajax
+        select2 compute_resource.name, :from => 'host_compute_resource_id'
+
+        click_link 'Operating System'
+        wait_for_ajax
+        select2 os.architectures.first.name, :from => 'host_architecture_id'
+        select2 os.title, :from => 'host_operatingsystem_id'
+        uncheck('host_build')
+        select2 os.media.first.name, :from => 'host_medium_id'
+        select2 os.ptables.first.name, :from => 'host_ptable_id'
+        fill_in 'host_root_pass', :with => '12345678'
+
+        switch_form_tab_to_interfaces
+        page.find(:button, 'Edit').click
+        select2 domains(:mydomain).name, :from => "host_interfaces_attributes_0_domain_id"
+        fill_in "host_interfaces_attributes_0_ip", :with => '1.1.1.1'
+        close_interfaces_modal
+
+        page.find(:button, '+ Add Interface').click
+        interface_id = page.evaluate_script("$('#interfaceModal').data('current-id');")
+        fill_in "host_interfaces_attributes_#{interface_id}_name", :with => 'newhost2'
+        select2 domains(:mydomain).name, :from => "host_interfaces_attributes_#{interface_id}_domain_id"
+        fill_in "host_interfaces_attributes_#{interface_id}_ip", :with => '1.1.1.2'
+        accept_confirm do
+          find("#host_interfaces_attributes_#{interface_id}_primary").check
+        end
+        close_interfaces_modal
+        click_button('Submit')
+        find('h5', :text => /newhost2.*/) # wait for the new host details page
+      end
+
+      test "redirects correctly with append_domain_name_for_hosts turned off" do
+        Setting['append_domain_name_for_hosts'] = false
+        compute_resource = FactoryBot.create(:compute_resource, :libvirt)
+        os = FactoryBot.create(:ubuntu14_10, :with_associations)
+        Nic::Managed.any_instance.stubs(:dns_conflict_detected?).returns(true)
+        visit new_host_path
+
+        fill_in 'host_name', :with => 'newhost1'
+        select2 'Organization 1', :from => 'host_organization_id'
+        wait_for_ajax
+        select2 'Location 1', :from => 'host_location_id'
+        wait_for_ajax
+        select2 compute_resource.name, :from => 'host_compute_resource_id'
+
+        click_link 'Operating System'
+        wait_for_ajax
+        select2 os.architectures.first.name, :from => 'host_architecture_id'
+        select2 os.title, :from => 'host_operatingsystem_id'
+        uncheck('host_build')
+        select2 os.media.first.name, :from => 'host_medium_id'
+        select2 os.ptables.first.name, :from => 'host_ptable_id'
+        fill_in 'host_root_pass', :with => '12345678'
+
+        switch_form_tab_to_interfaces
+        page.find(:button, 'Edit').click
+        select2 domains(:mydomain).name, :from => "host_interfaces_attributes_0_domain_id"
+        fill_in "host_interfaces_attributes_0_ip", :with => '1.1.1.1'
+        close_interfaces_modal
+        click_button('Submit')
+        find('h5', :text => /newhost1/) # wait for the new host details page
+      end
     end
   end
 
@@ -212,8 +358,8 @@ class HostJSTest < IntegrationTestWithJavascript
       select2 domains(:mydomain).name, :from => 'host_interfaces_attributes_0_domain_id'
       fill_in 'host_interfaces_attributes_0_ip', :with => '1.1.1.1'
       close_interfaces_modal
-      click_on_submit
-      find('#host-show') # wait for host details page
+      click_button('Submit')
+      find('h5', :text => /myhost1*/)
 
       host = Host::Managed.search_for('name ~ "myhost1"').first
       assert_equal compute_resource.name, host.compute_resource.name
@@ -251,7 +397,8 @@ class HostJSTest < IntegrationTestWithJavascript
 
       close_interfaces_modal
 
-      click_on_submit
+      click_button('Submit')
+      find('h5', :text => /myhost1*/)
 
       host = Host::Managed.search_for('name ~ "myhost1"').first
       assert_equal hg.compute_resource.name, host.compute_resource.name
@@ -331,7 +478,7 @@ class HostJSTest < IntegrationTestWithJavascript
         click_on('Change Group')
       end
       assert index_modal.visible?, "Modal window was shown"
-      page.find('#hostgroup_id').find("option[value='#{@host.hostgroup_id}']").select_option
+      page.find('#hostgroup_id').find("option[value='#{hostgroups(:common).id}']").select_option
 
       # remove hosts cookie on submit
       index_modal.find('.btn-primary').click
@@ -381,7 +528,7 @@ class HostJSTest < IntegrationTestWithJavascript
       assert page.has_selector?(id)
       page.find(id).click
       assert page.has_no_selector?(id)
-      click_on_submit
+      click_button('Submit')
 
       visit edit_host_path(host)
       switch_form_tab('Parameters')

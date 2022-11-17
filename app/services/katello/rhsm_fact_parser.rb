@@ -28,7 +28,8 @@ module Katello
         'link' => true,
         'macaddress' => get_rhsm_mac(interface),
         'ipaddress' => get_rhsm_ip(interface),
-      }
+        'ipaddress6' => get_rhsm_ipv6(interface),
+      }.reject { |_, value| value.nil? }
     end
 
     def interfaces
@@ -67,7 +68,15 @@ module Katello
           os_attributes[:name] = os_name + '_Workstation'
         end
 
-        ::Operatingsystem.find_by(os_attributes) || ::Operatingsystem.create!(os_attributes)
+        if facts['distribution.name'] == 'CentOS Stream'
+          os_attributes[:name] = "CentOS_Stream"
+        end
+
+        if facts['distribution.name'] == 'CentOS Linux'
+          os_attributes[:name] = "CentOS"
+        end
+
+        ::Operatingsystem.find_or_create_by(os_attributes)
       end
     end
 
@@ -107,11 +116,28 @@ module Katello
       facts['cpu.core(s)_per_socket']
     end
 
+    def kernel_version
+      facts['uname.release']
+    end
+
+    def bios
+      {
+        :vendor => facts['dmi::bios::all_records::vendor'],
+        :version => facts['dmi::bios::all_records::version'],
+        :release_date => facts['dmi::bios::all_records::release_date'],
+      }
+    end
+
     private
 
     def get_rhsm_ip(interface)
       ip = facts["net.interface.#{interface}.ipv4_address"]
       Net::Validations.validate_ip(ip) ? ip : nil
+    end
+
+    def get_rhsm_ipv6(interface)
+      ip = facts["net.interface.#{interface}.ipv6_address.global"] || facts["net.interface.#{interface}.ipv6_address.host"]
+      Net::Validations.validate_ip6(ip) ? ip : nil
     end
 
     def get_rhsm_mac(interface)

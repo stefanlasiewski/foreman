@@ -14,6 +14,9 @@ const LoginPage = ({
   version,
 }) => {
   const { modifiedAlerts, submitErrors } = adjustAlerts(alerts);
+  const footerLinks = caption
+    ? [{ children: caption, href: 'foreman-login-footer-text' }] // The href text is detected in our css to disable it from being an actual link.
+    : [];
   return (
     <div id="login-page">
       <PFLoginPage
@@ -23,12 +26,7 @@ const LoginPage = ({
         }}
         header={{
           logoSrc,
-          caption: (
-            <>
-              <h1 id="title">{__('Welcome')}</h1>
-              {version && <p id="version">{`${__('Version')} ${version}`}</p>}
-            </>
-          ),
+          caption: <h1 id="title">{__('Welcome')}</h1>,
         }}
         card={{
           title: __('Log in to your account'),
@@ -40,8 +38,8 @@ const LoginPage = ({
             ),
           },
         }}
+        footerLinks={footerLinks}
       />
-      {caption && <div id="login-footer-text">{caption}</div>}
     </div>
   );
 };

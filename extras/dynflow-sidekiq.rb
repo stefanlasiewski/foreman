@@ -1,4 +1,4 @@
-require 'sd_notify'
+require "sidekiq/sd_notify"
 
 rails_root = Dir.pwd
 
@@ -7,10 +7,6 @@ require app_file
 
 ::Rails.application.dynflow.config.lazy_initialization = true
 ::Rails.application.dynflow.config.on_init(false) do |world|
-  world.before_termination do
-    SdNotify.stopping
-  end
-
   # Loading and initializing of all gettext languages takes about 100ms per language
   # in development environment and little less on production. Let's eager load languages
   # but only for production.
@@ -31,6 +27,19 @@ end
   Sidekiq.options[:dynflow_world] = world
 end
 
+# To be able to ensure ordering, dynflow requires that there is only one
+# orchestrator active at the same time.
+# This is enforced by orchestrators contending a lock in redis, calls to
+# dynflow.initialize! block until the lock is acquired by the current process.
+# To play nice with sd_notify, we need to mark the process as ready before it
+# attempts to acquire the lock.
+if Sidekiq.options[:dynflow_executor]
+  msg = 'orchestrator in passive mode'
+  Rails.logger.info(msg)
+  Sidekiq::SdNotify.status(msg)
+  Sidekiq::SdNotify.ready
+end
 ::Rails.application.dynflow.initialize!
-Rails.logger.info("Everything ready for world: #{::Rails.application.dynflow.world.id}")
-SdNotify.ready
+msg = "Everything ready for world: #{::Rails.application.dynflow.world.id}"
+Rails.logger.info(msg)
+Sidekiq::SdNotify.status(msg)

@@ -1,5 +1,12 @@
 //= require parameter_override
 
+$(document).ready(function() {
+  var searchParams = new URLSearchParams(window.location.search);
+  if(searchParams.has('hostgroup_id')) {
+    var param = searchParams.get('hostgroup_id');
+    $('#host_hostgroup_id').val(param).trigger('change');
+  }
+});
 $(document).on('ContentLoad', function() {
   onHostEditLoad();
 });
@@ -169,7 +176,12 @@ function submit_with_all_params() {
     type: 'POST',
     url: $('form').attr('action'),
     data: serializeForm(),
-    success: function(response) {
+    success: function(response, _responseStatus, _jqXHR) {
+      // workaround for redirecting to the new host details page
+      if (!response.includes('id="main"')) {
+        return tfm.nav.pushUrl(tfm.tools.foremanUrl('/new/hosts/' + construct_host_name()));
+      }
+
       $('#host-progress').hide();
       $('#content').replaceWith($('#content', response));
       $(document.body).trigger('ContentLoad');
@@ -567,18 +579,10 @@ $(document).on(
 );
 
 $(document).on('change', '.interface_domain', function() {
-  clearError(
-    $(this)
-      .closest('fieldset')
-      .find('.interface_ip')
-  );
-  clearError(
-    $(this)
-      .closest('fieldset')
-      .find('.interface_ip6')
-  );
-  interface_domain_selected(this);
-  reload_host_params();
+    interface_domain_selected(this);
+    clearIpField(this, '.interface_ip');
+    clearIpField(this, '.interface_ip6');
+    reload_host_params();
 });
 
 function clearIpField(parent, childclass) {

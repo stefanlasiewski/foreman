@@ -153,6 +153,8 @@ class UsersController < ApplicationController
 
   def extlogin
     if session[:user]
+      session.delete('organization_id')
+      session.delete('location_id')
       user = User.find_by_id(session[:user])
       login_user(user)
       user.post_successful_login

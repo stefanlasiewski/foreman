@@ -143,7 +143,12 @@ select {
   padding-bottom: 9px;
 }
 
+.title_filter {
+  padding-right: 8px;
+}
+
 #title_action {
+  padding-left: 8px;
   padding-bottom: 12px;
 }
 
@@ -240,6 +245,7 @@ table {
   }
 }
 
+.ellipsis-pf-tooltip,
 .ellipsis {
   overflow: hidden;
   overflow-wrap: break-word;
@@ -288,18 +294,6 @@ table {
 .config_group,
 .selected_config_group {
   min-height: 30px;
-}
-
-.pagination {
-  display: table-cell;
-  float: none;
-  vertical-align: bottom;
-}
-
-.audits-pagination {
-  margin-top: -15px !important;
-  margin-bottom: 10px;
-  border-top: 1px solid #d1d1d1 !important;
 }
 
 #interfaceModal {
@@ -453,7 +447,12 @@ table {
   line-height: 2;
 }
 
-.navbar-editor > span > .select2-container .select2-choices .select2-search-field input,
+.navbar-editor
+  > span
+  > .select2-container
+  .select2-choices
+  .select2-search-field
+  input,
 .select2-container .select2-choice,
 .select2-container .select2-choices .select2-chosen {
   height: 24px;
@@ -620,4 +619,8 @@ code.transparent {
   max-height: 400px;
   overflow-y: auto;
   max-width: 175px;
+}
+
+td .dropdown-menu > li > a.disabled:hover, td .dropdown-menu > li > a.disabled:focus {
+  cursor: pointer;
 }

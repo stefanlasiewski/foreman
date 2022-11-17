@@ -61,17 +61,15 @@ class Hostgroup < ApplicationRecord
   # for legacy purposes, keep search on :label
   scoped_search :on => :title, :complete_value => true, :rename => :label
 
-  if SETTINGS[:unattended]
-    scoped_search :relation => :architecture,     :on => :name,        :complete_value => true,  :rename => :architecture, :only_explicit => true
-    scoped_search :relation => :operatingsystem,  :on => :name,        :complete_value => true,  :rename => :os, :only_explicit => true
-    scoped_search :relation => :operatingsystem,  :on => :description, :complete_value => true,  :rename => :os_description, :only_explicit => true
-    scoped_search :relation => :operatingsystem,  :on => :title,       :complete_value => true,  :rename => :os_title, :only_explicit => true
-    scoped_search :relation => :operatingsystem,  :on => :major,       :complete_value => true,  :rename => :os_major, :only_explicit => true
-    scoped_search :relation => :operatingsystem,  :on => :minor,       :complete_value => true,  :rename => :os_minor, :only_explicit => true
-    scoped_search :relation => :operatingsystem,  :on => :id,          :complete_enabled => false, :rename => :os_id, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
-    scoped_search :relation => :medium,           :on => :name,        :complete_value => true, :rename => "medium", :only_explicit => true
-    scoped_search :relation => :provisioning_templates, :on => :name,  :complete_value => true, :rename => "template", :only_explicit => true
-  end
+  scoped_search :relation => :architecture,     :on => :name,        :complete_value => true,  :rename => :architecture, :only_explicit => true
+  scoped_search :relation => :operatingsystem,  :on => :name,        :complete_value => true,  :rename => :os, :only_explicit => true
+  scoped_search :relation => :operatingsystem,  :on => :description, :complete_value => true,  :rename => :os_description, :only_explicit => true
+  scoped_search :relation => :operatingsystem,  :on => :title,       :complete_value => true,  :rename => :os_title, :only_explicit => true
+  scoped_search :relation => :operatingsystem,  :on => :major,       :complete_value => true,  :rename => :os_major, :only_explicit => true
+  scoped_search :relation => :operatingsystem,  :on => :minor,       :complete_value => true,  :rename => :os_minor, :only_explicit => true
+  scoped_search :relation => :operatingsystem,  :on => :id,          :complete_enabled => false, :rename => :os_id, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
+  scoped_search :relation => :medium,           :on => :name,        :complete_value => true, :rename => "medium", :only_explicit => true
+  scoped_search :relation => :provisioning_templates, :on => :name,  :complete_value => true, :rename => "template", :only_explicit => true
 
   # returns reports for hosts in the User's filter set
   scope :my_groups, lambda {
@@ -108,16 +106,11 @@ class Hostgroup < ApplicationRecord
     property :title, String, desc: 'Returns full title of this host group, e.g. Base/CentOS 7'
   end
   class Jail < Safemode::Jail
-    allow :id, :name, :diskLayout, :puppetmaster, :puppet_server, :operatingsystem, :architecture,
+    allow :id, :name, :diskLayout, :puppet_server, :operatingsystem, :architecture,
       :ptable, :url_for_boot, :params, :puppet_proxy, :puppet_ca_server,
       :os, :arch, :domain, :subnet, :subnet6, :hosts, :realm,
       :root_pass, :description, :pxe_loader, :title,
       :children, :parent
-
-    def puppetmaster
-      Foreman::Deprecation.deprecation_warning('3.0', 'Hostgroup#puppetmaster is deprecated, please use host_puppet_server macro instead')
-      @source.puppet_server
-    end
   end
 
   # TODO: add a method that returns the valid os for a hostgroup
@@ -197,7 +190,7 @@ class Hostgroup < ApplicationRecord
     return self[:root_pass] if self[:root_pass].present?
     npw = nested_root_pw
     return npw if npw.present?
-    Setting[:root_pass]
+    crypt_pass(Setting[:root_pass], :root)
   end
 
   def explicit_pxe_loader
@@ -249,6 +242,11 @@ class Hostgroup < ApplicationRecord
 
   def render_template(template:, **params)
     template.render(host: self, **params)
+  end
+
+  def root_pass_present?
+    return true if self[:root_pass].present?
+    nested_root_pw
   end
 
   protected

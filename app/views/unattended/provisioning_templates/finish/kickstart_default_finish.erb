@@ -5,22 +5,29 @@ model: ProvisioningTemplate
 oses:
 - AlmaLinux
 - CentOS
+- CentOS_Stream
 - Fedora
 - Rocky
-%>
-  <%#
+description: |
+  A finish template executed at the end of the image based provisioning
+  using the image without user data. Foreman connects to the VM over SSH
+  and runs the script rendered from this template. It is meant to be run
+  on RPM based distributons.
+
   This template accepts the following parameters:
   - bootloader-append: string (default="nofb quiet splash=quiet")
   - force-puppet: boolean (default=false)
+  - skip-puppet-setup: boolean (default=false)
   - use-ntp: boolean (default depends on OS release)
   - ntp-server: string (default=undef)
   - package_upgrade: boolean (default=true)
   - salt_master: string (default=undef)
-  %>
+  - enable-remote-execution-pull: boolean (default=false)
+-%>
 <%
   rhel_compatible = @host.operatingsystem.family == 'Redhat' && @host.operatingsystem.name != 'Fedora'
   os_major = @host.operatingsystem.major.to_i
-  puppet_enabled = host_puppet_server.present? || host_param_true?('force-puppet')
+  puppet_enabled = !host_param_true?('skip-puppet-setup') && (host_puppet_server.present? || host_param_true?('force-puppet'))
   salt_enabled = host_param('salt_master') ? true : false
   chef_enabled = @host.respond_to?(:chef_proxy) && @host.chef_proxy
 %>
@@ -65,6 +72,12 @@ fi
 
 <%= snippet('remote_execution_ssh_keys') %>
 
+<% if plugin_present?('katello') && host_param_true?('enable-remote-execution-pull') -%>
+<%= save_to_file('/root/remote_execution_pull_setup.sh', snippet('remote_execution_pull_setup'), verbatim: true) %>
+chmod +x /root/remote_execution_pull_setup.sh
+/root/remote_execution_pull_setup.sh
+<% end -%>
+
 <%= snippet "blacklist_kernel_modules" %>
 
 <%= snippet_if_exists(template_name + " custom post") -%>
@@ -73,7 +86,7 @@ fi
 <% end -%>
 
 <% if puppet_enabled %>
-<% if host_param_true?('enable-puppetlabs-repo') || host_param_true?('enable-puppetlabs-puppet6-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
+<% if host_param_true?('enable-puppetlabs-repo') || host_param_true?('enable-official-puppet7-repo') || host_param_true?('enable-puppetlabs-puppet6-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
 <%= snippet 'puppetlabs_repo' %>
 <% end -%>
 <%= snippet 'puppet_setup' %>

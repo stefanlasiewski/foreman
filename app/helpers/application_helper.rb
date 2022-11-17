@@ -155,26 +155,17 @@ module ApplicationHelper
     end
   end
 
+  def filter_columns?
+    controller_name == 'hosts' && controller.action_name == 'index'
+  end
+
   def auto_complete_controller_name
     controller.respond_to?(:auto_complete_controller_name) ? controller.auto_complete_controller_name : controller_name
   end
 
-  def auto_complete_search(name, val, options = {})
-    Foreman::Deprecation.deprecation_warning('2.5', 'use #auto_complete_f, possibly with #form_with if you need to avoid of object scope')
-    options.merge!(
-      {
-        url: options[:full_path] || (options[:path] || send("#{auto_complete_controller_name}_path")) + "/auto_complete_#{name}",
-        controller: options[:path] || auto_complete_controller_name,
-        search_query: '',
-        use_key_shortcuts: options[:use_key_shortcuts] || false,
-      }
-    )
-    Tags::ReactInput.new(nil, name, self, options.merge(value: val, type: 'autocomplete', only_input: true)).render
-  end
-
   def sort(field, permitted: [], **kwargs)
     kwargs[:url_options] ||= current_url_params(permitted: permitted)
-    super(field, kwargs)
+    super(field, **kwargs)
   end
 
   def help_button
@@ -196,37 +187,6 @@ module ApplicationHelper
 
   def edit_select(object, property, options = {})
     edit_inline(object, property, options.merge({:type => "select"}))
-  end
-
-  def flot_pie_chart(name, title, data, options = {})
-    Foreman::Deprecation.deprecation_warning('3.1', '#flot_pie_chart is now rendered by react Donut chart with default configuration. '\
-                                                    'Please render the Donut chart component directly.')
-    data = data.map { |k, v| [k.to_s.humanize, v] } if data.is_a?(Hash)
-    react_component('ChartBox', type: 'donut',
-                                status: 'RESOLVED',
-                                title: title,
-                                chart: {
-                                  data: data,
-                                  search: options[:search] ? hosts_path(search: options[:search]) : nil,
-                                })
-  end
-
-  def flot_chart(name, xaxis_label, yaxis_label, data, options = {})
-    Foreman::Deprecation.deprecation_warning('3.1', '#flot_chart is rendering its react version by default now. '\
-                                                    'Please move to rendering React Component directly.')
-    data = data.map { |k, v| {:label => k.to_s.humanize, :data => v} } if data.is_a?(Hash)
-    time = ['time'].concat(data[0][:data].map { |d| d.first })
-    data = data.map { |d_hash| [d_hash[:label]].concat(d_hash[:data].map { |d| d.second }) }
-    data.unshift(time)
-    react_component('AreaChart', id: name, xAxisLabel: xaxis_label, yAxisLabel: yaxis_label, data: data)
-  end
-
-  def flot_bar_chart(name, xaxis_label, yaxis_label, data, options = {})
-    Foreman::Deprecation.deprecation_warning('3.1', '#flot_bar_chart is rendering its react version now. '\
-                                                    'Please move to rendering React Component directly.')
-    content_tag(:div, id: name) do
-      react_component('BarChart', data: data, xAxisLabel: xaxis_label, yAxisLabel: yaxis_label)
-    end
   end
 
   def select_action_button(title, options = {}, *args)
@@ -269,31 +229,28 @@ module ApplicationHelper
 
     content_tag(:div, :class => "btn-group") do
       primary + link_to(content_tag(:span, '', :class => 'caret'), '#', :class => "btn btn-default #{'btn-sm' if primary =~ /btn-sm/} dropdown-toggle", :'data-toggle' => 'dropdown') +
-      content_tag(:ul, :class => "dropdown-menu pull-right") do
-        args.map { |option| content_tag(:li, option) }.join(" ").html_safe
-      end
+        content_tag(:ul, :class => "dropdown-menu pull-right") do
+          args.map do |option|
+            tag_options = nil
+            if option.is_a?(Hash)
+              content = option[:content]
+              tag_options = option[:options]
+            else
+              content = option
+            end
+            content_tag(:li, content, tag_options)
+          end.join(" ").html_safe
+        end
     end
   end
 
   def avatar_image_tag(user, html_options = {})
     if user.avatar_hash.present?
       image_tag("avatars/#{user.avatar_hash}.jpg", html_options)
+    elsif user.disabled?
+      icon_text("ban", "", :kind => "fa", :class => html_options[:class], :title => _("This user is disabled and won't be able to perform any actions. You can edit the user to enable them again."))
     else
       icon_text("user #{html_options[:class]}", "", :kind => "fa")
-    end
-  end
-
-  def readonly_field(object, property, options = {})
-    name       = "#{type}[#{property}]"
-    helper     = options[:helper]
-    value      = helper.nil? ? object.send(property) : send(helper, object)
-    klass      = options[:type]
-    title      = options[:title]
-
-    opts = { :title => title, :class => klass.to_s, :name => name, :value => value}
-
-    content_tag_for :span, object, opts do
-      h(value)
     end
   end
 
@@ -403,11 +360,6 @@ module ApplicationHelper
     params[:host] && params[:host][:hostgroup_id] && params[:host][field]
   end
 
-  def notifications
-    Foreman::Deprecation.deprecation_warning('3.1', 'notifications method is deprecated, and instead, toasts alerts are handled in the root of the React app.')
-    nil
-  end
-
   def toast_notifications_data
     selected_toast_notifications = flash.select { |key, _| key != 'inline' }
 
@@ -431,14 +383,28 @@ module ApplicationHelper
 
   def app_metadata
     {
-      UISettings: ui_settings, version: SETTINGS[:version].short, docUrl: documentation_url,
-      location: Location.current&.attributes&.slice('id', 'title'),
-      organization: Organization.current&.attributes&.slice('id', 'title'),
-      user: User.current&.attributes&.slice('id', 'login', 'firstname', 'lastname', 'admin')
+      UISettings: ui_settings,
+      version: SETTINGS[:version].short,
+      docUrl: documentation_url,
+      location: Location.current && { id: Location.current.id, title: Location.current.title },
+      organization: Organization.current && { id: Organization.current.id, title: Organization.current.title },
+      user: User.current&.attributes&.slice('id', 'login', 'firstname', 'lastname', 'admin'),
+      user_settings: {
+        lab_features: Setting[:lab_features],
+      },
     }.compact
   end
 
   def ui_settings
-    { perPage: Setting['entries_per_page'] }
+    {
+      perPage: Setting['entries_per_page'],
+      destroyVmOnHostDelete: Setting['destroy_vm_on_host_delete'],
+      labFeatures: Setting[:lab_features],
+      safeMode: Setting[:safemode_render],
+    }
+  end
+
+  def current_host_details_path(host)
+    Setting['host_details_ui'] ? host_details_page_path(host) : host_path(host)
   end
 end

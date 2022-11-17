@@ -114,6 +114,7 @@ class Subnet < ApplicationRecord
     end
   }
 
+  scoped_search :on => :id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
   scoped_search :on => [:name, :network, :mask, :gateway, :dns_primary, :dns_secondary,
                         :vlanid, :mtu, :nic_delay, :ipam, :boot_mode, :type], :complete_value => true
 
@@ -200,6 +201,8 @@ class Subnet < ApplicationRecord
 
   def ipaddr
     IPAddr.new("#{network}/#{mask}", family)
+  rescue IPAddr::InvalidAddressError => exception
+    raise ::Foreman::WrappedException.new exception, N_("Invalid address for subnet '#{network}/#{mask}'")
   end
 
   def cidr

@@ -9,46 +9,6 @@ class HostFactImporterTest < ActiveSupport::TestCase
     User.current = users :admin
   end
 
-  context "without unattended" do
-    setup do
-      SETTINGS[:unattended] = false
-    end
-
-    teardown do
-      SETTINGS[:unattended] = true
-    end
-
-    test 'should import facts' do
-      refute Host.find_by_name('sinn1636.lan')
-      raw = read_json_fixture('facts/facts_with_certname.json')
-      host = Host.import_host(raw['name'], 'puppet')
-      host.expects(:skip_orchestration!).never
-      host.expects(:enable_orchestration!).never
-      assert HostFactImporter.new(host).import_facts(raw['facts'])
-    end
-
-    test 'should import facts boot time to report data facet' do
-      refute Host.find_by_name('sinn1636.lan')
-      raw = read_json_fixture('facts/facts_with_certname.json')
-      first_boot_time = nil
-      host = nil
-      freeze_time do
-        host = Host.import_host(raw['name'], 'puppet')
-        assert HostFactImporter.new(host).import_facts(raw['facts'])
-        first_boot_time = host.reported_data.boot_time
-        refute_nil host.reported_data.boot_time
-        assert_equal Time.now - raw['facts']['uptime_seconds'].to_i.seconds, host.reported_data.boot_time
-      end
-
-      travel 1.minute do
-        # it gets updated if the facet exists
-        assert HostFactImporter.new(host).import_facts(raw['facts'])
-        second_boot_time = host.reported_data.boot_time
-        refute_equal first_boot_time, second_boot_time, "boot time didn't get updated during second import of facts"
-      end
-    end
-  end
-
   test "should import facts from json stream" do
     host = Host::Managed.new(:name => "sinn1636.lan")
     assert HostFactImporter.new(host).import_facts(read_json_fixture('facts/facts.json')['facts'])
@@ -85,9 +45,9 @@ class HostFactImporterTest < ActiveSupport::TestCase
     assert_equal 'host', host.name
   end
 
-  test 'import_facts only needs operatingsystem and lsbdistrelease fact' do
+  test 'import_facts only needs operatingsystem and operatingsystemrelease fact' do
     host = Host.import_host('host', 'puppet')
-    assert HostFactImporter.new(host).import_facts(:lsbdistrelease => '6.7', :operatingsystem => 'CentOS')
+    assert HostFactImporter.new(host).import_facts(:operatingsystemrelease => '6.7', :operatingsystem => 'CentOS')
   end
 
   test 'should import facts from json of a new host when certname is not specified' do
@@ -110,7 +70,7 @@ class HostFactImporterTest < ActiveSupport::TestCase
   test 'domain updated from facts' do
     host = FactoryBot.create(:host, :with_operatingsystem)
     FactoryBot.create(:domain, :name => 'foo.bar')
-    assert HostFactImporter.new(host).import_facts(:domain => 'foo.bar', :lsbdistrelease => host.operatingsystem.release, :operatingsystem => host.operatingsystem.name)
+    assert HostFactImporter.new(host).import_facts(:domain => 'foo.bar', :operatingsystemrelease => host.operatingsystem.release, :operatingsystem => host.operatingsystem.name)
     assert_equal 'foo.bar', host.domain.to_s
   end
 
@@ -118,9 +78,9 @@ class HostFactImporterTest < ActiveSupport::TestCase
     domain = FactoryBot.create(:domain)
     host = FactoryBot.create(:host, :managed, :domain => domain)
     FactoryBot.create(:domain, :name => 'foo.bar')
-    assert HostFactImporter.new(host).import_facts(:domain => domain.name, :lsbdistrelease => host.operatingsystem.release, :operatingsystem => host.operatingsystem.name)
+    assert HostFactImporter.new(host).import_facts(:domain => domain.name, :operatingsystemrelease => host.operatingsystem.release, :operatingsystem => host.operatingsystem.name)
     Setting[:ignore_facts_for_domain] = true
-    assert HostFactImporter.new(host).import_facts(:domain => 'foo.bar', :lsbdistrelease => host.operatingsystem.release, :operatingsystem => host.operatingsystem.name)
+    assert HostFactImporter.new(host).import_facts(:domain => 'foo.bar', :operatingsystemrelease => host.operatingsystem.release, :operatingsystem => host.operatingsystem.name)
     assert_equal domain.name, host.domain.name
     Setting[:ignore_facts_for_domain] =
       Setting.find_by_name('ignore_facts_for_domain').default
@@ -219,6 +179,8 @@ class HostFactImporterTest < ActiveSupport::TestCase
 
   test 'host taxonomies are set to a default when uploading facts' do
     Setting[:create_new_host_when_facts_are_uploaded] = true
+    Setting[:default_location] = taxonomies(:location1).title
+    Setting[:default_organization] = taxonomies(:organization1).title
     raw = read_json_fixture('facts/facts.json')
     host = Host.import_host(raw['name'])
     assert HostFactImporter.new(host).import_facts(raw['facts'])
@@ -274,13 +236,13 @@ class HostFactImporterTest < ActiveSupport::TestCase
 
   test 'comment updated from facts when present' do
     host = Host.import_host('host')
-    assert HostFactImporter.new(host).import_facts(foreman_comment: 'new comment', lsbdistrelease: '6.7', operatingsystem: 'CentOS')
+    assert HostFactImporter.new(host).import_facts(foreman_comment: 'new comment', operatingsystemrelease: '6.7', operatingsystem: 'CentOS')
     assert_equal 'new comment', host.comment
   end
 
   test 'operatingsystem updated from facts' do
     host = Host.import_host('host')
-    assert HostFactImporter.new(host).import_facts(:lsbdistrelease => '6.7', :operatingsystem => 'CentOS')
+    assert HostFactImporter.new(host).import_facts(:operatingsystemrelease => '6.7', :operatingsystem => 'CentOS')
     assert_equal 'CentOS 6.7', host.operatingsystem.to_s
   end
 
@@ -289,7 +251,7 @@ class HostFactImporterTest < ActiveSupport::TestCase
     os2 = FactoryBot.create(:operatingsystem)
     medium = os1.media.first
     host = FactoryBot.create(:host, :operatingsystem => os1, :medium => medium)
-    HostFactImporter.new(host).import_facts(:operatingsystem => os2.name, :lsbdistrelease => os2.major.to_s)
+    HostFactImporter.new(host).import_facts(:operatingsystem => os2.name, :operatingsystemrelease => os2.major.to_s)
 
     assert_equal host.operatingsystem, os2
     assert_nil host.medium
@@ -302,7 +264,7 @@ class HostFactImporterTest < ActiveSupport::TestCase
     medium.operatingsystems << os2
 
     host = FactoryBot.create(:host, :operatingsystem => os1, :medium => medium)
-    HostFactImporter.new(host).import_facts(:operatingsystem => os2.name, :lsbdistrelease => os2.major.to_s)
+    HostFactImporter.new(host).import_facts(:operatingsystem => os2.name, :operatingsystemrelease => os2.major.to_s)
 
     assert_equal host.operatingsystem, os2
     assert_equal host.medium, medium
@@ -310,9 +272,9 @@ class HostFactImporterTest < ActiveSupport::TestCase
 
   test 'operatingsystem not updated from facts when ignore_facts_for_operatingsystem false' do
     host = Host.import_host('host')
-    assert HostFactImporter.new(host).import_facts(:lsbdistrelease => '6.7', :operatingsystem => 'CentOS')
+    assert HostFactImporter.new(host).import_facts(:operatingsystemrelease => '6.7', :operatingsystem => 'CentOS')
     Setting[:ignore_facts_for_operatingsystem] = true
-    assert HostFactImporter.new(host).import_facts(:lsbdistrelease => '6.8', :operatingsystem => 'CentOS')
+    assert HostFactImporter.new(host).import_facts(:operatingsystemrelease => '6.8', :operatingsystem => 'CentOS')
     assert_equal 'CentOS 6.7', host.operatingsystem.to_s
     Setting[:ignore_facts_for_operatingsystem] =
       Setting.find_by_name('ignore_facts_for_operatingsystem').default

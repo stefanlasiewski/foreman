@@ -2,7 +2,6 @@ module Api
   # TODO: inherit from application controller after cleanup
   class BaseController < ActionController::Base
     include ApplicationShared
-    include Foreman::Controller::RequireSsl
     include Foreman::Controller::ApiCsrfProtection
     include Foreman::Controller::BruteforceProtection
 
@@ -52,6 +51,13 @@ module Api
     end
 
     rescue_from Foreman::MaintenanceException, :with => :service_unavailable
+
+    rescue_from ActionDispatch::Http::Parameters::ParseError do |exception|
+      error_output = "There was a problem in the JSON you submitted: #{exception.cause.message}"
+      Rails.logger.debug(error_output)
+
+      render status: :bad_request, json: { status: 400, error: error_output }
+    end
 
     def get_resource(message = "Couldn't find resource")
       instance_variable_get(:"@#{resource_name}") || raise(message)
@@ -107,7 +113,7 @@ module Api
     def resource_scope_for_index(options = {})
       scope = resource_scope(options).search_for(*search_options)
       return scope if paginate_options[:per_page] == 'all'
-      scope.paginate(paginate_options)
+      scope.paginate(**paginate_options)
     end
 
     def api_request?

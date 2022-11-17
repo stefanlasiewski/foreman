@@ -17,6 +17,7 @@ class TemplatesController < ApplicationController
 
   def new
     @template = resource_class.new
+    @dsl_cache = ApipieDSL.docs
   end
 
   # we can't use `clone` here, ActionController disables public method that are inherited and present in Base
@@ -28,6 +29,7 @@ class TemplatesController < ApplicationController
     @template.locked = false
     load_vars_from_template
     @template.valid?
+    @dsl_cache = ApipieDSL.docs
     render :action => :new
   end
 
@@ -45,12 +47,14 @@ class TemplatesController < ApplicationController
       process_success :object => @template
     else
       load_vars_from_template
+      @dsl_cache = ApipieDSL.docs
       process_error :object => @template
     end
   end
 
   def edit
     load_vars_from_template
+    @dsl_cache = ApipieDSL.docs
   end
 
   def update
@@ -59,6 +63,7 @@ class TemplatesController < ApplicationController
     else
       load_history
       load_vars_from_template
+      @dsl_cache = ApipieDSL.docs
       process_error :object => @template
     end
   end
@@ -87,11 +92,18 @@ class TemplatesController < ApplicationController
     else
       @template = resource_class.new(params[type_name_plural])
     end
-    base = @template.class.preview_host_collection
-    @host = params[:preview_host_id].present? ? base.find(params[:preview_host_id]) : base.first
-    if @host.nil?
-      render :plain => _('No host could be found for rendering the template'), :status => :not_found
-      return
+
+    template_kind = TemplateKind.find_by(id: params[:template_kind_id]) if params[:template_kind_id]
+
+    unless template_kind&.name == 'registration'
+      scope = template_kind&.name == 'host_init_config' ? Template : @template.class
+      base  = scope.preview_host_collection
+      @host = params[:preview_host_id].present? ? base.find(params[:preview_host_id]) : base.first
+
+      if @host.nil?
+        render :plain => _('No host could be found for rendering the template'), :status => :not_found
+        return
+      end
     end
     @template.template = params[:template]
 

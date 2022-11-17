@@ -10,6 +10,7 @@ require 'database_cleaner'
 require 'active_support_test_case_helper'
 require 'minitest/retry'
 require 'selenium/webdriver'
+require 'test_report_helper'
 
 retry_count = (ENV['MINITEST_RETRY_COUNT'] || 3).to_i rescue 1
 Minitest::Retry.use!(retry_count: retry_count) if retry_count > 1
@@ -30,6 +31,7 @@ end
 Capybara.configure do |config|
   config.javascript_driver      = ENV["JS_TEST_DRIVER"]&.to_sym || :selenium_chrome
   config.default_max_wait_time  = 20
+  config.enable_aria_label = true
 end
 
 class ActionDispatch::IntegrationTest
@@ -49,7 +51,7 @@ class ActionDispatch::IntegrationTest
     visit index_path
     assert_breadcrumb_text(title_text)
     (assert first(:link, new_link_text).visible?, "#{new_link_text} is not visible") if new_link_text
-    (assert find_button('Search').visible?, "Search button is not visible") if has_search
+    (assert find_button('btn-search').visible?, "Search button is not visible") if has_search
   end
 
   def assert_breadcrumb_text(text)
@@ -58,7 +60,7 @@ class ActionDispatch::IntegrationTest
 
   def assert_new_button(index_path, new_link_text, new_path)
     visit index_path
-    click_on new_link_text, class: 'btn'
+    click_link(new_link_text)
     assert_current_path new_path
   end
 
@@ -152,7 +154,7 @@ class ActionDispatch::IntegrationTest
     # the input is not visible for chrome driver
     find("#{css_locator} .ace_editor.ace_input").click
     has_css?("#{css_locator} .ace_editor.ace_input")
-    find("#{css_locator} .ace_input .ace_text-input", visible: :all).set text
+    find("#{css_locator} .ace_input .ace_text-input", visible: :all).send_keys text
     # wait for the debounce
     has_editor_display?(css_locator, text)
   end

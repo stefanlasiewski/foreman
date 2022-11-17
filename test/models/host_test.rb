@@ -50,7 +50,7 @@ class HostTest < ActiveSupport::TestCase
     host.interfaces = [FactoryBot.create(:nic_managed, :primary => false, :provision => true, :host => host,
                                           :domain => FactoryBot.create(:domain))]
     refute host.valid?
-    assert_equal [:interfaces, :base], host.errors.keys
+    assert_equal [:interfaces, :base], host.errors.attribute_names
     assert_equal "An interface marked as primary is missing", host.errors[:base].first
   end
 
@@ -59,7 +59,7 @@ class HostTest < ActiveSupport::TestCase
     host.interfaces = [] # remove existing primary interface
     host.interfaces = [FactoryBot.create(:nic_managed, :primary => true, :provision => false, :host => host,
                                           :domain => FactoryBot.create(:domain))]
-    assert_equal [:interfaces, :base], host.errors.keys
+    assert_equal [:interfaces, :base], host.errors.attribute_names
     assert_equal "An interface marked as provision is missing", host.errors[:base].first
   end
 
@@ -69,7 +69,7 @@ class HostTest < ActiveSupport::TestCase
     host.interfaces = [FactoryBot.create(:nic_managed, :primary => false, :provision => false, :host => host,
                                           :domain => FactoryBot.create(:domain))]
     refute host.valid?
-    assert_equal [:interfaces, :base], host.errors.keys
+    assert_equal [:interfaces, :base], host.errors.attribute_names
     assert_equal "An interface marked as provision is missing", host.errors[:base].first
     assert_equal "An interface marked as primary is missing", host.errors[:base].last
   end
@@ -191,7 +191,7 @@ class HostTest < ActiveSupport::TestCase
     invalid_name_list.each do |name|
       host.name = name
       refute host.valid?, "Can update host with invalid name #{name}"
-      assert_includes host.errors.keys, :name
+      assert_includes host.errors.attribute_names, :name
     end
   end
 
@@ -200,7 +200,7 @@ class HostTest < ActiveSupport::TestCase
     RFauxFactory.gen_strings(256).values.each do |mac|
       host.interfaces.first.mac = mac
       refute host.valid?, "Can update host with invalid mac #{mac}"
-      assert_includes host.errors.keys, :'interfaces.mac'
+      assert_includes host.errors.attribute_names, :'interfaces.mac'
     end
   end
 
@@ -239,26 +239,6 @@ class HostTest < ActiveSupport::TestCase
     end
   end
 
-  context "when unattended is false" do
-    def setup
-      SETTINGS[:unattended] = false
-    end
-
-    def teardown
-      SETTINGS[:unattended] = true
-    end
-
-    test "should be able to save hosts with full domain" do
-      host = Host.create :name => "myhost.foo", :mac => "aabbccddeeff", :ip => "123.01.02.03"
-      assert_equal "myhost.foo", host.fqdn
-    end
-
-    test "should be able to save hosts with no domain" do
-      host = Host.create :name => "myhost", :mac => "aabbccddeeff", :ip => "123.01.02.03"
-      assert_equal "myhost", host.fqdn
-    end
-  end
-
   test "should be able to save host" do
     host = Host.create :name => "myfullhost", :mac => "aabbecddeeff", :ip => "3.3.4.3",
       :domain => domains(:mydomain), :operatingsystem => operatingsystems(:redhat), :medium => media(:one),
@@ -280,7 +260,7 @@ class HostTest < ActiveSupport::TestCase
         :subnet => subnets(:two), :architecture => architectures(:x86_64), :medium => media(:one),
         :organization => users(:one).organizations.first, :location => users(:one).locations.first,
         :disk => "empty partition",
-        :lookup_values_attributes => {"new_123456" => {"lookup_key_id" => lookup_key.id, "value" => "some_value", "match" => "fqdn=abc.mydomain.net"}}
+        :lookup_values_attributes => {"new_123456" => {"lookup_key_id" => lookup_key.id, "value" => "some_value"}}
       end
     end
 
@@ -298,9 +278,8 @@ class HostTest < ActiveSupport::TestCase
       host = FactoryBot.create(:host)
       lookup_key = FactoryBot.create(:lookup_key, override: true, path: 'fqdn')
       assert_difference('LookupValue.count') do
-        assert host.update!(:lookup_values_attributes => {:new_123456 =>
-                                                                     {:lookup_key_id => lookup_key.id, :value => true, :match => "fqdn=#{host.fqdn}",
-                                                                      :_destroy => 'false'}})
+        assert host.update!(:lookup_values_attributes => { :new_123456 => { :lookup_key_id => lookup_key.id, :value => true,
+                                                                            :_destroy => 'false'}})
       end
     end
 
@@ -311,9 +290,8 @@ class HostTest < ActiveSupport::TestCase
                                         :match => "fqdn=#{host.fqdn}", :value => '8080')
       host.reload
       assert_difference('LookupValue.count', -1) do
-        assert host.update!(:lookup_values_attributes => {'0' =>
-                                                                     {:lookup_key_id => lookup_key.id, :value => '8080', :match => "fqdn=#{host.fqdn}",
-                                                                      :id => lookup_value.id, :_destroy => 'true'}})
+        assert host.update!(:lookup_values_attributes => { '0' => { :lookup_key_id => lookup_key.id, :value => '8080',
+                                                                    :id => lookup_value.id, :_destroy => 'true' }})
       end
     end
 
@@ -324,9 +302,8 @@ class HostTest < ActiveSupport::TestCase
                                         :match => "fqdn=#{host.fqdn}", :value => '8080')
       host.reload
       assert_difference('LookupValue.count', 0) do
-        assert host.update!(:lookup_values_attributes => {'0' =>
-                                                                     {:lookup_key_id => lookup_key.id, :value => '80', :match => "fqdn=#{host.fqdn}",
-                                                                      :id => lookup_value.id, :_destroy => 'false'}})
+        assert host.update!(:lookup_values_attributes => { '0' => { :lookup_key_id => lookup_key.id, :value => '80',
+                                                                    :id => lookup_value.id, :_destroy => 'false'}})
       end
       assert_equal '80', lookup_value.reload.value
     end
@@ -338,10 +315,8 @@ class HostTest < ActiveSupport::TestCase
                                         :match => host.lookup_value_matcher, :value => YAML.dump(:foo => :bar))
       host.reload
       assert_difference('LookupValue.count', 0) do
-        assert host.update!(:lookup_values_attributes => {'0' =>
-                                                                     {:lookup_key_id => lookup_key.id.to_s, :value => YAML.dump(:updated => :value),
-                                                                      :match => host.lookup_value_matcher,
-                                                                      :id => lookup_value.id.to_s, :_destroy => 'false'}})
+        assert host.update!(:lookup_values_attributes => { '0' => { :lookup_key_id => lookup_key.id.to_s, :value => YAML.dump(:updated => :value),
+                                                                    :id => lookup_value.id.to_s, :_destroy => 'false'}})
       end
       assert_equal({:updated => :value}, lookup_value.reload.value)
     end
@@ -351,7 +326,6 @@ class HostTest < ActiveSupport::TestCase
       host = FactoryBot.build(:host)
       host.attributes = {:lookup_values_attributes => {'0' =>
                                                        {:lookup_key_id => lookup_key.id.to_s, :value => '{"a":',
-                                                        :match => host.lookup_value_matcher,
                                                         :_destroy => 'false'}}}
       assert host.lookup_values.first.present?
       refute_valid host, :'lookup_values.value', /invalid hash/
@@ -470,9 +444,7 @@ class HostTest < ActiveSupport::TestCase
     assert_difference 'Host.count' do
       Setting[:create_new_host_when_report_is_uploaded] = true
       ConfigReport.import read_json_fixture("reports/no-logs.json")
-      assert Host.find_by_name('builder.fm.example.net')
-      Setting[:create_new_host_when_report_is_uploaded] =
-        Setting.find_by_name("create_new_host_when_facts_are_uploaded").default
+      assert Host.find_by_name('report.example.com')
     end
   end
 
@@ -480,9 +452,7 @@ class HostTest < ActiveSupport::TestCase
     Setting[:create_new_host_when_report_is_uploaded] = false
     assert_equal false, Setting[:create_new_host_when_report_is_uploaded]
     ConfigReport.import read_json_fixture("reports/no-logs.json")
-    host = Host.find_by_name('builder.fm.example.net')
-    Setting[:create_new_host_when_report_is_uploaded] =
-      Setting.find_by_name("create_new_host_when_facts_are_uploaded").default
+    host = Host.find_by_name('report.example.com')
     assert_nil host
   end
 
@@ -678,12 +648,10 @@ class HostTest < ActiveSupport::TestCase
   end
 
   test "should not save if neither ptable or disk are defined when the host is managed" do
-    if unattended?
-      host = Host.create :name => "myfullhost", :mac => "aabbecddeeff", :ip => "3.3.4.3",
-        :domain => domains(:mydomain), :operatingsystem => Operatingsystem.first, :subnet => subnets(:two), :medium => media(:one),
-        :architecture => Architecture.first, :managed => true
-      refute_valid host
-    end
+    host = Host.create :name => "myfullhost", :mac => "aabbecddeeff", :ip => "3.3.4.3",
+      :domain => domains(:mydomain), :operatingsystem => Operatingsystem.first, :subnet => subnets(:two), :medium => media(:one),
+      :architecture => Architecture.first, :managed => true
+    refute_valid host
   end
 
   test "should save if neither ptable or disk are defined when the host is not managed" do
@@ -708,14 +676,12 @@ class HostTest < ActiveSupport::TestCase
   end
 
   test "should not save if IP is not in the right subnet" do
-    if unattended?
-      host = Host.create :name => "myfullhost", :mac => "aabbecddeeff", :ip => "123.5.2.3", :ptable => FactoryBot.create(:ptable),
-        :domain => domains(:mydomain), :operatingsystem => Operatingsystem.first, :subnet => subnets(:two), :managed => true, :medium => media(:one),
-        :architecture => Architecture.first, :ip6 => "2001:db8::1", :subnet6 => subnets(:six)
-      refute host.valid?, "Host should be invalid: #{host.errors.messages}"
-      assert_includes host.errors.messages.keys, :"interfaces.ip"
-      assert_includes host.errors.messages.keys, :"interfaces.ip6"
-    end
+    host = Host.create :name => "myfullhost", :mac => "aabbecddeeff", :ip => "123.5.2.3", :ptable => FactoryBot.create(:ptable),
+      :domain => domains(:mydomain), :operatingsystem => Operatingsystem.first, :subnet => subnets(:two), :managed => true, :medium => media(:one),
+      :architecture => Architecture.first, :ip6 => "2001:db8::1", :subnet6 => subnets(:six)
+    refute host.valid?, "Host should be invalid: #{host.errors.messages}"
+    assert_includes host.errors.messages.keys, :"interfaces.ip"
+    assert_includes host.errors.messages.keys, :"interfaces.ip6"
   end
 
   test "should not save if installation media is missing" do
@@ -968,7 +934,7 @@ class HostTest < ActiveSupport::TestCase
     h.save!
     assert h.root_pass.present?
     assert_equal h.hostgroup.root_pass, h.root_pass
-    assert_equal h.hostgroup.root_pass, h.read_attribute(:root_pass), 'should copy root_pass to host unmodified'
+    assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host unmodified'
   end
 
   test "should use hostgroup base64-windows root password without reencoding" do
@@ -984,7 +950,7 @@ class HostTest < ActiveSupport::TestCase
     h.save!
     assert h.root_pass.present?
     assert_equal h.hostgroup.root_pass, h.root_pass
-    assert_equal h.hostgroup.root_pass, h.read_attribute(:root_pass), 'should copy root_pass to host unmodified'
+    assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host unmodified'
   end
 
   test "should use hostgroup root password" do
@@ -995,7 +961,7 @@ class HostTest < ActiveSupport::TestCase
     assert h.save
     assert h.root_pass.present?
     assert_equal h.hostgroup.root_pass, h.root_pass
-    assert_equal h.hostgroup.root_pass, h.read_attribute(:root_pass), 'should copy root_pass to host'
+    assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host unmodified'
   end
 
   test "should use a nested hostgroup parent root password" do
@@ -1011,7 +977,7 @@ class HostTest < ActiveSupport::TestCase
     assert h.save
     assert h.root_pass.present?
     assert_equal p.root_pass, h.root_pass
-    assert_equal p.root_pass, h.read_attribute(:root_pass), 'should copy root_pass to host'
+    assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host unmodified'
   end
 
   test "should use settings root password" do
@@ -1021,7 +987,88 @@ class HostTest < ActiveSupport::TestCase
     assert h.save
     assert h.root_pass.present?
     assert_equal Setting[:root_pass], h.root_pass
-    assert_equal Setting[:root_pass], h.read_attribute(:root_pass), 'should copy root_pass to host'
+    assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host'
+  end
+
+  test "should change password when hostgroup is changed" do
+    first_password = "$1$default$hCkak1kaJPQILNmYbUXhD0"
+    second_password = "$2$newone$hCkak1kaJPQILNmYbUXhD1"
+
+    h1 = FactoryBot.create(:hostgroup, :root_pass => first_password)
+    h2 = FactoryBot.create(:hostgroup, :root_pass => second_password)
+
+    host = FactoryBot.create(:host, :managed, :hostgroup => h1, :root_pass => nil)
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal first_password, host.root_pass
+    assert_equal host.root_pass_source, 'hostgroup'
+
+    host.hostgroup = h2
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal second_password, host.root_pass
+    assert_equal host.root_pass_source, 'hostgroup'
+  end
+
+  test "should change password when hostgroup is changed to hostgroup without password" do
+    first_password = "$1$default$hCkak1kaJPQILNmYbUXhD0"
+    Setting[:root_pass] = "$2$newone$hCkak1kaJPQILNmYbUXhD1"
+
+    h1 = FactoryBot.create(:hostgroup, :root_pass => first_password)
+    h2 = FactoryBot.create(:hostgroup, :root_pass => nil)
+
+    host = FactoryBot.create(:host, :managed, :hostgroup => h1, :root_pass => nil)
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal first_password, host.root_pass
+    assert_equal host.root_pass_source, 'hostgroup'
+
+    host.hostgroup = h2
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal Setting[:root_pass], host.root_pass
+    assert_equal host.root_pass_source, 'global setting'
+  end
+
+  test "should change password when hostgroup without password is changed to hostgroup with password" do
+    Setting[:root_pass] = "$1$default$hCkak1kaJPQILNmYbUXhD0"
+    second_password = "$2$newone$hCkak1kaJPQILNmYbUXhD1"
+
+    h1 = FactoryBot.create(:hostgroup, :root_pass => nil)
+    h2 = FactoryBot.create(:hostgroup, :root_pass => second_password)
+
+    host = FactoryBot.create(:host, :managed, :hostgroup => h1, :root_pass => nil)
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal Setting[:root_pass], host.root_pass
+    assert_equal host.root_pass_source, 'global setting'
+
+    host.hostgroup = h2
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal second_password, host.root_pass
+    assert_equal host.root_pass_source, 'hostgroup'
+  end
+
+  test "should change password when hostgroup without password is changed to hostgroup with password and parent" do
+    Setting[:root_pass] = "$1$default$hCkak1kaJPQILNmYbUXhD0"
+    second_password = "$2$newone$hCkak1kaJPQILNmYbUXhD1"
+
+    h1 = FactoryBot.create(:hostgroup, :root_pass => nil)
+    parent_h2 = FactoryBot.create(:hostgroup, :root_pass => second_password)
+    h2 = FactoryBot.create(:hostgroup, :parent => parent_h2, :root_pass => nil)
+
+    host = FactoryBot.create(:host, :managed, :hostgroup => h1, :root_pass => nil)
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal Setting[:root_pass], host.root_pass
+    assert_equal host.root_pass_source, 'global setting'
+
+    host.hostgroup = h2
+    assert host.save
+    assert host.root_pass.present?
+    assert_equal second_password, host.root_pass
+    assert_equal host.root_pass_source, 'hostgroup'
   end
 
   test "should use settings root password when hostgroup has empty root password" do
@@ -1033,7 +1080,7 @@ class HostTest < ActiveSupport::TestCase
     assert_valid h
     assert h.root_pass.present?
     assert_equal Setting[:root_pass], h.root_pass
-    assert_equal Setting[:root_pass], h.read_attribute(:root_pass), 'should copy root_pass to host'
+    assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host unmodified'
   end
 
   test "should validate pxe loader when provided" do
@@ -1506,8 +1553,8 @@ class HostTest < ActiveSupport::TestCase
     assert host.errors[:interfaces].present?
     nic.identifier = 'eth1'
     host.valid?
-    refute_includes nic.errors.keys, :identifier
-    refute_includes host.errors.keys, :interfaces
+    refute_includes nic.errors.attribute_names, :identifier
+    refute_includes host.errors.attribute_names, :interfaces
   end
 
   # Token tests
@@ -1814,6 +1861,24 @@ class HostTest < ActiveSupport::TestCase
       parameter = domain.domain_parameters.first
       results = Host.search_for(%{params.#{parameter.name} = "#{parameter.searchable_value}"})
       refute results.include?(host)
+    end
+
+    test "can search hosts by organization parameter" do
+      host = FactoryBot.create(:host, :managed)
+      org = host.organization
+      org.organization_parameters << OrganizationParameter.create(:name => "test_param", :value => "true", :parameter_type => 'boolean')
+      parameter = org.organization_parameters.first
+      results = Host.search_for(%{params.#{parameter.name} = "#{parameter.searchable_value}"})
+      assert results.include?(host)
+    end
+
+    test "can search hosts by location parameter" do
+      host = FactoryBot.create(:host, :managed)
+      location = host.location
+      location.location_parameters << LocationParameter.create(:name => "test_param", :value => "true", :parameter_type => 'boolean')
+      parameter = location.location_parameters.first
+      results = Host.search_for(%{params.#{parameter.name} = "#{parameter.searchable_value}"})
+      assert results.include?(host)
     end
   end
 
@@ -2569,7 +2634,7 @@ class HostTest < ActiveSupport::TestCase
       host = FactoryBot.create(:host)
       lkey = FactoryBot.create(:lookup_key, override: true, path: 'fqdn')
       assert_no_difference('LookupValue.count') do
-        host.lookup_values_attributes = {"new_123456" => {"lookup_key_id" => lkey.id, "value" => "some_value", "match" => "fqdn=abc.mydomain.net"}}
+        host.lookup_values_attributes = {"new_123456" => {"lookup_key_id" => lkey.id, "value" => "some_value"}}
       end
 
       assert_difference('LookupValue.count', 1) do
@@ -2591,7 +2656,7 @@ class HostTest < ActiveSupport::TestCase
 
     test "destroy existing lookup values on host save" do
       lkey = FactoryBot.create(:lookup_key, override: true, path: 'fqdn')
-      host = FactoryBot.create(:host, :lookup_values_attributes => {"new_123456" => {"lookup_key_id" => lkey.id, "value" => "some_value", "match" => "fqdn=abc.mydomain.net"}})
+      host = FactoryBot.create(:host, :lookup_values_attributes => {"new_123456" => {"lookup_key_id" => lkey.id, "value" => "some_value"}})
       lookup_value = host.lookup_values.first
       assert_no_difference('LookupValue.count') do
         host.lookup_values_attributes = {'0' => {'lookup_key_id' => lkey.id.to_s, 'id' => lookup_value.id.to_s, '_destroy' => '1'}}.with_indifferent_access

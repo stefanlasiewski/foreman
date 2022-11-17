@@ -6,17 +6,17 @@ class PxeTemplateNameValidator < ActiveModel::EachValidator
       unless tmpl
         msg = _('is invalid. No provisioning template with name "%{name}" and kind "%{kind}" found. ') % { :name => value, :kind => template_kind }
         msg << _('Consult "Provisioning Templates" page to see what templates are available.')
-        record.errors[attribute] << msg
+        record.errors.add(attribute, msg)
       end
     end
   end
 
   def local_boot_templates
-    TemplateKind::PXE.map { |kind| ProvisioningTemplate.local_boot_name kind }
+    TemplateKind::PXE.map { |kind| Foreman::Provision.local_boot_default_name kind }
   end
 
   def global_default_templates
-    TemplateKind::PXE.map { |kind| ProvisioningTemplate.global_default_name kind }
+    TemplateKind::PXE.map { |kind| Foreman::Provision.global_default_name kind }
   end
 
   def exempt_templates

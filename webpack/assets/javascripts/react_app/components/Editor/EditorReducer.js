@@ -24,6 +24,7 @@ import {
   EDITOR_HOST_INITIAL_FETCH,
   EDITOR_HOST_ARR,
   EDITOR_HOST_FILTERED_ARR,
+  EDITOR_CHANGE_KIND,
 } from './EditorConstants';
 
 const initialState = Immutable({
@@ -53,7 +54,10 @@ const initialState = Immutable({
   showError: false,
   templateClass: '',
   theme: 'Monokai',
+  autocompletion: true,
+  liveAutocompletion: false,
   value: '',
+  kind: '',
 });
 
 export default (state = initialState, action) => {
@@ -147,6 +151,10 @@ export default (state = initialState, action) => {
         .set('searchQuery', '')
         .set('isFetchingHosts', false)
         .set('isSearchingHosts', false);
+    }
+
+    case EDITOR_CHANGE_KIND: {
+      return state.set('templateKindId', payload);
     }
 
     default:

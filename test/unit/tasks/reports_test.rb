@@ -5,11 +5,12 @@ class ReportsTest < ActiveSupport::TestCase
   setup do
     Rake.application.rake_require 'tasks/reports'
     Rake::Task.define_task(:environment)
+    Rake::Task.define_task(:"dynflow:client")
     Rake::Task['reports:daily'].reenable
 
     as_admin do
       ActionMailer::Base.deliveries = []
-      @owner = FactoryBot.create(:user, :admin, :with_mail)
+      @owner = FactoryBot.create(:user, :admin, :with_mail, :mail_enabled => true)
       @owner.mail_notifications << MailNotification[:config_summary]
       @owner.user_mail_notifications.all.each { |notification| notification.update_attribute(:interval, 'Daily') }
       @host = FactoryBot.create(:host, :owner => @owner)

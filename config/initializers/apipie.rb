@@ -5,7 +5,6 @@ ApipieDSL.configure do |config|
   config.app_name = 'Foreman'
   config.app_info = 'The Foreman is aimed to be a single address for all machines life cycle management.'
   config.doc_base_url = '/templates_doc'
-  config.markup = ApipieDSL::Markup::Markdown.new if Rails.env.development? && defined? Maruku
   config.dsl_classes_matchers = [
     "#{Rails.root}/app/models/**/*.rb",
     "#{Rails.root}/lib/foreman/renderer/**/*.rb",
@@ -14,7 +13,7 @@ ApipieDSL.configure do |config|
   # TODO enable?
   config.validate = false
 
-  config.use_cache = Rails.env.production? || File.directory?(config.cache_dir)
+  config.use_cache = false
   # config.languages = [] # turn off localized DSL docs, useful for development
   config.languages = ENV['FOREMAN_APIPIE_LANGS'].try(:split, ' ') || FastGettext.available_locales
   config.default_locale = FastGettext.default_locale
@@ -39,43 +38,49 @@ Apipie.configure do |config|
   config.ignored = []
   config.ignored_by_recorder = %w[]
   config.doc_base_url = "/apidoc"
-  config.use_cache = Rails.env.production? || File.directory?(config.cache_dir)
+  # By default we disabled the cache, but if you need to speed the testing up, you can switch it to `true`.
+  # To speed up the generation of the cache, please use FOREMAN_APIPIE_LANGS=en bundle exec rake apipie:cache
+  config.use_cache = false
   # config.languages = [] # turn off localized API docs and CLI, useful for development
   config.languages = ENV['FOREMAN_APIPIE_LANGS'].try(:split, ' ') || FastGettext.available_locales
   config.default_locale = FastGettext.default_locale
   config.locale = ->(loc) { loc ? FastGettext.set_locale(loc) : FastGettext.locale }
 
-  substitutions = {
-    :operatingsystem_families => Operatingsystem.families.join(", "),
-    :providers => -> { ComputeResource.providers.keys.join(', ') },
-    :providers_requiring_url => -> { ComputeResource.providers_requiring_url },
-    :default_nic_type => InterfaceTypeMapper::DEFAULT_TYPE.humanized_name.downcase,
-    :template_kinds => -> { Rails.cache.fetch("template_kind_names", expires_in: 1.hour) { TemplateKind.pluck(:name).join(", ") } },
-    :host_rebuild_steps => -> { Host::Managed.valid_rebuild_only_values.join(', ') },
-  }
-
-  config.translate = lambda do |str, loc|
-    old_loc = FastGettext.locale
-    FastGettext.set_locale(loc)
-    if str
-      trans = _(str)
-      trans = trans % Hash[substitutions.map { |k, v| [k, v.respond_to?(:call) ? v.call : v] }]
-    end
-    FastGettext.set_locale(old_loc)
-    trans
-  end
   config.validate = false
   config.force_dsl = true
-  config.reload_controllers = Rails.env.development?
-  config.markup = Apipie::Markup::Markdown.new if Rails.env.development? && defined? Maruku
+  config.reload_controllers = false
   config.default_version = "v2"
   config.update_checksum = true
   config.checksum_path = ['/api/', '/apidoc/']
 end
 
+Rails.application.config.after_initialize do
+  Apipie.configure do |config|
+    substitutions = {
+      :operatingsystem_families => Operatingsystem.families.join(", "),
+      :providers => -> { ComputeResource.providers.keys.join(', ') },
+      :providers_requiring_url => -> { ComputeResource.providers_requiring_url },
+      :default_nic_type => InterfaceTypeMapper::DEFAULT_TYPE.humanized_name.downcase,
+      :template_kinds => -> { Rails.cache.fetch("template_kind_names", expires_in: 1.hour) { TemplateKind.pluck(:name).join(", ") } },
+      :host_rebuild_steps => -> { Host::Managed.valid_rebuild_only_values.join(', ') },
+    }
+
+    config.translate = lambda do |str, loc|
+      old_loc = FastGettext.locale
+      FastGettext.set_locale(loc)
+      if str
+        trans = _(str)
+        trans = trans % Hash[substitutions.map { |k, v| [k, v.respond_to?(:call) ? v.call : v] }]
+      end
+      FastGettext.set_locale(old_loc)
+      trans
+    end
+  end
+end
+
 # check apipie cache in dev mode
-if Foreman.in_rake?('apipie:cache', 'apipie:cache:index')
-  # No need to check the cache if we're regenerating
+if Foreman.in_rake?('apipie:cache', 'apipie:cache:index', 'config')
+  # No need to check the cache if we're regenerating or handling config
 elsif Apipie.configuration.use_cache
   cache_name = File.join(Apipie.configuration.cache_dir, Apipie.configuration.doc_base_url + '.json')
   if File.exist?(cache_name)
@@ -89,13 +94,11 @@ elsif Apipie.configuration.use_cache
       end
     end
     if outdated
-      puts "API controllers newer than Apipie cache! Run apipie:cache rake task to regenerate cache."
+      warn "API controllers newer than Apipie cache! Run apipie:cache rake task to regenerate cache."
     end
   else
-    puts "Apipie cache enabled but not present yet. Run apipie:cache rake task to speed up API calls."
+    warn "Apipie cache enabled but not present yet. Run apipie:cache rake task to speed up API calls."
   end
-else
-  puts "The Apipie cache is turned off. Enable it and run apipie:cache rake task to speed up API calls."
 end
 
 # special type of validator: we say that it's not specified

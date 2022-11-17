@@ -54,29 +54,24 @@ exports[`LoginPage rendering renders LoginPage 1`] = `
         "backgroundUrl": "/some-background",
       }
     }
-    footerLinks={Array []}
+    footerLinks={
+      Array [
+        Object {
+          "children": "some caption",
+          "href": "foreman-login-footer-text",
+        },
+      ]
+    }
     header={
       Object {
-        "caption": <React.Fragment>
-          <h1
-            id="title"
-          >
-            Welcome
-          </h1>
-          <p
-            id="version"
-          >
-            Version some version
-          </p>
-        </React.Fragment>,
+        "caption": <h1
+          id="title"
+        >
+          Welcome
+        </h1>,
         "logoSrc": "/some-logo",
       }
     }
   />
-  <div
-    id="login-footer-text"
-  >
-    some caption
-  </div>
 </div>
 `;

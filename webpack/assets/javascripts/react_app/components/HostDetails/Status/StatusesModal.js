@@ -15,17 +15,19 @@ const StatusModal = ({
   const header = (
     <>
       <Title
+        ouiaId="statuses-modal-title"
         id="statuses-modal-header"
         headingLevel="h1"
         size={TitleSizes['2xl']}
       >
-        {__("Manage Host's Statuses")}
+        {__('Manage host statuses')}
       </Title>
     </>
   );
 
   return (
     <Modal
+      ouiaId="statuses-modal"
       width="50%"
       aria-label="statuses modal"
       isOpen={isOpen}

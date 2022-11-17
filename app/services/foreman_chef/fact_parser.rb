@@ -35,6 +35,10 @@ module ForemanChef
             # get the minor.build number, e.g. 7.2.1511 -> 2.1511
             minor = release[2..-1]
           end
+        when 'centos'
+          # Centos Stream doesn't have minor version on need to replace blank spaces due to name restriction
+          # Also normalize CentOS / CentOS Linux
+          os_name = minor ? 'CentOS' : facts.dig(:os_release, :name).tr(' ', '_')
       end
 
       begin
@@ -93,6 +97,14 @@ module ForemanChef
 
     def boot_timestamp
       Time.zone.now.to_i - facts['system_uptime::seconds'].to_i
+    end
+
+    def bios
+      {
+        :vendor => facts['dmi::bios::all_records::vendor'],
+        :version => facts['dmi::bios::all_records::version'],
+        :release_date => facts['dmi::bios::all_records::release_date'],
+      }
     end
 
     private

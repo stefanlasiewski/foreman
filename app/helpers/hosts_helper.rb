@@ -85,6 +85,14 @@ module HostsHelper
     opts
   end
 
+  def host_owner_column(host)
+    if host.owner_type == 'User'
+      icon_text('user', host.owner, :kind => 'fa')
+    elsif host.owner_type == 'Usergroup'
+      icon_text('users', host.owner, :kind => 'fa')
+    end
+  end
+
   # method that reformat the hostname column by adding the status icons
   def name_column(host)
     style = host_global_status_icon_class_for_host(host)
@@ -92,7 +100,7 @@ module HostsHelper
     tooltip = displayable_statuses.sort_by(&:type).map { |status| "#{_(status.name)}: #{_(status.to_label)}" }.join(', ')
 
     content = content_tag(:span, "", {:rel => "twipsy", :class => style, :"data-original-title" => tooltip})
-    content += link_to("  #{host}", host_path(host))
+    content += link_to("  #{host}", current_host_details_path(host))
     content
   end
 
@@ -202,7 +210,7 @@ module HostsHelper
     failed_restarts = [_("Skipped")]
     skipped = [_("Restarted")]
     @host.reports.recent(timerange).each do |r|
-      time            << r.reported_at.to_i * 1000
+      time            << r.reported_at.to_i
       applied         << r.applied
       failed          << r.failed
       restarted       << r.restarted
@@ -217,7 +225,7 @@ module HostsHelper
     config = [_("Config Retrieval")]
     runtime = [_("Runtime")]
     @host.reports.recent(timerange).each do |r|
-      time << r.reported_at.to_i * 1000
+      time << r.reported_at.to_i
       config  << r.config_retrieval
       runtime << r.runtime
     end
@@ -239,7 +247,7 @@ module HostsHelper
 
   def name_field(host)
     return if host.name.blank?
-    (SETTINGS[:unattended] && host.managed?) ? host.shortname : host.name
+    host.managed? ? host.shortname : host.name
   end
 
   def build_duration(host)
@@ -289,7 +297,7 @@ module HostsHelper
 
   # we ignore interfaces.conflict because they are always registered in host errors as well
   def conflict_objects(errors)
-    errors.keys.map(&:to_s).select { |key| key =~ /conflict$/ && key != 'interfaces.conflict' }.map(&:to_sym)
+    errors.attribute_names.map(&:to_s).select { |key| key =~ /conflict$/ && key != 'interfaces.conflict' }.map(&:to_sym)
   end
 
   def has_conflicts?(errors)
@@ -409,10 +417,6 @@ module HostsHelper
     end
   end
 
-  def power_status_visible?
-    SETTINGS[:unattended] && Setting[:host_power_status]
-  end
-
   def host_breadcrumb
     breadcrumbs(resource_url: "/api/v2/hosts?thin=true'")
   end
@@ -432,5 +436,24 @@ module HostsHelper
         :errors => item.errors.to_hash,
       }
     end
+  end
+
+  def virtual?(host)
+    return unless host.reported_data
+
+    host.reported_data.virtual ? _('Yes') : _('No')
+  end
+
+  def humanize_bytes(number, from: nil)
+    return unless number
+
+    number = case from
+             when :mega
+               number * 1.megabyte
+             else
+               number
+             end
+
+    number_to_human_size(number)
   end
 end

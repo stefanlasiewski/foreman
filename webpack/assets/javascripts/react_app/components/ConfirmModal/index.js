@@ -35,10 +35,16 @@ const ConfirmModal = () => {
       key="confirm"
       variant={isWarning ? 'danger' : 'primary'}
       onClick={handleConfirm}
+      ouiaId="btn-modal-confirm"
     >
       {confirmButtonText || __('Confirm')}
     </Button>,
-    <Button key="cancel" variant="link" onClick={handleCancel}>
+    <Button
+      key="cancel"
+      variant="link"
+      onClick={handleCancel}
+      ouiaId="btn-modal-cancel"
+    >
       {__('Cancel')}
     </Button>,
   ];
@@ -47,6 +53,7 @@ const ConfirmModal = () => {
 
   return (
     <Modal
+      ouiaId="app-confirm-modal"
       id="app-confirm-modal"
       aria-label="application confirm modal"
       variant={ModalVariant.small}

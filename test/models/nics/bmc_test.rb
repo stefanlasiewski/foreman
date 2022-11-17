@@ -40,21 +40,30 @@ class BMCTest < ActiveSupport::TestCase
       assert @bmc_nic.password_in_db.include? Encryptable::ENCRYPTION_PREFIX
     end
 
-    test 'BMC password is decrypted in ENC' do
+    test 'BMC password is decrypted in ENC when bmc_credentials_accessible is turned on' do
+      Setting[:bmc_credentials_accessible] = true
       bmc_nic_enc = @bmc_nic.to_export
-      assert_equal bmc_nic_enc['password'], 'admin'
+      assert_equal "admin", bmc_nic_enc['password']
+    ensure
+      Setting[:bmc_credentials_accessible] = false
+    end
+
+    test 'BMC password is not shown via ENC by default' do
+      bmc_nic_enc = @bmc_nic.to_export
+      refute bmc_nic_enc['password']
     end
   end
 
-  test 'BMC password is provided in #password' do
+  test 'BMC password is not provided in #password' do
     bmc_nic = FactoryBot.build_stubbed(:nic_bmc, :provider => 'IPMI', :password => 'secret', :subnet => subnets(:one))
-    assert_equal 'secret', bmc_nic.password
+    refute bmc_nic.password
   end
 
   context 'with bmc_credentials_accessible => false' do
     setup do
       Setting[:bmc_credentials_accessible] = false
-      @bmc_nic = FactoryBot.build_stubbed(:nic_bmc, :provider => 'IPMI', :password => 'secret', :subnet => subnets(:one))
+      host = FactoryBot.build(:host, :managed)
+      @bmc_nic = FactoryBot.build_stubbed(:nic_bmc, :host => host, :provider => 'IPMI', :username => "user", :password => 'secret', :subnet => subnets(:one))
     end
 
     test 'BMC password is redacted in ENC output' do
@@ -70,6 +79,11 @@ class BMCTest < ActiveSupport::TestCase
       @bmc_nic.expects(:bmc_proxy).returns(FactoryBot.create(:bmc_smart_proxy))
       ProxyAPI::BMC.expects(:new).with(has_entry(:password => 'secret'))
       @bmc_nic.proxy
+    end
+
+    test 'the host still can find an useful BMC interface' do
+      @bmc_nic.host.expects(:bmc_nic).returns(@bmc_nic)
+      assert_equal true, @bmc_nic.host.bmc_available?
     end
   end
 

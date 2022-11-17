@@ -161,6 +161,10 @@ a {
   }
 }
 
+.pf-c-backdrop {
+  z-index: 2000;
+}
+
 .popover {
   max-width: none;
   z-index: 2000;
@@ -272,17 +276,6 @@ form .fa-info-circle {
   h4 {
     margin-top: 4px;
   }
-}
-
-.pagination > .disabled > span,
-.pagination > .disabled > span:hover,
-.pagination > .disabled > span:focus,
-.pagination > .disabled > a,
-.pagination > .disabled > a:hover,
-.pagination > .disabled > a:focus,
-.pagination > li > a,
-.pagination > li > span {
-  background-image: none;
 }
 
 .select2-container .select2-choices .select2-search-field input,

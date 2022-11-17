@@ -21,6 +21,11 @@ Medium.without_auditing do
       :path => "http://mirror.centos.org/centos/$major-stream/BaseOS/$arch/os",
     },
     {
+      :name => "CentOS Stream 9 mirror",
+      :os_family => "Redhat",
+      :path => "http://mirror.stream.centos.org/$major-stream/BaseOS/$arch/os",
+    },
+    {
       :name => "Debian mirror",
       :os_family => "Debian",
       :path => "http://ftp.debian.org/debian",
@@ -56,6 +61,11 @@ Medium.without_auditing do
       :path => "https://github.com/rancher/os/releases/download/v$version",
     },
     {
+      :name => "Rocky Linux",
+      :os_family => "Redhat",
+      :path => "https://download.rockylinux.org/pub/rocky/$version/BaseOS/$arch/os",
+    },
+    {
       :name => "CoreOS mirror",
       :os_family => "Coreos",
       :path => "http://$release-temporary-archive.release.core-os.net",
@@ -81,6 +91,6 @@ Medium.without_auditing do
     m = Medium.create input
     m.organizations = organizations
     m.locations = locations
-    raise "Unable to create medium: #{format_errors m}" if m.nil? || m.errors.any?
+    raise "Unable to create medium: #{SeedHelper.format_errors m}" if m.nil? || m.errors.any?
   end
 end

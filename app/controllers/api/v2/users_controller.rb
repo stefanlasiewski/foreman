@@ -12,6 +12,8 @@ module Api
         ['compute_attributes']
 
       before_action :find_optional_nested_object
+      skip_before_action :authorize, :only => [:extlogin]
+      before_action :authenticate, :only => [:extlogin]
 
       api :GET, "/users/", N_("List all users")
       api :GET, "/auth_source_ldaps/:auth_source_ldap_id/users", N_("List all users for LDAP authentication source")
@@ -59,6 +61,7 @@ module Api
         param :timezone, ActiveSupport::TimeZone.all.map(&:name), :required => false, :desc => N_("User's timezone")
         param :locale, FastGettext.available_locales, :required => false, :desc => N_("User's preferred locale")
         param :role_ids, Array, :require => false
+        param :mail_enabled, :bool, :desc => N_("Enable user's email")
         param_group :taxonomies, ::Api::V2::BaseController
       end
 
@@ -117,6 +120,10 @@ module Api
         else
           process_response @user.destroy
         end
+      end
+
+      api :GET, "/users/extlogin", N_("Use to authenticate against external authentication source")
+      def extlogin
       end
 
       private

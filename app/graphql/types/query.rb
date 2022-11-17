@@ -15,8 +15,8 @@ module Types
     include ::Foreman::Plugin::GraphqlPluginFields
     realize_plugin_query_extensions
 
-    field :node, field: GraphQL::Relay::Node.field
-    field :nodes, field: GraphQL::Relay::Node.plural_field
+    include GraphQL::Types::Relay::HasNodeField
+    include GraphQL::Types::Relay::HasNodesField
 
     field :currentUser, Types::User, null: true, resolver: Resolvers::User::Current
 
@@ -83,8 +83,8 @@ module Types
     record_field :bookmark, Types::Bookmark
     collection_field :bookmarks, Types::Bookmark
 
-    record_field :setting, Types::Setting
-    collection_field :settings, Types::Setting
+    field :setting, Types::Setting, resolver: Resolvers::SettingResolver
+    field :settings, Types::Setting.connection_type, resolver: Resolvers::SettingsResolver
 
     record_field :configReport, Types::ConfigReport
     collection_field :configReports, Types::ConfigReport

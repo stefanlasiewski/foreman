@@ -4,11 +4,6 @@ exports[`Routes rendering routes with children renders routes with chidlren 1`] 
 <Fragment>
   <ForemanSwitcher>
     <Route
-      key="/host_wizard"
-      path="/host_wizard"
-      render={[Function]}
-    />
-    <Route
       key="/audits"
       path="/audits"
       render={[Function]}
@@ -20,8 +15,8 @@ exports[`Routes rendering routes with children renders routes with chidlren 1`] 
       render={[Function]}
     />
     <Route
-      key="/experimental/hosts/:id"
-      path="/experimental/hosts/:id"
+      key="/new/hosts/:id"
+      path="/new/hosts/:id"
       render={[Function]}
     />
     <Route
@@ -33,6 +28,23 @@ exports[`Routes rendering routes with children renders routes with chidlren 1`] 
     <Route
       key="/host_statuses"
       path="/host_statuses"
+      render={[Function]}
+    />
+    <Route
+      key="/page-not-found"
+      path="/page-not-found"
+      render={[Function]}
+    />
+    <Route
+      exact={true}
+      key="/filters/new"
+      path="/filters/new"
+      render={[Function]}
+    />
+    <Route
+      exact={true}
+      key="/filters/:id/edit"
+      path="/filters/:id/edit"
       render={[Function]}
     />
   </ForemanSwitcher>

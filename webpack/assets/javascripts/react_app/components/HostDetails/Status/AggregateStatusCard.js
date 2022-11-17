@@ -7,6 +7,7 @@ import {
   CardBody,
   CardFooter,
   Bullseye,
+  GridItem,
 } from '@patternfly/react-core';
 
 import StatusesModal from './StatusesModal';
@@ -36,9 +37,11 @@ import './styles.scss';
 
 const AggregateStatusCard = ({
   hostName,
-  permissions: {
-    view_hosts: canViewStatuses,
-    forget_status_hosts: canForgetStatuses,
+  hostDetails: {
+    permissions: {
+      view_hosts: canViewStatuses,
+      forget_status_hosts: canForgetStatuses,
+    } = {},
   },
 }) => {
   const [openModal, setOpenModal] = useState(false);
@@ -76,18 +79,25 @@ const AggregateStatusCard = ({
     warnStatus.length === 0 &&
     errorStatus.length === 0;
 
+  const allStatusesCleared = isOKState && okStatuses.length === 0;
+
   const hadleIconClick = type => {
     setChosenType(type);
     setOpenModal(true);
   };
 
   return (
-    <>
-      <Card className="card-pf-aggregate-status" isHoverable>
+    <GridItem xl2={3} xl={4} md={6} lg={4}>
+      <Card className="card-pf-aggregate-status" ouiaId="card-aggregate-status">
         <CardTitle>
           <span>
-            {__('Host Status')}
-            {!isOKState && <StatusIcon statusNumber={global} />}
+            <span style={{ marginRight: '0.5rem' }}>{__('Host status')}</span>
+            {!isOKState && (
+              <StatusIcon
+                statusNumber={global}
+                style={{ position: 'relative', top: '2px' }}
+              />
+            )}
           </span>
         </CardTitle>
         <CardBody style={{ height: '129px' }}>
@@ -95,9 +105,10 @@ const AggregateStatusCard = ({
             cannotViewStatuses={!canViewStatuses}
             isOKState={isOKState}
             responseStatus={responseStatus}
+            allStatusesCleared={allStatusesCleared}
           >
             <Bullseye>
-              <p className="card-pf-aggregate-status-notifications">
+              <span className="card-pf-aggregate-status-notifications">
                 {SUPPORTED_STATUSES.map(({ label, status }) => (
                   <AggregateStatusItem
                     key={`status-${label}`}
@@ -108,7 +119,7 @@ const AggregateStatusCard = ({
                     amount={statusesMapper(status).length}
                   />
                 ))}
-              </p>
+              </span>
             </Bullseye>
           </GlobalState>
         </CardBody>
@@ -133,20 +144,25 @@ const AggregateStatusCard = ({
           setOpenModal(false);
         }}
       />
-    </>
+    </GridItem>
   );
 };
 
 AggregateStatusCard.propTypes = {
-  hostName: PropTypes.string.isRequired,
-  permissions: PropTypes.shape({
-    view_hosts: PropTypes.bool,
-    forget_status_hosts: PropTypes.bool,
+  hostName: PropTypes.string,
+  hostDetails: PropTypes.shape({
+    permissions: PropTypes.shape({
+      view_hosts: PropTypes.bool,
+      forget_status_hosts: PropTypes.bool,
+    }),
   }),
 };
 
 AggregateStatusCard.defaultProps = {
-  permissions: { statuses_hosts: false, forget_status_hosts: false },
+  hostName: undefined,
+  hostDetails: {
+    permissions: { statuses_hosts: false, forget_status_hosts: false },
+  },
 };
 
 export default AggregateStatusCard;

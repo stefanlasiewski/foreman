@@ -8,7 +8,10 @@ oses:
 test_on:
 - debian4dhcp
 - ubuntu4dhcp
-%>
+description: |
+  The provisioning template for preseed based distributions. The output is fetched by the installer during
+  the network based installation. To customize the installation, modify the host parameters.
+-%>
 <%
   proxy_string = host_param('http-proxy') ? " http://#{host_param('http-proxy')}:#{host_param('http-proxy-port')}" : ''
   ansible_enabled = plugin_present?('foreman_ansible')
@@ -20,8 +23,14 @@ test_on:
   additional_packages = ['lsb-release', 'wget']
   additional_packages << host_param('additional-packages')
   additional_packages << python_package if ansible_enabled
+  additional_packages << 'eject' if @host.respond_to?(:bootdisk_build?) && @host.bootdisk_build?
   additional_packages = additional_packages.join(" ").split().uniq().join(" ")
 %>
+# This preseed file was rendered from the Foreman provisioning template "<%= @template_name %>".
+# for <%= @host %> running <%= @host.operatingsystem.name %> <%= os_major %> <%= @arch %>
+# Organization: <%= @host.organization %>
+# Location: <%= @host.location %>
+
 # Locale
 d-i debian-installer/locale string <%= host_param('lang') || 'en_US' %>
 # country and keyboard settings are automatic. Keep them ...

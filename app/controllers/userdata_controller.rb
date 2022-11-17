@@ -25,12 +25,6 @@ class UserdataController < ApplicationController
     render plain: data.map { |key, value| "#{key}: #{value}" }.join("\n")
   end
 
-  protected
-
-  def require_ssl?
-    unattended_ssl?
-  end
-
   private
 
   def render_userdata_template
@@ -60,6 +54,8 @@ class UserdataController < ApplicationController
     query_params = {
       ip: request.remote_ip,
     }
+
+    query_params[:mac_list] = Foreman::UnattendedInstallation::MacListExtractor.new.extract_from_env(request.env, params: params)
 
     @host = Foreman::UnattendedInstallation::HostFinder.new(query_params: query_params).search
 

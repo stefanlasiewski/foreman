@@ -3,7 +3,6 @@ require 'test_helper'
 class SettingTest < ActiveSupport::TestCase
   should validate_presence_of(:name)
   should validate_uniqueness_of(:name)
-  should validate_inclusion_of(:settings_type).in_array(Setting::TYPES)
 
   def test_should_validate_inclusions
     assert Setting::URI_BLANK_ATTRS.include? "login_delegation_logout_url"
@@ -23,16 +22,15 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test 'should not strip setting value when parsing if we do not want to' do
-    setting = Setting.create(:name => 'not_stripped_test', :value => 'whatever', :setting_type => 'string')
+    setting = Setting.create(:name => 'not_stripped_test', :value => 'whatever')
     trailing_space_val = 'Local '
     setting.parse_string_value(trailing_space_val)
     assert_equal setting.value, trailing_space_val
   end
 
   test "encrypted value is saved encrypted when created" do
-    setting = Setting.create(:name => "foo", :value => 5, :default => 5, :description => "test foo", :encrypted => true)
-    setting.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
-    setting.value = "123456"
+    Setting.any_instance.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
+    setting = Foreman.settings.set_user_value('root_pass', '12345678')
     as_admin do
       assert setting.save
     end
@@ -40,39 +38,45 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test "#value= with previously unencrypted value is encrypted when set" do
-    setting = Setting.create(name: 'encrypted', value: 'first', default: 'test', description: 'Test', encrypted: false)
-    setting.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
-    setting.encrypted = true
-    setting.value = 'new'
+    Setting['foreman_url'] = 'http://unencrypted-foreman.example.net'
+    Setting.any_instance.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
+    Foreman.settings.find('foreman_url').encrypted = true
+    setting = Foreman.settings.set_user_value('foreman_url', 'http://new.example.net')
     assert_difference 'setting.audits.count' do
       as_admin { setting.save! }
     end
     assert_includes setting.read_attribute(:value), EncryptValue::ENCRYPTION_PREFIX
-    assert_equal 'new', setting.value
+    assert_equal 'http://new.example.net', setting.value
   end
 
   test "update an encrypted value should saved encrypted in db with audit, and decrypted while reading" do
-    setting = settings(:attributes63)
-    setting.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
-    setting.value = '123456'
+    Setting['foreman_url'] = 'http://unencrypted-foreman.example.net'
+    Setting.any_instance.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
+    Foreman.settings.find('foreman_url').encrypted = true
+    setting = Foreman.settings.set_user_value('foreman_url', 'http://new.example.net')
     assert_difference 'setting.audits.count' do
       as_admin { assert setting.save }
     end
     assert setting.read_attribute(:value).include? EncryptValue::ENCRYPTION_PREFIX
-    assert_equal '123456', setting.value
+    assert_equal 'http://new.example.net', setting.value
   end
 
   test "#value= with unchanged value on encrypted setting does not modify DB or create audit" do
-    setting = Setting.create(name: 'encrypted', value: 'first', default: 'test', description: 'Test', encrypted: true)
-    setting.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
-    setting.value = 'new'
-    as_admin { setting.save! }
+    Setting.any_instance.expects(:encryption_key).at_least_once.returns('25d224dd383e92a7e0c82b8bf7c985e815f34cf5')
+    Setting['root_pass'] = 'somepass'
+    setting = Setting.find_by(name: 'root_pass')
     db_value = setting.read_attribute(:value)
     assert_includes db_value, EncryptValue::ENCRYPTION_PREFIX
     assert_no_difference 'setting.audits.count' do
-      setting.value = 'new'
+      setting.value = 'somepass'
       setting.save!
-      assert_equal db_value, setting.read_attribute(:value)
+    end
+    assert_equal db_value, setting.read_attribute(:value)
+  end
+
+  test "root_pass should be at least 8 characters long" do
+    assert_raises(ActiveRecord::RecordInvalid) do
+      Setting[:root_pass] = "1234567"
     end
   end
 
@@ -82,51 +86,15 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   def test_settings_with_the_same_value_as_default_should_not_save_the_value
-    assert Setting.create(:name => "foo", :value => "bar", :default => "bar", :description => "x")
-    s = Setting.find_by_name "foo"
+    setting = Setting.new(name: "foo", value: "bar")
+    setting.stubs(default: 'bar')
+    assert setting.save
+    s = Setting.find_by_name 'foo'
     assert_nil s.read_attribute(:value)
   end
 
   def test_should_not_allow_to_change_frozen_attributes
     check_frozen_change :name, "new value"
-    check_frozen_change :category, "Auth"
-  end
-
-  def test_second_time_create_persists_only_default_value
-    setting = Setting.create(:name => "foo", :value => 8, :default => 2, :description => "test foo")
-    assert_equal 8, setting.value
-    assert_equal 2, setting.default
-
-    setting = Setting.create(:name => "foo", :value => 9, :default => 3, :description => "test foo")
-    assert_equal 8, setting.value
-    assert_equal 3, setting.default
-  end
-
-  def test_second_time_create_exclamation_persists_only_default_value
-    setting = Setting.create!(:name => "foo", :value => 8, :default => 2, :description => "test foo")
-    assert_equal 8, setting.value
-    assert_equal 2, setting.default
-
-    setting = Setting.create!(:name => "foo", :value => 9, :default => 3, :description => "test foo")
-    assert_equal 8, setting.value
-    assert_equal 3, setting.default
-  end
-
-  def test_create_exclamation_updates_description
-    Setting.create!(:name => 'administrator', :description => 'Test', :default => 'root@localhost.com')
-    s = Setting.find_by_name 'administrator'
-    assert_equal 'Test', s.description
-  end
-
-  def test_create_with_missing_attrs_does_not_persist
-    setting = Setting.create(:name => "foo")
-    assert_equal false, setting.persisted?
-  end
-
-  def test_create_exclamation_with_missing_attrs_raises_exception
-    assert_raises(ActiveRecord::RecordInvalid) do
-      Setting.create!(:name => "foo")
-    end
   end
 
   def test_set_method_prepares_attrs_for_creation
@@ -146,38 +114,6 @@ class SettingTest < ActiveSupport::TestCase
     assert_equal "my_value", options[:value]
   end
 
-  def test_create_uses_values_from_SETTINGS
-    SETTINGS[:test_attr] = "ape"
-    options = Setting.create!(Setting.set("test_attr", "some_description", "default_value"))
-    assert_equal "ape", options.value
-  end
-
-  def test_create_doesnt_change_value_if_absent_from_SETTINGS
-    options = Setting.create!(Setting.set("unknown_attr", "some_description", "default_value"))
-    assert_equal "default_value", options.value
-  end
-
-  def test_attributes_in_SETTINGS_are_readonly
-    setting_name = "foo_#{rand(1000000)}"
-    Setting.create!(:name => setting_name, :value => "bar", :default => "default", :description => "foo")
-    SETTINGS[setting_name.to_sym] = "no-bar"
-
-    persisted = Setting.find_by_name(setting_name)
-    assert persisted.readonly?
-  end
-
-  def test_value_is_updated_after_change_in_SETTINGS
-    setting_name = "foo_#{rand(1000000)}"
-    Setting.create!(:name => setting_name, :value => "bar", :default => "default", :description => "foo")
-
-    SETTINGS[setting_name.to_sym] = "no-bar"
-
-    persisted = Setting.create!(:name => setting_name, :description => "foo", :default => "default")
-    assert_equal "no-bar", persisted.value
-  ensure
-    SETTINGS.delete(setting_name.to_sym)
-  end
-
   def test_first_or_create_works
     assert_nothing_raised do
       name = "rand_#{rand(1_000_000)}"
@@ -188,53 +124,31 @@ class SettingTest < ActiveSupport::TestCase
 
   # tests for saving settings attributes
   def test_settings_should_save_arrays
-    check_properties_saved_and_loaded_ok :name => "foo", :value => [1, 2, 3, 'b'], :default => ['b', "b"], :description => "test foo"
+    check_properties_saved_and_loaded_ok :name => "foo", :value => [1, 2, 3, 'b']
   end
 
   def test_settings_should_save_hashes
-    check_properties_saved_and_loaded_ok :name => "foo", :value => {"a" => "A"}, :default => {"b" => "B"}, :description => "test foo"
+    check_properties_saved_and_loaded_ok :name => "foo", :value => {"a" => "A"}
   end
 
   def test_settings_should_save_booleans
-    check_properties_saved_and_loaded_ok :name => "foo", :value => true, :default => false, :description => "test foo"
+    check_properties_saved_and_loaded_ok :name => "foo", :value => true
   end
 
   def test_settings_should_save_integers
-    check_properties_saved_and_loaded_ok :name => "foo", :value => 32, :default => 83, :description => "test foo"
+    check_properties_saved_and_loaded_ok :name => "foo", :value => 32
   end
 
   def test_settings_should_save_strings
-    check_properties_saved_and_loaded_ok :name => "foo", :value => "  value  ", :default => "default", :description => "test foo"
-  end
-
-  # tests for choosing correct type
-  def test_should_autoselect_correct_type_for_integer_value
-    check_correct_type_for "integer", 5
-  end
-
-  def test_should_autoselect_correct_type_for_array_value
-    check_correct_type_for "array", [1, 2, 3]
-  end
-
-  def test_should_autoselect_correct_type_for_hash_value
-    check_correct_type_for "hash", {"a" => "A"}
-  end
-
-  def test_should_autoselect_correct_type_for_string_value
-    check_correct_type_for "string", "some value"
-  end
-
-  def test_should_autoselect_correct_type_for_boolean_value
-    check_correct_type_for "boolean", true
-    check_correct_type_for "boolean", false
+    check_properties_saved_and_loaded_ok :name => "foo", :value => "  value  "
   end
 
   test "hashes can be empty by default" do
-    check_properties_saved_and_loaded_ok :name => "foo", :value => {}, :default => {"a" => "A"}, :description => "test foo"
+    check_properties_saved_and_loaded_ok :name => "foo", :value => {}
   end
 
   test "integer attributes can be zero by default" do
-    check_properties_saved_and_loaded_ok :name => "foo83", :value => 0, :default => 0, :description => "test foo"
+    check_properties_saved_and_loaded_ok :name => "foo83", :value => 0
   end
 
   # test particular settings
@@ -246,17 +160,12 @@ class SettingTest < ActiveSupport::TestCase
     check_zero_value_not_allowed_for 'entries_per_page'
   end
 
-  test "puppet_interval should not be zero" do
-    check_zero_value_not_allowed_for 'puppet_interval'
-  end
-
   test "trusted_hosts can be empty array" do
     check_empty_array_allowed_for "trusted_hosts"
   end
 
   test "trusted_hosts must have comma separated values" do
-    attrs = { :name => "trusted_hosts", :default => [], :description => "desc" }
-    assert Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
+    assert Setting.create(name: 'trusted_hosts', value: [])
     setting = Setting.find_by_name("trusted_hosts")
     setting.value = ["localhost", "remotehost"]
     assert setting.save
@@ -266,8 +175,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test "foreman_url must have valid formant" do
-    attrs = { :name => "foreman_url", :default => "http://foo.com" }
-    assert Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
+    assert Setting.create(name: 'foreman_url', value: 'http://test.example.org')
     setting = Setting.find_by_name("foreman_url")
     setting.value = "##"
     assert !setting.save
@@ -275,8 +183,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test "foreman_url must have proper format" do
-    attrs = { :name => "foreman_url", :default => "http://foo.com" }
-    assert Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
+    assert Setting.create(name: 'foreman_url', value: 'http://test.example.org')
     setting = Setting.find_by_name("foreman_url")
     setting.value = "random_string"
     assert !setting.save
@@ -284,25 +191,22 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test "foreman_url cannot be blank" do
-    attrs = { :name => "foreman_url", :default => "http://foo.com" }
-    setting = Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
+    setting = Setting.create(name: 'foreman_url', value: 'http://test.example.org')
     setting.value = ""
     assert !setting.save
     assert_equal "URL must be valid and schema must be one of http and https", setting.errors[:value].first
   end
 
   test "unattended_url must have a valid format" do
-    attrs = { :name => "unattended_url", :default => "http://foo.com" }
-    assert Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
-    setting = Setting.find_by_name("unattended_url")
+    assert Setting.create(name: 'unattended_url', value: 'http://test.example.org')
+    setting = Setting.find_by_name('unattended_url')
     setting.value = "##"
     assert !setting.save
     assert_equal "URL must be valid and schema must be one of http and https", setting.errors[:value].first
   end
 
   test "unattended_url must have proper format" do
-    attrs = { :name => "foreman_url", :default => "http://foo.com" }
-    assert Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
+    assert Setting.create(name: 'foreman_url', value: 'http://test.example.org')
     setting = Setting.find_by_name("foreman_url")
     setting.value = "random_string"
     assert !setting.save
@@ -310,8 +214,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test "login_delegation_logout_url must have proper format or be blank" do
-    attrs = { :name => "login_delegation_logout_url", :default => nil, :description => "desc" }
-    assert Setting.create!(attrs)
+    assert Setting.create!(name: "login_delegation_logout_url")
     setting = Setting.find_by_name("login_delegation_logout_url")
     setting.value = "http://somepage.org"
     assert setting.save
@@ -323,7 +226,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test "libvirt_default_console_address must have proper IP format" do
-    attrs = { :name => "libvirt_default_console_address", :default => "127.0.0.1", :description => "desc" }
+    attrs = { name: "libvirt_default_console_address", value: '192.168.1.1' }
     assert Setting.create!(attrs)
     setting = Setting.find_by_name("libvirt_default_console_address")
     setting.value = "192.168.100.122"
@@ -368,39 +271,6 @@ class SettingTest < ActiveSupport::TestCase
     check_parsed_value "string", "123", "123"
   end
 
-  test "parse hash attribute raises exception without settings_type" do
-    setting = Setting.new(:name => "foo", :default => "default", :settings_type => "hash")
-    assert_raises(Foreman::Exception) do
-      setting.parse_string_value("some_value")
-    end
-  end
-
-  test "parse attribute without settings_type defaults to string" do
-    setting = Setting.new(:name => "foo", :default => "default")
-    setting.parse_string_value(12345)
-    setting.save
-    assert_equal "string", setting.settings_type
-    assert_equal "12345", setting.value
-  end
-
-  test "parse attribute raises exception for undefined types" do
-    class CustomSetting < Setting
-      TYPES << "custom_type"
-    end
-
-    setting = CustomSetting.new(:name => "foo", :default => "default", :settings_type => "custom_type")
-    assert_raises(Foreman::Exception) do
-      setting.parse_string_value("some_value")
-    end
-  end
-
-  test "create! can update category" do
-    s = Setting.create!(:name => "foo", :value => "bar", :category => "Setting::General", :default => "bar", :description => "baz")
-    assert_equal s.category, "Setting::General"
-    s = Setting.create!(:name => "foo", :category => "Setting::Auth")
-    assert_equal s.category, "Setting::Auth"
-  end
-
   test '.expand_wildcard_string wraps the regexp with \A and \Z' do
     assert Setting.regexp_expand_wildcard_string('a').start_with? '\A'
     assert Setting.regexp_expand_wildcard_string('a').end_with? '\Z'
@@ -418,6 +288,10 @@ class SettingTest < ActiveSupport::TestCase
     assert_equal /\Aa.*\Z|\Ab.*\Z/, Setting.convert_array_to_regexp(['a*', 'b*'])
   end
 
+  test 'convert_array_to_regexp supports ? ' do
+    assert_equal true, Setting.convert_array_to_regexp(['on?????????????.*']).match?('on86bb6c1f143a4.3111')
+  end
+
   test "host's owner should be valid" do
     assert_raises(ActiveRecord::RecordInvalid) do
       Setting[:host_owner] = "xyz"
@@ -427,22 +301,26 @@ class SettingTest < ActiveSupport::TestCase
   private
 
   def check_parsed_value(settings_type, expected_value, string_value)
-    setting = Setting.new(:name => "foo", :default => "default", :settings_type => settings_type)
+    setting = Setting.new(:name => "foo")
+    setting.stubs(settings_type: settings_type)
     setting.parse_string_value(string_value)
 
     assert_equal expected_value, setting.value
   end
 
   def check_parsed_value_failure(settings_type, string_value)
-    setting = Setting.new(:name => "foo", :default => "default", :settings_type => settings_type)
-    setting.parse_string_value(string_value)
+    setting = Setting.new(name: "foo")
+    setting.stubs(settings_type: settings_type)
+    assert_raises Foreman::SettingValueException do
+      setting.parse_string_value(string_value)
+    end
 
-    assert_equal "default", setting.value
+    assert_nil setting.value
     assert setting.errors[:value].join(";").include?("is invalid")
   end
 
   def check_frozen_change(attr_name, value)
-    attrs = { :name => "foo", :default => 5, :description => "test foo" }
+    attrs = { :name => "foo" }
     assert Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
     setting = Setting.find_by_name("foo")
 
@@ -452,7 +330,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   def check_zero_value_not_allowed_for(setting_name)
-    attrs = { :name => setting_name, :value => 0, :default => 30 }
+    attrs = { :name => setting_name, :value => 0 }
     setting = Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
     setting.value = 0
 
@@ -463,7 +341,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   def check_length_must_be_under_8(setting_name)
-    attrs = { :name => setting_name, :default => 30 }
+    attrs = { :name => setting_name }
     setting = Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
     setting.value = 123456789
 
@@ -474,7 +352,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   def check_empty_array_allowed_for(setting_name)
-    attrs = { :name => setting_name, :value => [], :default => [] }
+    attrs = { :name => setting_name, :value => [] }
     setting = Setting.where(:name => attrs[:name]).first || Setting.create(attrs)
     setting.value = []
     assert_valid setting
@@ -483,16 +361,10 @@ class SettingTest < ActiveSupport::TestCase
     assert_valid setting
   end
 
-  def check_correct_type_for(type, value)
-    assert Setting.create(:name => "foo", :default => value, :description => "test foo")
-    assert_equal type, Setting.find_by_name("foo").try(:settings_type)
-  end
-
   def check_properties_saved_and_loaded_ok(options = {})
     assert Setting.where(:name => options[:name]).first || Setting.create(options)
     s = Setting.find_by_name options[:name]
     assert_equal options[:value], s.value
-    assert_equal options[:default], s.default
   end
 
   def check_setting_did_not_save_with(options = {})
@@ -500,43 +372,14 @@ class SettingTest < ActiveSupport::TestCase
     assert !setting.save
   end
 
-  test 'bmc_credentials_accessible may not be disabled with safemode_render disabled' do
-    Setting[:safemode_render] = false
-    bmc = Setting.find_by_name('bmc_credentials_accessible')
-    bmc.value = false
-    refute_valid bmc, :base, 'Unable to disable bmc_credentials_accessible when safemode_render is disabled'
-  end
-
-  test 'safemode_render may not be disabled with bmc_credentials_accessible disabled' do
-    Setting[:bmc_credentials_accessible] = false
-    bmc = Setting.find_by_name('safemode_render')
-    bmc.value = false
-    refute_valid bmc, :base, 'Unable to disable safemode_render when bmc_credentials_accessible is disabled'
-  end
-
-  def sticky_setting
-    'Setting::General'
-  end
-
-  test 'stick_general_first: should unshift all settings of sticky category to the beginning of list' do
-    sorted_list = Setting.stick_general_first
-    assert_equal sticky_setting, sorted_list.keys.first
-  end
-
-  test 'stick_general_first: should work even if general category settings does not exists' do
-    sorted_list = Setting.where.not(:category => sticky_setting).stick_general_first
-    refute_empty sorted_list
-    assert sorted_list.keys.exclude?(sticky_setting)
-  end
-
   test 'orders settings alphabetically' do
     a_name = 'a_foo'
     b_name = 'b_foo'
     c_name = 'c_foo'
-    FactoryBot.create(:setting, :name => b_name, :default => 'whatever', :value => 'whatever',  :full_name => 'B Foo Name')
-    FactoryBot.create(:setting, :name => a_name, :default => 'whatever', :value => 'whatever',  :full_name => 'A Foo Name')
-    FactoryBot.create(:setting, :name => c_name, :default => 'whatever', :value => 'whatever',  :full_name => 'C Foo Name')
-    settings = Setting.live_descendants.select(&:full_name)
+    FactoryBot.create(:setting, :name => b_name, :value => 'whatever')
+    FactoryBot.create(:setting, :name => a_name, :value => 'whatever')
+    FactoryBot.create(:setting, :name => c_name, :value => 'whatever')
+    settings = Setting.live_descendants.select(&:name)
     a_foo = settings.index { |item| item.name == a_name }
     b_foo = settings.index { |item| item.name == b_name }
     c_foo = settings.index { |item| item.name == c_name }
@@ -548,7 +391,7 @@ class SettingTest < ActiveSupport::TestCase
   end
 
   test "should update login page footer text with multiple valid long values" do
-    setting = Setting.find_by_name("login_text")
+    setting = Setting.create(name: 'login_text')
     RFauxFactory.gen_strings(1000).values.each do |value|
       setting.value = value
       assert setting.valid?, "Can't update discovery_prefix setting with valid value #{value}"

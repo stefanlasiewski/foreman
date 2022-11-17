@@ -165,6 +165,20 @@ FactoryBot.define do
       ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
     end
 
+    # pre-netinstall release
+    factory :for_snapshots_ubuntu_18, class: Debian do
+      name { 'Ubuntu' }
+      major { '18' }
+      minor { '04' }
+      type { 'Debian' }
+      release_name { 'focal' }
+      title { 'Ubuntu Focal' }
+      architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
+      media { [FactoryBot.build(:ubuntu_for_snapshots)] }
+      ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
+    end
+
+    # post-netinstall release
     factory :for_snapshots_ubuntu_20, class: Debian do
       name { 'Ubuntu' }
       major { '20' }
@@ -174,6 +188,17 @@ FactoryBot.define do
       title { 'Ubuntu Focal' }
       architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
       media { [FactoryBot.build(:ubuntu_for_snapshots)] }
+      ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
+    end
+
+    factory :for_snapshots_rhel9, class: Redhat do
+      name { 'RHEL' }
+      major { '9' }
+      minor { '0' }
+      type { 'Redhat' }
+      title { 'Red Hat Enterprise Linux 9.0' }
+      architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
+      media { [FactoryBot.build(:rhel_for_snapshots)] }
       ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
     end
 

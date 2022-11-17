@@ -39,12 +39,11 @@ export function activateDatatables() {
   const language = {
     searchPlaceholder: __('Filter...'),
     emptyTable: __('No data available in table'),
-    info: sprintf(
-      __('Showing %s to %s of %s entries'),
-      '_START_',
-      '_END_',
-      '_TOTAL_'
-    ),
+    info: sprintf(__('Showing %(start)s to %(end)s of %(total)s entries'), {
+      start: '_START_',
+      end: '_END_',
+      total: '_TOTAL_',
+    }),
     infoEmpty: __('Showing 0 to 0 of 0 entries'),
     infoFiltered: sprintf(__('(filtered from %s total entries)'), '_MAX_'),
     lengthMenu: sprintf(__('Show %s entries'), '_MENU_'),
@@ -105,6 +104,7 @@ export function activateTooltips(elParam = 'body') {
 
 export function initTypeAheadSelect(input) {
   input.select2({
+    formatNoMatches: __('No matches found'),
     ajax: {
       url: input.data('url'),
       dataType: 'json',
@@ -140,7 +140,7 @@ export { foremanUrl } from './react_app/common/helpers';
 
 export const setTab = () => {
   const urlHash = document.location.hash.split('?')[0];
-  if (urlHash.length) {
+  if (urlHash.length && !urlHash.startsWith('#/')) {
     const tabContent = $(urlHash);
     const parentTab = tabContent.closest('.tab-pane');
     if (parentTab.exists()) {

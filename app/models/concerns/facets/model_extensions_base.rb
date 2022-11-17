@@ -6,8 +6,6 @@ module Facets
 
     included do
       include InstanceMethods
-
-      refresh_facet_relations
     end
 
     module ClassMethods
@@ -19,16 +17,18 @@ module Facets
         config.callback = block
 
         facet_configurations << config
+
+        Facets.registered_facets.values.each do |entry|
+          register_facet_relation_for_type(entry, config) if entry.has_configuration(config.facet_type)
+        end
+
+        Facets.after_entry_created do |entry|
+          register_facet_relation_for_type(entry, config) if entry.has_configuration(config.facet_type)
+        end
       end
 
       def facet_configurations
         @facet_configurations ||= []
-      end
-
-      def refresh_facet_relations
-        Facets.registered_facets.values.each do |facet_config|
-          register_facet_relation(facet_config)
-        end
       end
 
       # This method is used to add all relation objects necessary for accessing facet from the host object.
@@ -41,16 +41,20 @@ module Facets
       #    host.foo # => will call Host.my_facet.foo
       def register_facet_relation(facet_config)
         facet_configurations.each do |extension_config|
-          return unless facet_config.has_configuration(extension_config.facet_type)
-          type_config = facet_config.send "#{extension_config.facet_type}_configuration"
-          facet_name = facet_config.name
-
-          extend_model_attributes(type_config, facet_name, extension_config)
-          extend_model(type_config, facet_name)
-          handle_migrations(type_config, facet_name)
-
-          extension_config.callback&.call(facet_config)
+          register_facet_relation_for_type(facet_config, extension_config)
         end
+      end
+
+      def register_facet_relation_for_type(facet_config, extension_config)
+        return unless facet_config.has_configuration(extension_config.facet_type)
+        type_config = facet_config.send "#{extension_config.facet_type}_configuration"
+        facet_name = facet_config.name
+
+        extend_model_attributes(type_config, facet_name, extension_config)
+        extend_model(type_config, facet_name)
+        handle_migrations(type_config, facet_name)
+
+        extension_config.callback&.call(facet_config)
       end
 
       def handle_migrations(type_config, facet_name)
@@ -121,6 +125,23 @@ module Facets
           entries.concat(Facets.facets_for_type(config.facet_type))
         end
         entries
+      end
+
+      private
+
+      # Overrides ActiveRecord::NestedAttributes#call_reject_if
+      # we want to reject empty attributes only for new facets
+      # the existing record is already fetched so checking the record itself doesn't create overhead
+      # it is fetched in nested_attributes in:
+      # https://github.com/rails/rails/blob/6bfc637659248df5d6719a86d2981b52662d9b50/activerecord/lib/active_record/nested_attributes.rb#L411
+      def call_reject_if(association_name, attributes)
+        is_facet_assoc = facet_definitions.detect { |definition| definition.name.to_s == association_name.to_s }
+        if is_facet_assoc
+          # reject only if record doesn't exist yet
+          send(association_name).nil? && super
+        else
+          super
+        end
       end
     end
 

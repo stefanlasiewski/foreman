@@ -29,7 +29,10 @@ import {
   selectSearchQuery,
   selectShowError,
   selectTheme,
+  selectAutocompletion,
+  selectLiveAutocompletion,
   selectValue,
+  selectTemplateKindId,
 } from './EditorSelectors';
 
 // map state to props
@@ -56,7 +59,10 @@ const mapStateToProps = state => ({
   selectedView: selectChosenView(state),
   showError: selectShowError(state),
   theme: selectTheme(state),
+  autocompletion: selectAutocompletion(state),
+  liveAutocompletion: selectLiveAutocompletion(state),
   value: selectValue(state),
+  templateKindId: selectTemplateKindId(state),
 });
 
 // map action dispatchers to props

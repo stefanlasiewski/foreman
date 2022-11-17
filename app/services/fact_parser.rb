@@ -6,21 +6,8 @@ class FactParser
   ALIASES = /(\A[a-z0-9\.]+):([a-z0-9]+)\Z/
   VLANS = /\A([a-z0-9]+)\.([0-9]+)\Z/
   VIRTUAL_NAMES = /#{ALIASES}|#{VLANS}|#{VIRTUAL}|#{BRIDGES}|#{BONDS}/
-
-  def self.parser_for(type)
-    Foreman::Deprecation.deprecation_warning('3.2', 'FactParser.parser_for() is deprecated, use FactParserRegistry[] instead')
-    Foreman::Plugin.fact_parser_registry[type]
-  end
-
-  def self.parsers
-    Foreman::Deprecation.deprecation_warning('3.2', 'FactParser.parsers is deprecated, use FactParserRegistry.parsers instead')
-    Foreman::Plugin.fact_parser_registry.parsers
-  end
-
-  def self.register_fact_parser(key, klass, default = false)
-    Foreman::Deprecation.deprecation_warning('3.2', 'FactParser.register_fact_parser() is deprecated, use FactParserRegistry.register() instead')
-    Foreman::Plugin.fact_parser_registry.register(key, klass, default)
-  end
+  # spend 500ms per IP on primary interface lookup
+  PRIMARY_INTERFACE_RESOLVE_TIMEOUTS = [0.50]
 
   attr_reader :facts
 
@@ -138,18 +125,30 @@ class FactParser
   def disks_total
   end
 
+  # Kernel version
+  def kernel_version
+  end
+
+  # @return [Hash] bios information
+  def bios
+    {}
+  end
+
   private
 
   def find_interface_by_name(host_name)
+    resolver = Resolv::DNS.new
+    resolver.timeouts = PRIMARY_INTERFACE_RESOLVE_TIMEOUTS
     interfaces.detect do |int, values|
       if (ip = values[:ipaddress]).present?
         begin
-          if Resolv::DNS.new.getnames(ip).any? { |name| name.to_s == host_name }
-            logger.debug { "resolved #{host_name} for #{ip}, #{int} is selected as primary" }
+          logger.debug { "Resolving fact '#{ip}' via DNS to match reported hostname #{host_name}" }
+          if resolver.getnames(ip).any? { |name| name.to_s == host_name }
+            logger.debug { "Match: '#{ip}', interface #{int} is selected as primary" }
             return [int, values]
           end
         rescue Resolv::ResolvError => e
-          logger.debug { "could not resolv name for #{ip} because of #{e} #{e.message}" }
+          logger.debug { "Could not resolv name for #{ip} because of #{e} #{e.message}" }
           nil
         end
       end

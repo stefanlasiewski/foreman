@@ -16,7 +16,7 @@ Foreman::Application.configure do |app|
   # config.action_dispatch.rack_cache = true
 
   # Disable Rails's static asset server (Apache or nginx will already do this).
-  config.public_file_server.enabled = true
+  config.public_file_server.enabled = false
 
   # Compress JavaScripts and CSS.
   config.assets.js_compressor = :uglifier
@@ -59,7 +59,7 @@ Foreman::Application.configure do |app|
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
-  config.i18n.fallbacks = [I18n.default_locale]
+  config.i18n.fallbacks = true
 
   # Send deprecation notices to registered listeners.
   config.active_support.deprecation = :notify
@@ -77,4 +77,6 @@ Foreman::Application.configure do |app|
 
   # Log denied attributes into logger
   config.action_controller.action_on_unpermitted_parameters = :log
+
+  config.hosts += SETTINGS[:hosts]
 end
