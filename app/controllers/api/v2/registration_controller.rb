@@ -15,18 +15,32 @@ module Api
       end
 
       api :GET, '/register', N_('Render Global registration template')
-      param :organization_id, :number, desc: N_("ID of the Organization to register the host in")
-      param :location_id, :number, desc: N_("ID of the Location to register the host in")
-      param :hostgroup_id, :number, desc: N_("ID of the Host group to register the host in")
-      param :operatingsystem_id, :number, desc: N_("ID of the Operating System to register the host in")
+      param :organization_id, :number, desc: N_("ID of the Organization to register the host in. Takes precedence over the `organization` parameter")
+      param :organization, String, desc: N_("Title of the Organization to register the host in")
+      param :location_id, :number, desc: N_("ID of the Location to register the host in. Takes precedence over the `location` parameter")
+      param :location, String, desc: N_("Title of the Location to register the host in")
+      param :hostgroup_id, :number, desc: N_("ID of the Host group to register the host in. Takes precedence over the `hostgroup` parameter")
+      param :hostgroup, String, desc: N_("Title of the Host group to register the host in")
+      param :operatingsystem_id, :number, desc: N_("ID of the Operating System to register the host in. Takes precedence over the `operatingsystem` parameter")
+      param :operatingsystem, String, desc: N_("Title of the Operating System to register the host in")
       param :setup_insights, :bool, desc: N_("Set 'host_registration_insights' parameter for the host. If it is set to true, insights client will be installed and registered on Red Hat family operating systems")
       param :setup_remote_execution, :bool, desc: N_("Set 'host_registration_remote_execution' parameter for the host. If it is set to true, SSH keys will be installed on the host")
       param :packages, String, desc: N_("Packages to install on the host when registered. Can be set by `host_packages` parameter, example: `pkg1 pkg2`")
       param :update_packages, :bool, desc: N_("Update all packages on the host")
-      param :repo, String, desc: N_("Repository URL / details, for example for Debian OS family: 'deb http://deb.example.com/ buster 1.0', for Red Hat OS family: 'http://yum.theforeman.org/client/latest/el8/x86_64/'")
-      param :repo_gpg_key_url, String, desc: N_("URL of the GPG key for the repository")
+      param :repo, String, desc: N_("DEPRECATED, use the `repo_data` param instead."), deprecated: true
+      param :repo_gpg_key_url, String, desc: N_("DEPRECATED, use the `repo_data` param instead."), deprecated: true
+
+      param :repo_data, Array, desc: N_("Array with repository URL and corresponding GPG key URL") do
+        param :repo, String, desc: N_("Repository URL / details, for example, for Debian OS family: 'deb http://deb.example.com/ buster 1.0', for Red Hat OS family: 'http://yum.theforeman.org/client/latest/el8/x86_64/'")
+        param :repo_gpg_key_url, String, desc: N_("URL of the GPG key for the repository")
+      end
+      param :download_utility, ["curl", "wget"], desc: N_("The download utility to use during host registration")
       def global
         find_global_registration
+
+        if params[:repo] || params[:repo_gpg_key_url]
+          Foreman::Deprecation.api_deprecation_warning("Use repo_data parameter instead of repo and repo_gpg_key_url. These will be removed soon.")
+        end
 
         unless @provisioning_template
           not_found _('Global Registration Template with name %s defined via default_global_registration_item Setting not found, please configure the existing template name first') % Setting[:default_global_registration_item]
@@ -62,7 +76,7 @@ module Api
         param :interfaces_attributes, Array, desc: N_("Host's network interfaces") do
           param_group :interface_attributes, ::Api::V2::InterfacesController
         end
-        Facets.registered_facets.values.each do |facet_config|
+        Facets.registered_facets.each_value do |facet_config|
           next unless facet_config.host_configuration.api_param_group && facet_config.host_configuration.api_controller
           param "#{facet_config.name}_attributes".to_sym, Hash, desc: facet_config.api_param_group_description || (N_("Parameters for host's %s facet") % facet_config.name) do
             facet_config.host_configuration.load_api_controller
@@ -92,7 +106,11 @@ module Api
           return
         end
 
-        @host.setBuild
+        # Do not rebuild managed hosts
+        # Hosts registered with subscription-manager are created
+        # as a Host::Managed, but have @host.managed? => false
+        # https://projects.theforeman.org/issues/36393
+        @host.setBuild unless @host.managed?
         safe_render(@template)
       end
 

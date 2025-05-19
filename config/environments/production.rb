@@ -16,10 +16,10 @@ Foreman::Application.configure do |app|
   # config.action_dispatch.rack_cache = true
 
   # Disable Rails's static asset server (Apache or nginx will already do this).
-  config.public_file_server.enabled = false
+  config.public_file_server.enabled = ENV.fetch('RAILS_SERVE_STATIC_FILES', false) == 'true'
 
   # Compress JavaScripts and CSS.
-  config.assets.js_compressor = :uglifier
+  config.assets.js_compressor = :terser
   # config.assets.css_compressor = :sass
 
   # Do not fallback to assets pipeline if a precompiled asset is missed.
@@ -72,8 +72,6 @@ Foreman::Application.configure do |app|
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
-
-  config.webpack.dev_server.enabled = false
 
   # Log denied attributes into logger
   config.action_controller.action_on_unpermitted_parameters = :log

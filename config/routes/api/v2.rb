@@ -3,6 +3,10 @@ Foreman::Application.routes.draw do
   namespace :api, :defaults => {:format => 'json'} do
     # new v2 routes that point to v2
     scope "(:apiv)", :module => :v2, :defaults => {:apiv => 'v2'}, :apiv => /v2/, :constraints => ApiConstraints.new(:version => 2, :default => true) do
+      match 'hosts/bulk', :to => 'hosts_bulk_actions#bulk_destroy', :via => [:delete]
+      match 'hosts/bulk/build', :to => 'hosts_bulk_actions#build', :via => [:put]
+      match 'hosts/bulk/reassign_hostgroup', :to => 'hosts_bulk_actions#reassign_hostgroup', :via => [:put]
+
       resources :architectures, :except => [:new, :edit] do
         constraints(:id => /[^\/]+/) do
           resources :hosts, :except => [:new, :edit]
@@ -156,6 +160,7 @@ Foreman::Application.routes.draw do
       resources :permissions, :only => [:index, :show] do
         collection do
           get :resource_types
+          get :current_permissions
         end
       end
 
@@ -213,6 +218,13 @@ Foreman::Application.routes.draw do
           resources :mail_notifications, :only => [:create, :destroy, :update]
           get 'mail_notifications', :to => 'mail_notifications#user_mail_notifications', :on => :member
           get 'extlogin', :to => 'users#extlogin', :on => :collection
+          delete 'registration_tokens', :to => 'registration_tokens#invalidate_jwt', :on => :member
+        end
+      end
+
+      resources :registration_tokens, :only => [:invalidate_jwt_tokens] do
+        collection do
+          delete '/', :action => :invalidate_jwt_tokens
         end
       end
 
@@ -309,6 +321,7 @@ Foreman::Application.routes.draw do
           get :power, :on => :member, :action => :power_status
           put :power, :on => :member
           put :rebuild_config, :on => :member
+          get :inherited_parameters, :on => :member
           post :facts, :on => :collection
           resources :audits, :only => :index
           resources :facts, :only => :index, :controller => :fact_values

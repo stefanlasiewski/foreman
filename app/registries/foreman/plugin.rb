@@ -14,13 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
-require_dependency 'foreman/plugin/logging'
-require_dependency 'foreman/plugin/report_scanner_registry'
-require_dependency 'foreman/plugin/report_origin_registry'
-require_dependency 'foreman/plugin/medium_providers_registry'
-require_dependency 'foreman/plugin/fact_importer_registry'
-
 module Foreman #:nodoc:
   class PluginNotFound < Foreman::Exception; end
   class PluginRequirementError < Foreman::Exception; end
@@ -50,8 +43,7 @@ module Foreman #:nodoc:
     @registries = {}
 
     class << self
-      attr_reader   :registered_plugins
-      attr_reader   :registries
+      attr_reader :registered_plugins, :registries
       attr_accessor :tests_to_skip
       private :new
 
@@ -159,7 +151,7 @@ module Foreman #:nodoc:
     attr_reader :id, :logging, :provision_methods, :compute_resources, :to_prepare_callbacks,
       :facets, :rbac_registry, :dashboard_widgets, :info_providers, :smart_proxy_references,
       :renderer_variable_loaders, :host_ui_description, :hostgroup_ui_description, :ping_extension, :status_extension,
-      :allowed_registration_vars, :observable_events
+      :allowed_registration_vars, :observable_events, :gettext_domain, :locale_path, :preload_scopes
 
     delegate :fact_importer_registry, :fact_parser_registry, :graphql_types_registry, :medium_providers_registry, :report_scanner_registry, :report_origin_registry, to: :class
 
@@ -188,6 +180,9 @@ module Foreman #:nodoc:
       @status_extension = nil
       @allowed_registration_vars = []
       @observable_events = []
+      @gettext_domain = nil
+      @locale_path = nil
+      @preload_scopes = {}
     end
 
     def engine
@@ -567,6 +562,11 @@ module Foreman #:nodoc:
       @status_extension = block
     end
 
+    def register_gettext(domain: nil)
+      @gettext_domain = domain || @id.to_s
+      @locale_path = engine.root.join('locale')
+    end
+
     def extend_graphql_type(type:, with_module: nil, &block)
       graphql_types_registry.register_extension(type: type, with_module: with_module, &block)
     end
@@ -593,6 +593,11 @@ module Foreman #:nodoc:
 
     def extend_observable_events(events)
       (@observable_events << events).flatten!.uniq!
+    end
+
+    def extend_preload_scopes(model, scopes)
+      @preload_scopes[model.to_s] ||= []
+      (@preload_scopes[model.to_s] << scopes).flatten!.uniq!
     end
 
     delegate :subscribe, to: ActiveSupport::Notifications

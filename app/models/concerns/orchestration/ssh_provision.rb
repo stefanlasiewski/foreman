@@ -1,4 +1,4 @@
-module Orchestration::SSHProvision
+module Orchestration::SshProvision
   extend ActiveSupport::Concern
 
   included do
@@ -20,11 +20,11 @@ module Orchestration::SSHProvision
   # I guess this is not going to happen on create as we might not have an ip address yet.
   def queue_ssh_provision_create
     post_queue.create(:name   => _("Prepare post installation script for %s") % self, :priority => 2000,
-                 :action => [self, :setSSHProvisionScript])
+      :action => [self, :setSSHProvisionScript])
     post_queue.create(:name   => _("Wait for %s to come online") % self, :priority => 2001,
-                 :action => [self, :setSSHWaitForResponse])
+      :action => [self, :setSSHWaitForResponse])
     post_queue.create(:name   => _("Configure instance %s via SSH") % self, :priority => 2003,
-                 :action => [self, :setSSHProvision])
+      :action => [self, :setSSHProvision])
   end
 
   def queue_ssh_provision_update
@@ -51,7 +51,7 @@ module Orchestration::SSHProvision
     else
       raise ::Foreman::Exception.new(N_('Unable to find proper authentication method'))
     end
-    self.client = Foreman::Provision::SSH.new provision_host, image.try(:username), { :template => template_file.path, :uuid => uuid }.merge(credentials)
+    self.client = Foreman::Provision::Ssh.new provision_host, image.try(:username), { :template => template_file.path, :uuid => uuid }.merge(credentials)
   rescue => e
     failure _("Failed to login via SSH to %{name}: %{e}") % { :name => name, :e => e }, e
   end
@@ -99,6 +99,6 @@ module Orchestration::SSHProvision
 
   def provision_host
     # usually cloud compute resources provide IPs but virtualization do not
-    provision_interface.ip || provision_interface.fqdn
+    provision_interface.ip6.presence || provision_interface.ip.presence || provision_interface.fqdn
   end
 end

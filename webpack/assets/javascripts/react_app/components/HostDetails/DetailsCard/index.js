@@ -7,7 +7,6 @@ import {
   DescriptionListGroup,
   DescriptionListDescription,
   Card,
-  CardActions,
   CardHeader,
   CardTitle,
   CardBody,
@@ -24,6 +23,7 @@ import { STATUS } from '../../../constants';
 import DefaultLoaderEmptyState from './DefaultLoaderEmptyState';
 import PowerStatusDropDown from './PowerStatus/PowerStatusDropDown';
 import { foremanUrl } from '../../../common/helpers';
+import { InlineEdit } from '../InlineEdit';
 
 import './styles.scss';
 
@@ -37,21 +37,30 @@ const DetailsCard = ({
     comment,
     owner_id: ownerID,
     owner_name: ownerName,
+    hostgroup_title: hostgroupTitle,
     hostgroup_name: hostgroupName,
     hostgroup_id: hostgroupId,
-    permissions: { power_hosts: hasPowerPermission } = {},
+    permissions: {
+      power_hosts: hasPowerPermission,
+      edit_hosts: editPermission,
+    } = {},
   },
 }) => (
   <GridItem xl2={3} xl={4} md={6} lg={4} rowSpan={2}>
     <Card ouiaId="details-card">
-      <CardHeader>
+      <CardHeader
+        actions={{
+          actions: (
+            <>
+              <PowerStatusDropDown
+                hostID={hostName}
+                hasPowerPermission={hasPowerPermission}
+              />
+            </>
+          ),
+        }}
+      >
         <CardTitle>{__('Details')}</CardTitle>
-        <CardActions>
-          <PowerStatusDropDown
-            hostID={hostName}
-            hasPowerPermission={hasPowerPermission}
-          />
-        </CardActions>
       </CardHeader>
       <CardBody>
         <DescriptionList>
@@ -116,20 +125,28 @@ const DetailsCard = ({
                     justifyContent={{ default: 'justifyContentSpaceBetween' }}
                   >
                     <FlexItem>
-                      <Button
-                        component="a"
-                        href={foremanUrl(
-                          `/hosts?search=hostgroup="${hostgroupName}"`
+                      <span>
+                        {hostgroupTitle?.substring(
+                          0,
+                          hostgroupTitle?.lastIndexOf(hostgroupName)
                         )}
-                        variant="link"
-                        target="_blank"
-                        isInline
-                      >
-                        {hostgroupName}
-                      </Button>
+                        <Button
+                          ouiaId="host-group-link"
+                          component="a"
+                          href={foremanUrl(
+                            `/hosts?search=hostgroup="${hostgroupName}"`
+                          )}
+                          variant="link"
+                          target="_blank"
+                          isInline
+                        >
+                          {hostgroupName}
+                        </Button>
+                      </span>
                     </FlexItem>
                     <FlexItem>
                       <Button
+                        ouiaId="host-group-edit-link"
                         component="a"
                         href={foremanUrl(
                           `/hostgroups/${hostgroupId}-${(
@@ -170,7 +187,12 @@ const DetailsCard = ({
                 emptyState={<DefaultLoaderEmptyState />}
                 status={status}
               >
-                {comment}
+                <InlineEdit
+                  name="comment"
+                  defaultValue={comment}
+                  hostName={hostName}
+                  editPermission={editPermission}
+                />
               </SkeletonLoader>
             </DescriptionListDescription>
           </DescriptionListGroup>
@@ -185,6 +207,7 @@ DetailsCard.propTypes = {
   status: PropTypes.string,
   hostDetails: PropTypes.shape({
     comment: PropTypes.string,
+    hostgroup_title: PropTypes.string,
     hostgroup_name: PropTypes.string,
     hostgroup_id: PropTypes.number,
     ip: PropTypes.string,
@@ -201,6 +224,7 @@ DetailsCard.defaultProps = {
   status: STATUS.PENDING,
   hostDetails: {
     comment: undefined,
+    hostgroup_title: undefined,
     hostgroup_name: undefined,
     hostgroup_id: undefined,
     ip: undefined,

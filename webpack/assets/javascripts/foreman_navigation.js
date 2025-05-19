@@ -1,10 +1,8 @@
-/* eslint-disable jquery/no-show */
-
-import $ from 'jquery';
 import URI from 'urijs';
 import { push } from 'connected-react-router';
 import store from './react_app/redux';
 import * as LayoutActions from './react_app/components/Layout/LayoutActions';
+import { deprecate } from './react_app/common/DeprecationService';
 
 export const visit = url => {
   window.location.href = url;
@@ -32,17 +30,6 @@ export const hideLoading = () => {
   store.dispatch(LayoutActions.hideLoading());
 };
 
-export const changeActive = active => {
-  store.dispatch(LayoutActions.changeActiveMenu({ title: active }));
+export const changeActive = () => {
+  deprecate('changeActive', '', '3.8');
 };
-
-export function showContent(layout, unsubscribe) {
-  const content = () => {
-    $('#content').show();
-    unsubscribe();
-  };
-  // workaround for pages with no layout object
-  if (layout.items.length && !layout.isLoading) {
-    content();
-  } else if ($('#layout').length === 0) content();
-}

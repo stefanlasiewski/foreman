@@ -15,13 +15,6 @@ class SettingsControllerTest < ActionController::TestCase
     end
     Foreman.settings.load
     get :index, session: set_session_user
-    assert_match /id='valid'/, @response.body
-  end
-
-  test "does not render an old sti type setting" do
-    assert setting = Setting.create(:name => "foo")
-    setting.send(:write_attribute, :category, "Setting::Invalid")
-    get :index, session: set_session_user
-    assert_no_match /id='Invalid'/, @response.body
+    assert_match /id='valid_settings_tab'/, @response.body
   end
 end

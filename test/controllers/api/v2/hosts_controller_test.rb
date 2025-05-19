@@ -78,9 +78,13 @@ class Api::V2::HostsControllerTest < ActionController::TestCase
     compute_attrs.vm_interfaces[index].update("from_profile" => compute_attrs.compute_profile.name)
   end
 
-  def expect_attribute_modifier(modifier_class, args)
+  def expect_attribute_modifier(modifier_class, **args)
     modifier = mock(modifier_class.name)
-    modifier_class.expects(:new).with(*args).returns(modifier)
+    if args.any? # TODO: The else statement can be removed once we fully switched to Ruby 3
+      modifier_class.expects(:new).with(**args).returns(modifier)
+    else
+      modifier_class.expects(:new).returns(modifier)
+    end
     Host.any_instance.expects(:apply_compute_profile).with(modifier)
   end
 
@@ -277,7 +281,7 @@ class Api::V2::HostsControllerTest < ActionController::TestCase
     post :create, params: { :host => valid_attrs }
     host = Host.find(JSON.parse(@response.body)['id'])
     assert_not_equal host.root_pass, 'password'
-    assert host.root_pass.starts_with?('$5$')
+    assert host.root_pass.starts_with?('$6$')
   end
 
   test "should create host with host_parameters_attributes" do
@@ -365,24 +369,15 @@ class Api::V2::HostsControllerTest < ActionController::TestCase
 
   test "create applies attribute modifiers on the new host" do
     disable_orchestration
-    expect_attribute_modifier(ComputeAttributeMerge, [])
-    expect_attribute_modifier(InterfaceMerge, [{:merge_compute_attributes => true}])
+    expect_attribute_modifier(ComputeAttributeMerge)
+    expect_attribute_modifier(InterfaceMerge, :merge_compute_attributes => true)
     post :create, params: { :host => valid_attrs }
   end
 
-  test "update applies attribute modifiers on the host" do
-    disable_orchestration
-    expect_attribute_modifier(ComputeAttributeMerge, [])
-    expect_attribute_modifier(InterfaceMerge, [{:merge_compute_attributes => true}])
-    put :update, params: { :id => @host.to_param, :host => valid_attrs }
-  end
-
-  test "update applies attribute modifiers on the host when compute profile is changed" do
-    disable_orchestration
-    expect_attribute_modifier(ComputeAttributeMerge, [])
-    expect_attribute_modifier(InterfaceMerge, [{:merge_compute_attributes => true}])
-
+  test "The update of the host does not apply the compute profile" do
     compute_attrs = compute_attributes(:with_interfaces)
+
+    Host.any_instance.expects(:apply_compute_profile).never
     put :update, params: { :id => @host.to_param, :host => basic_attrs_with_profile(compute_attrs) }
   end
 
@@ -423,22 +418,6 @@ class Api::V2::HostsControllerTest < ActionController::TestCase
     assert_response :success
     assert_equal('Nic::Bond', Nic::Base.find(nic_id).type)
     assert_equal('newname', Nic::Base.find(nic_id).name)
-  end
-
-  test "should update interfaces from compute profile" do
-    disable_orchestration
-
-    compute_attrs = compute_attributes(:with_interfaces)
-
-    put :update, params: { :id => @host.to_param, :host => basic_attrs_with_profile(compute_attrs) }
-    assert_response :success
-
-    as_admin do
-      @host.interfaces.reload
-      assert_equal compute_attrs.vm_interfaces.count, @host.interfaces.count
-      assert_equal expected_compute_attributes(compute_attrs, 0), @host.interfaces.find_by_primary(true).compute_attributes
-      assert_equal expected_compute_attributes(compute_attrs, 1), @host.interfaces.find_by_primary(false).compute_attributes
-    end
   end
 
   test "should update host without :host root node and rails wraps it correctly" do
@@ -832,7 +811,7 @@ class Api::V2::HostsControllerTest < ActionController::TestCase
     end
 
     test "boot call to interface" do
-      ProxyAPI::BMC.any_instance.stubs(:boot).with(:function => 'bootdevice', :device => 'bios').
+      ProxyAPI::BMC.any_instance.stubs(:boot).with({ :function => 'bootdevice', :device => 'bios' }).
                                               returns({ "action" => "bios", "result" => true } .to_json)
       put :boot, params: { :id => @bmchost.to_param, :device => 'bios' }
       assert_response :success
@@ -860,7 +839,7 @@ class Api::V2::HostsControllerTest < ActionController::TestCase
 
       test 'responds correctly for non-admin user if BMC is available' do
         ProxyAPI::BMC.any_instance.stubs(:boot).
-          with(:function => 'bootdevice', :device => 'bios').
+          with({ :function => 'bootdevice', :device => 'bios' }).
           returns({ "action" => "bios", "result" => true } .to_json)
         put :boot, params: { :id => @bmchost.to_param, :device => 'bios' },
           session: set_session_user.merge(:user => @one.id)
@@ -921,7 +900,7 @@ class Api::V2::HostsControllerTest < ActionController::TestCase
 
     test "should return empty host list by unassigned hostgroup id" do
       get :index, params: { :hostgroup_id => @unassigned_hg2.id }
-      assert_equal [], assigns(:hosts)
+      assert_empty assigns(:hosts)
     end
 
     test "should return a host in list" do

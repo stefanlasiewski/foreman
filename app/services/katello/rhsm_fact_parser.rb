@@ -1,7 +1,4 @@
 module Katello
-  REDHAT_ATOMIC_HOST_DISTRO_NAME = "Red Hat Enterprise Linux Atomic Host".freeze
-  REDHAT_ATOMIC_HOST_OS = "RedHat_Enterprise_Linux_Atomic_Host".freeze
-
   class RhsmFactParser < ::FactParser
     def architecture
       name = facts['lscpu.architecture'] || facts['uname.machine']
@@ -55,7 +52,7 @@ module Katello
       return nil if name.nil? || version.nil?
 
       os_name = distribution_to_puppet_os(name)
-      major, minor = version.split('.')
+      (major, minor) = ::Operatingsystem.os_major_minor_from_version_str(os_name, version)
       unless facts['ignore_os']
         os_attributes = {:major => major, :minor => minor || '', :name => os_name}
 
@@ -76,7 +73,13 @@ module Katello
           os_attributes[:name] = "CentOS"
         end
 
-        ::Operatingsystem.find_or_create_by(os_attributes)
+        os = ::Operatingsystem.find_by(os_attributes)
+        if os.blank?
+          created = ::Operatingsystem.create_or_find_by(os_attributes)
+          created.errors.any? ? ::Operatingsystem.find_by(os_attributes) : created
+        else
+          os
+        end
       end
     end
 
@@ -146,28 +149,26 @@ module Katello
     end
 
     def distribution_to_puppet_os(name)
-      return REDHAT_ATOMIC_HOST_OS if name == REDHAT_ATOMIC_HOST_DISTRO_NAME
-
-      name = name.downcase
-      if name =~ /red\s*hat/
+      case name.downcase
+      when /red\s*hat/
         'RedHat'
-      elsif name =~ /centos/
+      when /centos/
         'CentOS'
-      elsif name =~ /fedora/
+      when /fedora/
         'Fedora'
-      elsif name =~ /sles/ || name =~ /suse.*enterprise.*/
+      when /sles/, /suse.*enterprise.*/
         'SLES'
-      elsif name =~ /debian/
+      when /debian/
         'Debian'
-      elsif name =~ /ubuntu/
+      when /ubuntu/
         'Ubuntu'
-      elsif name =~ /oracle/
+      when /oracle/
         'OracleLinux'
-      elsif name =~ /almalinux/
+      when /almalinux/
         'AlmaLinux'
-      elsif name =~ /rocky/
+      when /rocky/
         'Rocky'
-      elsif name =~ /amazon/
+      when /amazon/
         'Amazon'
       else
         'Unknown'

@@ -1,0 +1,20 @@
+name: Container build
+
+on: pull_request
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.ref_name }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build container
+        uses: docker/build-push-action@v5
+        with:
+          tags: quay.io/foreman/foreman:pr

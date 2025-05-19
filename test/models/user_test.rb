@@ -99,7 +99,7 @@ class UserTest < ActiveSupport::TestCase
 
   test 'should update with multiple valid firstname' do
     user = users(:one)
-    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).values.each do |firstname|
+    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).each_value do |firstname|
       user.firstname = firstname
       assert user.valid?, "Can't update user with valid firstname #{firstname}"
     end
@@ -107,7 +107,7 @@ class UserTest < ActiveSupport::TestCase
 
   test 'should update with multiple valid lastname' do
     user = users(:one)
-    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).values.each do |lastname|
+    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).each_value do |lastname|
       user.lastname = lastname
       assert user.valid?, "Can't update user with valid lastname #{lastname}"
     end
@@ -115,7 +115,7 @@ class UserTest < ActiveSupport::TestCase
 
   test 'should update with multiple valid username' do
     user = users(:apiadmin)
-    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).values.each do |login|
+    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).each_value do |login|
       user.login = login
       assert user.valid?, "Can't update user with valid login #{login}"
     end
@@ -157,19 +157,31 @@ class UserTest < ActiveSupport::TestCase
     refute u.valid?
   end
 
-  test "mail is required for own user" do
-    user = FactoryBot.create(:user)
-    user.password = nil
-    # refute_valid user can check only one field and due to we need to set password to nil after adding current_password field to verify password change
-    as_user user do
-      refute_valid user, :mail
-    end
-  end
-
   test "hidden users don't need mail when updating" do
     u = User.anonymous_admin
-    u.firstname = 'Bob'
+    u.mail_enabled = true
     assert_valid u
+  end
+
+  test ".with_enabled_email gives only the right users" do
+    # Mail enabled
+    u1 = FactoryBot.create(:user, :mail => 'foo@bar.baz', :mail_enabled => nil)
+    u2 = FactoryBot.create(:user, :mail => 'foo@bar.baz', :mail_enabled => '')
+    assert_empty User.with_enabled_email.where(login: [u1, u2].map(&:login))
+
+    # Mail missing
+    u1 = FactoryBot.create(:user, :mail => '', :mail_enabled => true)
+    u2 = FactoryBot.create(:user, :mail => nil, :mail_enabled => true)
+    assert_empty User.with_enabled_email.where(login: [u1, u2].map(&:login))
+
+    # Disabled
+    u1 = FactoryBot.create(:user, :mail => 'foo@bar.baz', :mail_enabled => true, :disabled => false)
+    u2 = FactoryBot.create(:user, :mail => 'foo@bar.baz', :mail_enabled => true, :disabled => nil)
+    u3 = FactoryBot.create(:user, :mail => 'foo@bar.baz', :mail_enabled => true, :disabled => true)
+    actual = User.with_enabled_email.where(login: [u1, u2, u3].map(&:login))
+    assert_includes actual, u1
+    assert_includes actual, u2
+    assert_equal actual.count, 2
   end
 
   test 'login should also be unique across usergroups' do
@@ -335,9 +347,9 @@ class UserTest < ActiveSupport::TestCase
   test "user with create permissions should be able to create" do
     setup_user "create"
     record = User.new :login => "dummy", :mail => "j@j.com",
-                      :auth_source_id => AuthSourceInternal.first.id,
-                      :organizations => User.current.organizations,
-                      :locations => User.current.locations
+      :auth_source_id => AuthSourceInternal.first.id,
+      :organizations => User.current.organizations,
+      :locations => User.current.locations
     record.password_hash = "asd"
     assert record.save
     assert record.valid?
@@ -362,8 +374,8 @@ class UserTest < ActiveSupport::TestCase
       create_role = Role.find_by_name 'create_users'
       extra_role = Role.where(:name => "foobar").first_or_create
       record = User.new :login => "dummy", :mail => "j@j.com", :auth_source_id => AuthSourceInternal.first.id,
-                        :role_ids => [extra_role.id, create_role.id].map(&:to_s),
-                        :organizations => users(:one).organizations, :locations => users(:one).locations
+        :role_ids => [extra_role.id, create_role.id].map(&:to_s),
+        :organizations => users(:one).organizations, :locations => users(:one).locations
     end
     record.password_hash = "asd"
     refute record.save
@@ -376,10 +388,10 @@ class UserTest < ActiveSupport::TestCase
     setup_user "create"
     create_role          = Role.find_by_name 'create_users'
     record               = User.new(:login => "dummy", :mail => "j@j.com",
-                                    :auth_source_id => AuthSourceInternal.first.id,
-                                    :role_ids => [create_role.id.to_s],
-                                    :organizations => User.current.organizations,
-                                    :locations => User.current.locations)
+      :auth_source_id => AuthSourceInternal.first.id,
+      :role_ids => [create_role.id.to_s],
+      :organizations => User.current.organizations,
+      :locations => User.current.locations)
     record.password_hash = "asd"
     assert record.valid?
     assert record.save
@@ -390,10 +402,10 @@ class UserTest < ActiveSupport::TestCase
     as_admin do
       extra_role           = Role.where(:name => "foobar").first_or_create
       record               = User.new(:login => "dummy", :mail => "j@j.com",
-                                      :auth_source_id => AuthSourceInternal.first.id,
-                                      :role_ids => [extra_role.id.to_s],
-                                      :organizations => User.current.organizations,
-                                      :locations => User.current.locations)
+        :auth_source_id => AuthSourceInternal.first.id,
+        :role_ids => [extra_role.id.to_s],
+        :organizations => User.current.organizations,
+        :locations => User.current.locations)
       record.password_hash = "asd"
       record.admin         = true
       assert record.save
@@ -719,17 +731,22 @@ class UserTest < ActiveSupport::TestCase
 
     context "internal or not existing AuthSource" do
       test 'existing user without auth source specified' do
-        assert_difference('User.count', 0) do
-          login = users(:external).login
-          user = User.find_or_create_external_user({:login => login}, nil)
-          assert_equal user, users(:external)
+        # If a user is found, it is set as User.current.
+        # Because this user doesn't have permissions to view other users, we
+        # need to unscope the query to count the existing users
+        assert_difference('User.unscoped.count', 0) do
+          user = users(:external)
+          found_user = User.find_or_create_external_user({:login => user.login}, nil)
+
+          assert_equal found_user, user
+          assert_operator user.last_login_on, :<, found_user.last_login_on
         end
       end
 
       test 'not existing user without auth source specified' do
         assert_difference('User.count', 0) do
           user = User.find_or_create_external_user({:login => not_existing_user_login}, nil)
-          assert user.nil?
+          assert_nil user
         end
       end
 
@@ -1176,7 +1193,12 @@ class UserTest < ActiveSupport::TestCase
       token.save
       token_value
     end
-    let(:expired_token) { FactoryBot.create(:personal_access_token, :user => user, :expires_at => 4.weeks.ago) }
+    let(:expired_token) do
+      token = FactoryBot.create(:personal_access_token, :user => user)
+      token.expires_at = 4.weeks.ago
+      token.save(validate: false)
+      token
+    end
     let(:expired_token_value) do
       token_value = expired_token.generate_token
       expired_token.save

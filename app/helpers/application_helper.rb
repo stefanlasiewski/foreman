@@ -41,8 +41,30 @@ module ApplicationHelper
     ((time > Time.now.utc) ? _('in %s') : _('%s ago')) % time_ago_in_words(time)
   end
 
+  def date_time_unless_empty(time)
+    return ''.html_safe unless time
+    date_time_relative(time)
+  end
+
   def iana_timezone
     Time.zone&.tzinfo&.name || 'UTC'
+  end
+
+  def current_hosts_path(*args)
+    ApplicationHelper.current_hosts_path(*args)
+  end
+
+  def self.current_hosts_path(*args)
+    @url_helpers ||= Rails.application.routes.url_helpers
+    if Setting[:new_hosts_page]
+      @url_helpers.new_hosts_index_page_path(*args)
+    else
+      @url_helpers.hosts_path(*args)
+    end
+  end
+
+  def current_host_details_path(host)
+    Setting['host_details_ui'] ? host_details_page_path(host) : host_path(host)
   end
 
   protected
@@ -148,14 +170,19 @@ module ApplicationHelper
     ('<span class="glyphicon glyphicon-lock" title="%s"/>' % hovertext).html_safe if condition
   end
 
+  def no_permissions?
+    !User.current || @welcome || @missing_permissions
+  end
+
   def searchable?
-    return false if !User.current || @welcome || @missing_permissions
+    return false if no_permissions?
     if (controller.action_name == "index") || (defined?(SEARCHABLE_ACTIONS) && SEARCHABLE_ACTIONS.include?(controller.action_name))
       controller.respond_to?(:auto_complete_search)
     end
   end
 
   def filter_columns?
+    return false if no_permissions?
     controller_name == 'hosts' && controller.action_name == 'index'
   end
 
@@ -221,7 +248,10 @@ module ApplicationHelper
     return if args.blank?
 
     # single button
-    return content_tag(:span, args[0].html_safe, :class => 'btn btn-sm btn-default') if args.length == 1
+    if args.length == 1
+      action = args[0].is_a?(Hash) ? args[0][:content] : args[0]
+      return content_tag(:span, action.html_safe, :class => 'btn btn-sm btn-default')
+    end
 
     # multiple buttons
     primary = args.delete_at(0).html_safe
@@ -261,7 +291,7 @@ module ApplicationHelper
   end
 
   def documentation_button(section = "", options = {})
-    url = documentation_url section, options
+    url = documentation_url(section, **options)
     link_to(icon_text('help', _('Documentation'), :kind => 'pficon'),
       url, :rel => 'external noopener noreferrer', :class => 'btn btn-default btn-docs', :target => '_blank')
   end
@@ -292,8 +322,8 @@ module ApplicationHelper
     editable(object, property, {:type => type, :title => title, :value => value, :class => klass, :source => select_values, :url => update_url, :placeholder => placeholder}.compact)
   end
 
-  def documentation_url(section = "", options = {})
-    main_app.external_link_url(options.merge(type: 'manual', params: { section: section }))
+  def documentation_url(section = nil, type: 'manual', **options)
+    main_app.external_link_url(type: type, section: section, params: options)
   end
 
   def spinner(text = '', options = {})
@@ -316,11 +346,6 @@ module ApplicationHelper
 
   def hosts_count(resource_name = controller.resource_name)
     @hosts_count ||= HostCounter.new(resource_name)
-  end
-
-  def webpack_dev_server
-    return unless Rails.configuration.webpack.dev_server.enabled
-    javascript_include_tag "#{@dev_server}/webpack-dev-server.js"
   end
 
   def accessible_resource_records(resource, order = :name)
@@ -401,10 +426,9 @@ module ApplicationHelper
       destroyVmOnHostDelete: Setting['destroy_vm_on_host_delete'],
       labFeatures: Setting[:lab_features],
       safeMode: Setting[:safemode_render],
+      displayFqdnForHosts: Setting[:display_fqdn_for_hosts],
+      displayNewHostsPage: Setting[:new_hosts_page],
+      displayNewHostDetailsPage: Setting[:host_details_ui],
     }
-  end
-
-  def current_host_details_path(host)
-    Setting['host_details_ui'] ? host_details_page_path(host) : host_path(host)
   end
 end

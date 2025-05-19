@@ -124,7 +124,7 @@ class Subnet < ApplicationRecord
 
   set_crud_hooks :subnet
 
-  apipie :class, "A class representing #{model_name.human} object" do
+  apipie :class do
     sections only: %w[all additional]
     refs 'Subnet::Ipv4', 'Subnet::Ipv6'
     prop_group :basic_model_props, ApplicationRecord
@@ -269,7 +269,7 @@ class Subnet < ApplicationRecord
   end
 
   def external_ipam_proxy(attrs = {})
-    @external_ipam_proxy ||= ProxyAPI::ExternalIpam.new({:url => externalipam.url}.merge(attrs)) if external_ipam?
+    @external_ipam_proxy ||= ProxyAPI::ExternalIPAM.new({:url => externalipam.url}.merge(attrs)) if external_ipam?
   end
 
   def ipam?
@@ -422,9 +422,9 @@ class Subnet < ApplicationRecord
     end
 
     # This casts Subnet to Subnet::Ipv4 if no type is set
-    def new(*attributes, &block)
-      type = attributes.first.with_indifferent_access.delete(:type) if attributes.first.is_a?(Hash)
-      return Subnet::Ipv4.new(*attributes, &block) if self == Subnet && type.nil?
+    def new(attributes = nil, &block)
+      type = attributes.with_indifferent_access.delete(:type) if attributes.is_a?(Hash)
+      return Subnet::Ipv4.new(attributes, &block) if self == Subnet && type.nil?
       super
     end
 

@@ -108,6 +108,24 @@ FactoryBot.define do
       title { 'Ubuntu Utopic' }
     end
 
+    factory :ubuntu22_04, class: Debian do
+      sequence(:name) { 'Ubuntu' }
+      major { '22.04' }
+      minor { '' }
+      type { 'Debian' }
+      release_name { 'jammy' }
+      title { 'Ubuntu Jammy' }
+    end
+
+    factory :ubuntu22_04_3, class: Debian do
+      sequence(:name) { 'Ubuntu' }
+      major { '22.04' }
+      minor { '3' }
+      type { 'Debian' }
+      release_name { 'jammy' }
+      title { 'Ubuntu Jammy' }
+    end
+
     factory :debian7_0, class: Debian do
       sequence(:name) { 'Debian' }
       major { '7' }
@@ -142,6 +160,17 @@ FactoryBot.define do
       title { 'Red Hat Enterprise Linux 7.5' }
     end
 
+    factory :rhel9, class: Redhat do
+      name { 'RHEL' }
+      major { '9' }
+      minor { '0' }
+      type { 'Redhat' }
+      title { 'Red Hat Enterprise Linux 9.0' }
+      architectures { [FactoryBot.build(:architecture, :x64)] }
+      media { [FactoryBot.build(:rhel_for_snapshots)] }
+      ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
+    end
+
     factory :for_snapshots_centos_7_0, class: Redhat do
       name { 'CentOS' }
       major { '7' }
@@ -158,8 +187,8 @@ FactoryBot.define do
       major { '10' }
       minor { '0' }
       type { 'Debian' }
-      release_name { 'wheezy' }
-      title { 'Debian Wheezy' }
+      release_name { 'buster' }
+      title { 'Debian Buster' }
       architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
       media { [FactoryBot.build(:debian_for_snapshots)] }
       ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
@@ -171,8 +200,8 @@ FactoryBot.define do
       major { '18' }
       minor { '04' }
       type { 'Debian' }
-      release_name { 'focal' }
-      title { 'Ubuntu Focal' }
+      release_name { 'bionic' }
+      title { 'Ubuntu Bionic' }
       architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
       media { [FactoryBot.build(:ubuntu_for_snapshots)] }
       ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
@@ -200,6 +229,39 @@ FactoryBot.define do
       architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
       media { [FactoryBot.build(:rhel_for_snapshots)] }
       ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
+    end
+
+    factory :for_snapshots_rocky8, class: Redhat do
+      name { 'Rocky' }
+      major { '8' }
+      minor { '0' }
+      type { 'Redhat' }
+      title { 'Rocky Linux 8.0' }
+      architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
+      media { [FactoryBot.build(:rhel_for_snapshots)] }
+      ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
+    end
+
+    factory :for_snapshots_rocky9, class: Redhat do
+      name { 'Rocky' }
+      major { '9' }
+      minor { '0' }
+      type { 'Redhat' }
+      title { 'Rocky Linux 9.0' }
+      architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
+      media { [FactoryBot.build(:rhel_for_snapshots)] }
+      ptables { [FactoryBot.build(:ptable, name: 'ptable')] }
+    end
+
+    factory :for_snapshots_windows10, class: Windows do
+      name { 'Windows' }
+      major { '10' }
+      minor { '0' }
+      type { 'Windows' }
+      title { 'Windows 10' }
+      architectures { [FactoryBot.build(:architecture, :for_snapshots_x86_64)] }
+      media { [FactoryBot.build(:windows_for_snapshots)] }
+      ptables { [FactoryBot.build(:ptable, :windows)] }
     end
 
     factory :altlinux, class: Altlinux do

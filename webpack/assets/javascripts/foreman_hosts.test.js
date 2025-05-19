@@ -19,6 +19,9 @@ describe('getAttributesToPost', () => {
       'operatingsystem_id',
       'organization_id',
       'location_id',
+      'ptable_id',
+      'medium_id',
+      'pxe_loader',
     ]);
   });
 
@@ -28,6 +31,9 @@ describe('getAttributesToPost', () => {
       'operatingsystem_id',
       'organization_id',
       'location_id',
+      'ptable_id',
+      'medium_id',
+      'pxe_loader',
       'foo',
     ]);
   });

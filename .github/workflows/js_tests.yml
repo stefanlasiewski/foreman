@@ -11,41 +11,52 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.ref_name }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
+  setup_matrix:
+    name: Setup matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build_matrix.outputs.matrix }}
+    steps:
+      - name: Build test matrix
+        id: build_matrix
+        uses: theforeman/gha-matrix-builder@v0
+
   test:
     permissions:
       checks: write  # for coverallsapp/github-action to create new checks
       contents: read  # for actions/checkout to fetch code
     runs-on: ubuntu-latest
+    needs: setup_matrix
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      matrix:
-        node-version:
-          - 12
-          - 14
+      matrix: ${{ fromJson(needs.setup_matrix.outputs.matrix) }}
     steps:
       - name: Checkout Foreman
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.7
-      - name: Setup Node
-        uses: actions/setup-node@v3
+          ruby-version: ${{ matrix.ruby }}
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ matrix.node }}
       - name: Generate npm dependencies package-lock
         run: npm install --package-lock-only --no-audit
       - name: Install npm dependencies
         run: npm ci --no-audit
       - name: Run linter
         run: npm run lint
-      - name: Run Spellcheck (only warnings)
-        run: npm run lint:spelling
+      - name: Run custom eslint rules Spellcheck (only warnings) and missing ouia-ids
+        run: npm run lint:custom
       - name: Run tests
         run: npm run test
-      - name: Publish Coveralls (node v14)
-        if: ${{ matrix.node-version == 14 }}
+      - name: Publish Coveralls
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

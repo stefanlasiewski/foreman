@@ -64,11 +64,12 @@ module Foreman
         return value.to_i if value.is_a?(Numeric)
 
         if value.is_a?(String)
-          if value =~ /^0x[0-9a-f]+$/i
+          case value
+          when /^0x[0-9a-f]+$/i
             value.to_i(16)
-          elsif value =~ /^0[0-7]+$/
+          when /^0[0-7]+$/
             value.to_i(8)
-          elsif value =~ /^-?\d+$/
+          when /^-?\d+$/
             value.to_i
           else
             raise TypeError
@@ -107,13 +108,13 @@ module Foreman
       end
 
       def cast_yaml
-        YAML.load value
+        YAML.safe_load(value, permitted_classes: [Symbol])
       end
 
       def load_yaml_or_json
         return value unless value.is_a? String
         begin
-          YAML.load value
+          YAML.safe_load(value, permitted_classes: [Symbol])
         rescue Psych::SyntaxError
           JSON.load value
         end

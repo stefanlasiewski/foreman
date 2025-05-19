@@ -29,7 +29,14 @@ export function registerPluginAttributes(componentType, attributes) {
 export function getAttributesToPost(componentType) {
   const defaultAttributes = {
     architecture: ['architecture_id', 'organization_id', 'location_id'],
-    os: ['operatingsystem_id', 'organization_id', 'location_id'],
+    os: [
+      'operatingsystem_id',
+      'organization_id',
+      'location_id',
+      'ptable_id',
+      'medium_id',
+      'pxe_loader',
+    ],
     medium: ['medium_id', 'operatingsystem_id', 'architecture_id'],
     image: ['medium_id', 'operatingsystem_id', 'architecture_id', 'model_id'],
   };

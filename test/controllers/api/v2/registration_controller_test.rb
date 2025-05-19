@@ -26,6 +26,7 @@ class Api::V2::RegistrationControllerTest < ActionController::TestCase
         location_id: taxonomies(:location1).id,
         hostgroup_id: hostgroups(:common).id,
         operatingsystem_id: operatingsystems(:centos5_3).id,
+        download_utility: 'wget',
       }
 
       get :global, params: params, session: set_session_user
@@ -38,6 +39,7 @@ class Api::V2::RegistrationControllerTest < ActionController::TestCase
       assert_equal operatingsystems(:centos5_3), vars[:operatingsystem]
       assert_equal users(:admin), vars[:user]
       assert_equal register_url, vars[:registration_url].to_s
+      assert_equal 'wget', vars[:download_utility].to_s
     end
 
     test "should not pass unpermitted params to template" do
@@ -120,6 +122,94 @@ class Api::V2::RegistrationControllerTest < ActionController::TestCase
         get :global, params: { url: url }, session: set_session_user
         assert_response :success
         assert_equal "#{url}/register", assigns(:global_registration_vars)[:registration_url].to_s
+      end
+    end
+
+    context 'find organization' do
+      let(:orgs) { [taxonomies(:organization1), taxonomies(:organization2)] }
+
+      test 'with organization_id' do
+        get :global, params: { organization_id: taxonomies(:organization1).id }, session: set_session_user
+        assert_equal taxonomies(:organization1), assigns(:global_registration_vars)[:organization]
+      end
+
+      test 'with title' do
+        get :global, params: { organization: taxonomies(:organization1).title }, session: set_session_user
+        assert_equal taxonomies(:organization1), assigns(:global_registration_vars)[:organization]
+      end
+
+      test 'without id or title, with user default' do
+        user = FactoryBot.create(:user, organizations: orgs, default_organization: orgs[1], admin: true)
+
+        as_user(user) do
+          get :global, session: set_session_user(user)
+          assert_equal user.default_organization, assigns(:global_registration_vars)[:organization]
+        end
+      end
+
+      test 'without organization_id, without user default' do
+        user = FactoryBot.create(:user, organizations: orgs, default_organization: nil, admin: true)
+
+        get :global, session: set_session_user(user)
+        assert_equal user.my_organizations.first, assigns(:global_registration_vars)[:organization]
+      end
+    end
+
+    context 'find location' do
+      let(:locs) { [taxonomies(:location1), taxonomies(:location2)] }
+
+      test 'with location_id' do
+        get :global, params: { location_id: taxonomies(:location1).id }, session: set_session_user
+        assert_equal taxonomies(:location1), assigns(:global_registration_vars)[:location]
+      end
+
+      test 'with title' do
+        get :global, params: { location: taxonomies(:location1).title }, session: set_session_user
+        assert_equal taxonomies(:location1), assigns(:global_registration_vars)[:location]
+      end
+
+      test 'without id or title, with user default' do
+        user = FactoryBot.create(:user, locations: locs, default_location: locs[1], admin: true)
+
+        as_user(user) do
+          get :global, session: set_session_user(user)
+          assert_equal user.default_location, assigns(:global_registration_vars)[:location]
+        end
+      end
+
+      test 'without location_id, without user default' do
+        user = FactoryBot.create(:user, locations: locs, default_location: nil, admin: true)
+
+        get :global, session: set_session_user(user)
+        assert_equal user.my_locations.first, assigns(:global_registration_vars)[:location]
+      end
+    end
+
+    context 'find hostgroup' do
+      let(:hg) { hostgroups(:common) }
+
+      test 'with hostgroup_id' do
+        get :global, params: { hostgroup_id: hg.id }, session: set_session_user
+        assert_equal hg, assigns(:global_registration_vars)[:hostgroup]
+      end
+
+      test 'with title' do
+        get :global, params: { hostgroup: hg.title }, session: set_session_user
+        assert_equal hg, assigns(:global_registration_vars)[:hostgroup]
+      end
+    end
+
+    context 'find operatingsystem' do
+      let(:os) { operatingsystems(:redhat) }
+
+      test 'with operatingsystem_id' do
+        get :global, params: { operatingsystem_id: os.id }, session: set_session_user
+        assert_equal os, assigns(:global_registration_vars)[:operatingsystem]
+      end
+
+      test 'with title' do
+        get :global, params: { operatingsystem: os.title }, session: set_session_user
+        assert_equal os, assigns(:global_registration_vars)[:operatingsystem]
       end
     end
   end

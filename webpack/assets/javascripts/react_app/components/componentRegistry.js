@@ -18,9 +18,7 @@ import InputFactory from './common/forms/InputFactory';
 import StorageContainer from './hosts/storage/vmware/';
 import PasswordStrength from './PasswordStrength';
 import BreadcrumbBar from './BreadcrumbBar';
-import FactChart from './FactCharts';
 import Pagination from './Pagination';
-import AutoComplete from './AutoComplete';
 import SearchBar from './SearchBar';
 import ColumnSelector from './ColumnSelector';
 import Layout from './Layout';
@@ -30,13 +28,11 @@ import ChartBox from './ChartBox/ChartBox';
 import ConfigReports from './ConfigReports/ConfigReports';
 import DiffModal from './ConfigReports/DiffModal';
 import { WrapperFactory } from './wrapperFactory';
-import ModelsTable from './ModelsTable';
 import TemplateGenerator from './TemplateGenerator';
 import Editor from './Editor';
 import LoginPage from './LoginPage';
 import ExternalLogout from './ExternalLogout';
 import Slot from './common/Slot';
-import TypeAheadSelect from './common/TypeAheadSelect';
 import DatePicker from './common/DateTimePicker/DatePicker';
 import RedirectCancelButton from './common/RedirectCancelButton';
 import SettingRecords from './SettingRecords';
@@ -48,6 +44,7 @@ import LabelIcon from './common/LabelIcon';
 import { WelcomeAuthSource } from './AuthSource/Welcome';
 import { WelcomeConfigReports } from './ConfigReports/Welcome';
 import { WelcomeArchitecture } from './Architectures/Welcome';
+import JwtTokens from './users/JwtTokens/JwtTokens';
 
 const componentRegistry = {
   registry: forceSingleton('component_registry', () => ({})),
@@ -116,11 +113,11 @@ const componentRegistry = {
   },
 };
 
-const coreComponets = [
+const coreComponents = [
   { name: 'ReactApp', type: ReactApp },
   { name: 'SearchBar', type: SearchBar },
   { name: 'ColumnSelector', type: ColumnSelector },
-  { name: 'AutoComplete', type: AutoComplete },
+  { name: 'AutoComplete', type: SearchBar },
   { name: 'AreaChart', type: AreaChart },
   { name: 'DonutChart', type: DonutChart },
   { name: 'LineChart', type: LineChart },
@@ -130,7 +127,6 @@ const coreComponets = [
   { name: 'StorageContainer', type: StorageContainer },
   { name: 'PasswordStrength', type: PasswordStrength },
   { name: 'BreadcrumbBar', type: BreadcrumbBar },
-  { name: 'FactChart', type: FactChart },
   { name: 'Pagination', type: Pagination },
   { name: 'Layout', type: Layout },
   { name: 'EmptyState', type: EmptyState },
@@ -141,13 +137,13 @@ const coreComponets = [
   { name: 'DiffModal', type: DiffModal },
   { name: 'ExternalLogout', type: ExternalLogout },
   { name: 'Slot', type: Slot },
-  { name: 'TypeAheadSelect', type: TypeAheadSelect },
   { name: 'DatePicker', type: DatePicker },
   { name: 'RedirectCancelButton', type: RedirectCancelButton },
   { name: 'SettingRecords', type: SettingRecords },
   { name: 'SettingsTable', type: SettingsTable },
   { name: 'SettingUpdateModal', type: SettingUpdateModal },
   { name: 'PersonalAccessTokens', type: PersonalAccessTokens },
+  { name: 'JwtTokens', type: JwtTokens },
   { name: 'ClipboardCopy', type: ClipboardCopy },
   { name: 'LabelIcon', type: LabelIcon },
   {
@@ -176,7 +172,6 @@ const coreComponets = [
   },
   { name: 'FormField', type: FormField },
   { name: 'InputFactory', type: InputFactory },
-  { name: 'ModelsTable', type: ModelsTable },
   { name: 'Editor', type: Editor },
 
   // Report templates
@@ -187,6 +182,8 @@ const coreComponets = [
   { name: 'WelcomeArchitecture', type: WelcomeArchitecture },
 ];
 
-componentRegistry.registerMultiple(coreComponets);
+if (!componentRegistry.registry[coreComponents[0].name]) {
+  componentRegistry.registerMultiple(coreComponents);
+}
 
 export default componentRegistry;

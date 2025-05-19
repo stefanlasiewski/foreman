@@ -56,7 +56,7 @@ class SmartProxy < ApplicationRecord
   end
 
   def refresh
-    statuses.values.each { |status| status.revoke_cache! }
+    statuses.each_value { |status| status.revoke_cache! }
     associate_features
     errors
   end
@@ -72,6 +72,13 @@ class SmartProxy < ApplicationRecord
       errors.add(:base, _('Unable to communicate with the proxy: %s') % e)
     end
     !errors.any?
+  end
+
+  def used_taxonomy_ids(type)
+    return [] if new_record? || !respond_to?(:hosts)
+
+    conditions = "#{id} IN (#{Host::Managed.proxy_column_list})"
+    ::Host::Managed.with_smart_proxies.where(conditions).distinct.pluck(type).compact
   end
 
   def taxonomy_foreign_conditions
@@ -196,7 +203,7 @@ class SmartProxy < ApplicationRecord
     end
   end
 
-  apipie :class, desc: "A class representing #{model_name.human} object" do
+  apipie :class do
     name 'Smart Proxy'
     refs 'SmartProxy'
     sections only: %w[all additional]

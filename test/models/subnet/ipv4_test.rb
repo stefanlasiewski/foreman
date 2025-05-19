@@ -162,14 +162,14 @@ class Subnet::Ipv4Test < ActiveSupport::TestCase
         stubs(:subnets => [{ 'network' => '192.168.11.0',
                               'netmask' => '255.255.255.0',
                               'options' => dhcp_options }])
-      Subnet.expects(:new).with(:network => "192.168.11.0",
+      Subnet.expects(:new).with({:network => "192.168.11.0",
                                 :mask => "255.255.255.0",
                                 :gateway => "192.168.11.1",
                                 :dns_primary => "192.168.11.1",
                                 :dns_secondary => "8.8.8.8",
                                 :from => "192.168.11.0",
                                 :to => "192.168.11.200",
-                                :dhcp => @mock_proxy)
+                                :dhcp => @mock_proxy})
       Subnet::Ipv4.import(@mock_proxy)
     end
 
@@ -177,9 +177,9 @@ class Subnet::Ipv4Test < ActiveSupport::TestCase
       ProxyAPI::DHCP.any_instance.
         stubs(:subnets => [{ 'network' => '192.168.11.0',
                               'netmask' => '255.255.255.0' }])
-      Subnet.expects(:new).with(:network => "192.168.11.0",
+      Subnet.expects(:new).with({:network => "192.168.11.0",
                                 :mask => "255.255.255.0",
-                                :dhcp => @mock_proxy)
+                                :dhcp => @mock_proxy})
       Subnet::Ipv4.import(@mock_proxy)
     end
   end
@@ -187,11 +187,11 @@ class Subnet::Ipv4Test < ActiveSupport::TestCase
   test "should not assign proxies without adequate features" do
     proxy = smart_proxies(:puppetmaster)
     subnet = Subnet::Ipv4.new(:name => "test subnet",
-                        :network => "192.168.100.0",
-                        :mask => "255.255.255.0",
-                        :dhcp_id => proxy.id,
-                        :dns_id => proxy.id,
-                        :tftp_id => proxy.id)
+      :network => "192.168.100.0",
+      :mask => "255.255.255.0",
+      :dhcp_id => proxy.id,
+      :dns_id => proxy.id,
+      :tftp_id => proxy.id)
     refute subnet.save
     assert_equal "does not have the DNS feature", subnet.errors["dns_id"].first
     assert_equal "does not have the DHCP feature", subnet.errors["dhcp_id"].first

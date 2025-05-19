@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Button } from '@patternfly/react-core';
 import { PencilAltIcon } from '@patternfly/react-icons';
-import { TableComposable, Tr, Tbody, Td } from '@patternfly/react-table';
+import { Table, Tr, Tbody, Td } from '@patternfly/react-table';
 import { translate as __ } from '../../../../../../common/I18n';
 import { foremanUrl } from '../../../../../../common/helpers';
 import { useAPI } from '../../../../../../common/hooks/API/APIHooks';
@@ -18,6 +18,7 @@ const TemplatesCard = ({ hostName }) => {
   const {
     response: {
       templates,
+      view_provisioning_templates: viewTemplatePermission,
       edit_provisioning_templates: editTemplatePermission,
     },
     status,
@@ -48,13 +49,22 @@ const TemplatesCard = ({ hostName }) => {
             template={currentTemplate}
           />
         )}
-        <TableComposable aria-label="templates table" variant="compact">
+        <Table
+          ouiaId="provisioning-templates-table"
+          aria-label="templates table"
+          variant="compact"
+        >
           <Tbody>
             {templates?.map(template => (
-              <Tr key={template.name}>
+              <Tr
+                ouiaId={`provisioning-templates-table-row-${template.name}`}
+                key={template.name}
+              >
                 <Td /* to remove padding */ />
                 <Td dataLabel={TemplateTypeTitle} noPadding>
                   <Button
+                    ouiaId={`provisioning-templates-table-row-${template.name}-name`}
+                    isDisabled={!viewTemplatePermission}
                     variant="link"
                     onClick={() => onReviewClick(template)}
                   >
@@ -64,6 +74,7 @@ const TemplatesCard = ({ hostName }) => {
                 {editTemplatePermission && (
                   <Td>
                     <Button
+                      ouiaId={`provisioning-templates-table-row-${template.name}-edit`}
                       component="a"
                       key="edit"
                       href={editTemplateUrl(template.id)}
@@ -77,7 +88,7 @@ const TemplatesCard = ({ hostName }) => {
               </Tr>
             ))}
           </Tbody>
-        </TableComposable>
+        </Table>
       </SkeletonLoader>
     </CardTemplate>
   );

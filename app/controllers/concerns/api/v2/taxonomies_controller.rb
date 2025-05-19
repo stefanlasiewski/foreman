@@ -31,9 +31,11 @@ module Api::V2::TaxonomiesController
       param :subnet_ids, Array, N_("Subnet IDs"), :required => false
       param :parent_id, :number, :desc => N_('Parent ID'), :required => false
       param :ignore_types, Array, N_("List of resources types that will be automatically associated"), :required => false
-      resource_name = (param_name == :location) ? 'organization' : 'location'
-      resource_ids = "#{resource_name}_ids".to_sym
-      param resource_ids, Array, N_("Associated %{resource} IDs") % { resource: _(resource_name) }, :required => false
+      if param_name == :location
+        param :organization_ids, Array, N_("Associated organization IDs"), :required => false
+      else
+        param :location_ids, Array, N_("Associated location IDs"), :required => false
+      end
     end
   end
 
@@ -76,7 +78,7 @@ module Api::V2::TaxonomiesController
   param_group :resource
   param :id, :identifier, :required => true
   def update
-    # NOTE - if not ! and invalid, the error is undefined method `permission_failed?' for #<Location:0x7fe38c1d3ec8> (NoMethodError)
+    # NOTE: if not ! and invalid, the error is undefined method `permission_failed?' for #<Location:0x7fe38c1d3ec8> (NoMethodError)
     # removed process_response & added explicit render 'api/v2/taxonomies/update'.  Otherwise, *_ids are not returned
 
     process_response @taxonomy.update(resource_params)
@@ -84,15 +86,16 @@ module Api::V2::TaxonomiesController
 
   api :DELETE, '/:resource_id/:id', N_('Delete :a_resource')
   param :id, :identifier, :required => true
+  error :code => 409, :desc => 'In case a nested entity exists'
   def destroy
     process_response @taxonomy.destroy
   rescue Ancestry::AncestryException
-    render :json => {:error => {:message => (_('Cannot delete %{current} because it has nested %{sti_name}.') % { :current => @taxonomy.title, :sti_name => @taxonomy.sti_name }) } }
+    render :status => :conflict, :json => {:error => {:message => (_('Cannot delete %{current} because it has nested %{sti_name}.') % { :current => @taxonomy.title, :sti_name => @taxonomy.sti_name }) } }
   end
 
   # overriding public FindCommon#resource_scope to scope only to user's taxonomies
-  def resource_scope(*args)
-    @resource_scope ||= scope_for(resource_class, args).send("my_#{taxonomies_plural}")
+  def resource_scope(*args, **kwargs)
+    @resource_scope ||= scope_for(resource_class, *args, **kwargs).send("my_#{taxonomies_plural}")
   end
 
   private

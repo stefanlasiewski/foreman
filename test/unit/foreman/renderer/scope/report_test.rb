@@ -58,6 +58,29 @@ class ReportScopeTest < ActiveSupport::TestCase
       assert_equal expected_yaml, @scope.report_render(format: :yaml)
     end
 
+    test 'report_row handles symbol keys with safemode merge' do
+      renderer = Foreman::Renderer::SafeModeRenderer
+      base_opts = { 'Fruit1' => 'Apple', 'Fruit2' => 'Banana' }
+
+      content = "<%= report_row({
+        :Name => 'Orange',
+        :Global => 'Pomegranate'
+      }.merge(@base_opts)) %>"
+      source = OpenStruct.new(
+        name: 'Test',
+        content: content
+      )
+      @scope = Foreman::Renderer::Scope::Report.new(
+        source: source,
+        variables: { base_opts: base_opts }
+      )
+      result = ""
+      assert_nothing_raised do
+        result = renderer.render(source, @scope)
+      end
+      assert_equal result, "[[\"Orange\", \"Pomegranate\", \"Apple\", \"Banana\"]]"
+    end
+
     test 'render types' do
       @scope.report_row(
         'List': ['Val1', 1, true],
@@ -70,18 +93,8 @@ class ReportScopeTest < ActiveSupport::TestCase
       expected_csv = "List,String,Number,Bool,Empty,Nil\n\"Val1,1,true\",Text,1,false,\"\",\"\"\n"
       assert_equal expected_csv, @scope.report_render(format: :csv)
 
-      expected_yaml = <<~OUT + "  Nil: \n"
-        ---
-        - List:
-          - Val1
-          - 1
-          - true
-          String: Text
-          Number: 1
-          Bool: false
-          Empty: ''
-      OUT
-      assert_equal expected_yaml, @scope.report_render(format: :yaml)
+      expected_yaml = [{"List" => ["Val1", 1, true], "String" => "Text", "Number" => 1, "Bool" => false, "Empty" => "", "Nil" => nil}]
+      assert_equal expected_yaml, YAML.safe_load(@scope.report_render(format: :yaml))
     end
   end
 end

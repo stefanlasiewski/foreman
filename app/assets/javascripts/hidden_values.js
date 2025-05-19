@@ -3,7 +3,7 @@ function turn_textarea_switch() {
 }
 
 function hidden_value_control() {
-  $('.toggle-hidden-value a').click(function(event) {
+  $('.toggle-hidden-value a').on('click', function(event) {
     event.preventDefault();
     var link = $(event.currentTarget);
     link
@@ -14,7 +14,8 @@ function hidden_value_control() {
   });
 }
 
-function replace_value_control(link) {
+function replace_value_control(link, tag_type) {
+  var tag_type = tag_type || 'a'
   var link = $(link);
   link
     .find('.glyphicon')
@@ -27,7 +28,7 @@ function replace_value_control(link) {
   link
     .parent()
     .parent()
-    .find('a.pull-left')
+    .find(tag_type + '.pull-left')
     .toggleClass('hide');
 }
 

@@ -1,5 +1,9 @@
+/* eslint-disable global-require */
+/* eslint-disable import/no-dynamic-require */
 import Jed from 'jed';
 import { addLocaleData } from 'react-intl';
+import Cookies from 'js-cookie';
+import jstz from 'jstz';
 import forceSingleton from './forceSingleton';
 
 class IntlLoader {
@@ -14,20 +18,19 @@ class IntlLoader {
 
   async init() {
     await this.fetchIntl();
-    addLocaleData(
-      await import(
-        /* webpackChunkName: 'react-intl/locale/[request]' */ `react-intl/locale-data/${this.locale}`
-      )
-    );
+    const localeData = require(/* webpackChunkName: 'react-intl/locale/[request]' */ `react-intl/locale-data/${this.locale}`);
+    addLocaleData(localeData);
+    Cookies.set('timezone', jstz.determine().name(), {
+      path: '/',
+      secure: window.location.protocol === 'https:',
+    });
     return true;
   }
 
-  async fetchIntl() {
+  fetchIntl() {
     if (this.fallbackIntl) {
-      global.Intl = await import(/* webpackChunkName: "intl" */ 'intl');
-      await import(
-        /* webpackChunkName: 'intl/locale/[request]' */ `intl/locale-data/jsonp/${this.locale}`
-      );
+      global.Intl = require(/* webpackChunkName: "intl" */ 'intl');
+      require(/* webpackChunkName: 'intl/locale/[request]' */ `intl/locale-data/jsonp/${this.locale}`);
     }
   }
 }
@@ -46,6 +49,31 @@ const cheveronSuffix = () => (window.I18N_MARK ? '\u00AB' : '');
 
 export const documentLocale = () => langAttr;
 
+const unwrapLocaleDomains = (locales, locale) => {
+  const result = locales[locale];
+  Object.entries(locales).forEach(([key, localeData]) => {
+    if (locale in localeData && 'domain' in localeData[locale]) {
+      result.locale_data[key] = localeData[locale].locale_data[key];
+    }
+  });
+  return result;
+};
+
+const mergeLocaleData = locale => {
+  const result = {};
+  Object.entries(locale.locale_data).forEach(([domain, translations]) => {
+    Object.entries(translations).forEach(([source, translated]) => {
+      if (
+        result[source] === undefined ||
+        (result[source]?.[0]?.length === 0 && !translated[0]?.length === 0)
+      ) {
+        result[source] = translated;
+      }
+    });
+  });
+  return result;
+};
+
 const getLocaleData = () => {
   const locales = window.locales || {};
   const locale = documentLocale().replace(/-/g, '_');
@@ -58,7 +86,12 @@ const getLocaleData = () => {
     return { domain: 'app', locale_data: { app: { '': {} } } };
   }
 
-  return locales[locale];
+  const unwrapped = unwrapLocaleDomains(locales, locale);
+  unwrapped.locale_data = {
+    ...unwrapped.locale_data,
+    app: mergeLocaleData(unwrapped),
+  };
+  return unwrapped;
 };
 
 export const jed = forceSingleton('Jed', () => new Jed(getLocaleData()));

@@ -30,7 +30,7 @@ class Api::V2::DomainsControllerTest < ActionController::TestCase
     invalid_proxy_id = SmartProxy.last.id + 100
     post :create, params: { :domain => { :name => "doma.in", :dns_id => invalid_proxy_id } }
     show_response = ActiveSupport::JSON.decode(@response.body)
-    assert_includes(show_response["error"]["full_messages"], "Dns Invalid smart-proxy id")
+    assert_includes(show_response["error"]["full_messages"], "DNS Invalid smart-proxy id")
     assert_response :unprocessable_entity
   end
 
@@ -49,7 +49,7 @@ class Api::V2::DomainsControllerTest < ActionController::TestCase
     invalid_proxy_id = -1
     post :update, params: { :id => Domain.first.to_param, :domain => { :name => "domain.new", :dns_id => invalid_proxy_id } }
     show_response = ActiveSupport::JSON.decode(@response.body)
-    assert_includes(show_response["error"]["full_messages"], "Dns Invalid smart-proxy id")
+    assert_includes(show_response["error"]["full_messages"], "DNS Invalid smart-proxy id")
     assert_response :unprocessable_entity
   end
 
@@ -208,7 +208,7 @@ class Api::V2::DomainsControllerTest < ActionController::TestCase
       @org3 = FactoryBot.create(:organization)
       @loc1 = FactoryBot.create(:location)
       @role = FactoryBot.build(:role, :organization_ids => [@org1.id, @org2.id], :location_ids => [@loc1.id])
-      # note that edit_organizations is required for API calls like POST /organization/1/domain, for GET we require only view_organizations
+      # NOTE: that edit_organizations is required for API calls like POST /organization/1/domain, for GET we require only view_organizations
       @role.add_permissions!([:view_domains, :edit_domains, :view_locations, :assign_locations, :view_organizations, :assign_organizations, :create_domains, :edit_organizations, :edit_locations])
       @user = FactoryBot.create(:user, :organization_ids => [@org1.id, @org2.id], :location_ids => [@loc1.id], :roles => [@role])
 

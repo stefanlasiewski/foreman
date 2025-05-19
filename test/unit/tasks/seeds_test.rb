@@ -64,9 +64,10 @@ class SeedsTest < ActiveSupport::TestCase
       requirements = Template.parse_metadata(template)['require'] || []
       # skip templates that require plugins that aren't available
       next unless SeedHelper.send(:test_template_requirements, tmpl, requirements)
-      if tmpl =~ /partition_tables_templates/
+      case tmpl
+      when /partition_tables_templates/
         assert Ptable.unscoped.where(:template => template).any?, "No partition table containing #{tmpl}"
-      elsif tmpl =~ /report_templates/
+      when /report_templates/
         assert ReportTemplate.unscoped.where(:template => template).any?, "No report template containing #{tmpl}"
       else
         assert ProvisioningTemplate.unscoped.where(:template => template).any?, "No template containing #{tmpl}"
@@ -103,11 +104,11 @@ class SeedsTest < ActiveSupport::TestCase
 
     test 'with environment overrides' do
       assert_difference 'User.unscoped.where(:login => "seed_test").count', 1 do
-        with_env('SEED_ADMIN_USER'       => 'seed_test',
-                 'SEED_ADMIN_PASSWORD'   => 'seed_secret',
-                 'SEED_ADMIN_FIRST_NAME' => 'Seed',
-                 'SEED_ADMIN_LAST_NAME'  => 'Test',
-                 'SEED_ADMIN_EMAIL'      => 'seed@example.net') do
+        with_env('SEED_ADMIN_USER' => 'seed_test',
+          'SEED_ADMIN_PASSWORD'   => 'seed_secret',
+          'SEED_ADMIN_FIRST_NAME' => 'Seed',
+          'SEED_ADMIN_LAST_NAME'  => 'Test',
+          'SEED_ADMIN_EMAIL'      => 'seed@example.net') do
           seed
         end
       end
@@ -156,7 +157,7 @@ class SeedsTest < ActiveSupport::TestCase
 
   test "no audits are recorded" do
     seed
-    assert_equal [], Audit.all
+    assert_empty Audit.all
   end
 
   test "seed organization when environment SEED_ORGANIZATION specified" do
@@ -213,21 +214,35 @@ class SeedsTest < ActiveSupport::TestCase
     access_permissions = Foreman::AccessControl.permissions.reject(&:public?).reject(&:plugin?).map(&:name).map(&:to_s)
     seeded_permissions = Permission.pluck('permissions.name')
     # Check all access control have a matching seeded permission
-    assert_equal [], access_permissions - seeded_permissions
+    assert_empty access_permissions - seeded_permissions
     # Check all seeded permissions have a matching access control
     # except for 'escalate_roles' as it is not tied to a controller action
-    assert_equal [], seeded_permissions - access_permissions - ['escalate_roles']
+    assert_empty seeded_permissions - access_permissions - ['escalate_roles']
   end
 
   test "viewer role contains all view permissions except for settings" do
     seed('020-permissions_list.rb', '030-permissions.rb', '020-roles_list.rb', '040-roles.rb')
     view_permissions = Permission.all.select { |permission| permission.name.match(/view/) && permission.name != 'view_settings' }
-    assert_equal [], view_permissions - Role.unscoped.find_by_name('Viewer').permissions
+    assert_empty view_permissions - Role.unscoped.find_by_name('Viewer').permissions
   end
 
   test "adds description to template kind" do
     seed('070-provisioning_templates.rb')
     tmpl_kind = TemplateKind.unscoped.find_by_name('iPXE')
     assert_equal "Used in iPXE environments.", tmpl_kind.description
+  end
+
+  context 'instance_id setting' do
+    test 'sets new value for non-existing setting' do
+      refute Setting.where(name: 'instance_id').exists?
+      Setting.expects(:[]=).with(:instance_id, anything)
+      seed('190-instance_id.rb')
+    end
+
+    test 'does not change value for existing setting' do
+      Setting.create(name: 'instance_id', value: Foreman.uuid)
+      Setting.expects(:[]=).with(:instance_id, anything).never
+      seed('190-instance_id.rb')
+    end
   end
 end

@@ -2,16 +2,13 @@ import PropTypes from 'prop-types';
 import React, { useState, useContext, useEffect } from 'react';
 import {
   Card,
-  CardActions,
   CardHeader,
   CardExpandableContent,
-  Dropdown,
-  KebabToggle,
   CardTitle,
   CardBody,
   GridItem,
-  FlexItem,
 } from '@patternfly/react-core';
+import { Dropdown, KebabToggle } from '@patternfly/react-core/deprecated';
 
 import { CardExpansionContext } from '../../../CardExpansionContext';
 
@@ -23,11 +20,13 @@ const CardTemplate = ({
   overrideGridProps,
   overrideDropdownProps,
   masonryLayout,
+  ouiaId,
 }) => {
   const { cardExpandStates, dispatch, registerCard } = useContext(
     CardExpansionContext
   );
-  const cardId = header;
+  const cardId =
+    typeof header === 'string' || header instanceof String ? header : ouiaId;
   const [dropdownVisibility, setDropdownVisibility] = useState(false);
   const isExpanded = expandable && cardExpandStates[`${cardId}`] === true;
   const onDropdownToggle = isOpen => setDropdownVisibility(isOpen);
@@ -45,7 +44,7 @@ const CardTemplate = ({
     // eslint-disable-next-line no-unused-expressions
     overrideDropdownProps?.onSelect?.(event);
   };
-  const CardContainer = masonryLayout ? FlexItem : GridItem;
+  const CardContainer = masonryLayout ? 'div' : GridItem;
   const gridWidthProps = masonryLayout
     ? {}
     : {
@@ -54,31 +53,43 @@ const CardTemplate = ({
         md: 6,
         lg: 4,
       };
-  const cardProps = masonryLayout
-    ? { style: { width: '24rem', marginTop: '-0.8rem' } }
-    : {};
 
   return (
-    <CardContainer {...gridWidthProps} {...overrideGridProps}>
-      <Card isExpanded={isExpanded} ouiaId="card-template" {...cardProps}>
+    <CardContainer
+      {...gridWidthProps}
+      {...overrideGridProps}
+      className="masonry-item"
+    >
+      <Card
+        isExpanded={isExpanded}
+        ouiaId={`card-template-${ouiaId || cardId}`}
+      >
         <CardHeader
+          {...(dropdownItems && {
+            actions: {
+              actions: (
+                <>
+                  <Dropdown
+                    ouiaId="template-card-dropdown"
+                    toggle={
+                      <KebabToggle
+                        onToggle={(_event, isOpen) => onDropdownToggle(isOpen)}
+                      />
+                    }
+                    isOpen={dropdownVisibility}
+                    dropdownItems={dropdownItems}
+                    isPlain
+                    position="right"
+                    {...overrideDropdownProps}
+                    onSelect={onDropdownSelect}
+                  />
+                </>
+              ),
+            },
+          })}
           onExpand={expandable && onExpandCallback}
           isToggleRightAligned
         >
-          {dropdownItems && (
-            <CardActions>
-              <Dropdown
-                ouiaId="template-card-dropdown"
-                toggle={<KebabToggle onToggle={onDropdownToggle} />}
-                isOpen={dropdownVisibility}
-                dropdownItems={dropdownItems}
-                isPlain
-                position="right"
-                {...overrideDropdownProps}
-                onSelect={onDropdownSelect}
-              />
-            </CardActions>
-          )}
           <CardTitle>{header}</CardTitle>
         </CardHeader>
         {expandable ? (
@@ -101,6 +112,7 @@ CardTemplate.propTypes = {
   overrideDropdownProps: PropTypes.object,
   expandable: PropTypes.bool,
   masonryLayout: PropTypes.bool,
+  ouiaId: PropTypes.string,
 };
 
 CardTemplate.defaultProps = {
@@ -110,6 +122,7 @@ CardTemplate.defaultProps = {
   overrideDropdownProps: {},
   expandable: false,
   masonryLayout: false,
+  ouiaId: undefined,
 };
 
 export default CardTemplate;

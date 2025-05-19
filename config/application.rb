@@ -24,7 +24,6 @@ require "rails"
 end
 
 require File.expand_path('../config/settings', __dir__)
-require File.expand_path('../lib/foreman/dynflow', __dir__)
 
 if File.exist?(File.expand_path('../Gemfile.in', __dir__))
   # If there is a Gemfile.in file, we will not use Bundler but BundlerExt
@@ -56,7 +55,7 @@ else
       end
     end
     Bundler.require(*Rails.groups)
-    optional_bundler_groups = %w[assets ec2 fog libvirt openstack ovirt vmware]
+    optional_bundler_groups = %w[assets ec2 fog libvirt openstack ovirt vmware redis]
     optional_bundler_groups.each do |group|
       Bundler.require(group)
     rescue LoadError
@@ -65,30 +64,11 @@ else
   end
 end
 
-# CRs in fog core with extra dependencies will have those deps loaded, so then
-# load the corresponding bit of fog
-require 'fog/ovirt' if defined?(::OVIRT)
-
-require File.expand_path('../lib/foreman', __dir__)
-require File.expand_path('../lib/timed_cached_store', __dir__)
-require File.expand_path('../lib/foreman/exception', __dir__)
-require File.expand_path('../lib/core_extensions', __dir__)
-require File.expand_path('../lib/foreman/force_ssl', __dir__)
-require File.expand_path('../lib/foreman/logging', __dir__)
-require File.expand_path('../lib/foreman/http_proxy', __dir__)
-require File.expand_path('../lib/foreman/middleware/logging_context_request', __dir__)
-require File.expand_path('../lib/foreman/middleware/logging_context_session', __dir__)
-require File.expand_path('../lib/foreman/middleware/telemetry', __dir__)
-require File.expand_path('../lib/foreman/middleware/libvirt_connection_cleaner', __dir__)
-
-# Ensure ApplicationRecord is loaded early and can be used inside migrations.
-# Can probably be removed once we migrate to Zeitwerk.
-require File.expand_path('../app/models/concerns/host_mix', __dir__)
-require File.expand_path('../app/models/concerns/has_many_common', __dir__)
-require File.expand_path('../app/models/concerns/strip_whitespace', __dir__)
-require File.expand_path('../app/models/concerns/parameterizable', __dir__)
-require File.expand_path('../app/models/concerns/audit_associations', __dir__)
-require File.expand_path('../app/models/application_record', __dir__)
+# Content of these files is being used before Zeitwerk does auto/eager loading
+# We need to call either require with the full path or require_relative with relative path since /lib is not in $LOAD_PATH yet here
+# $LOAD_PATH is available in config/initializers though
+require_relative '../lib/foreman'
+require_relative '../lib/foreman/dynflow'
 
 if SETTINGS[:support_jsonp]
   if File.exist?(File.expand_path('../Gemfile.in', __dir__))
@@ -100,6 +80,32 @@ end
 
 module Foreman
   class Application < Rails::Application
+    config.load_defaults '7.0'
+
+    # Rails 5.0 changed this to true, but a lot of code depends on this
+    config.active_record.belongs_to_required_by_default = false
+
+    # Rails 5.1 changed this to false, re-enabling this due to https://github.com/theforeman/foreman/pull/9711/files#r1247901552
+    config.assets.unknown_asset_fallback = true
+
+    # Rails 5.2 changed this to true, but we already do this in app/controllers/application_controller.rb#7
+    # We don't use this default because it's applied to ActionController::Base, thus to all inherited controllers
+    # But for API controllers we use a modification: app/controllers/concerns/foreman/controller/api_csrf_protection.rb#7
+    config.action_controller.default_protect_from_forgery = false
+    # Rails 5.2 changed this to true, but the only thing it does currently (as of Rails 7.0) is
+    # changing default cipher from aes-256-cbc to aes-256-gcm.
+    # Leaving this disabled, since the application worked with aes-256-cbc.
+    # Failed tests on aes-256-gcm require revisit application to ensure we can do the switch.
+    config.active_support.use_authenticated_message_encryption = false
+    config.action_dispatch.use_authenticated_cookie_encryption = false
+
+    # Rails 6.1 changed this to true, but apparently our codebase is not ready for bidirectional associations
+    config.active_record.has_many_inversing = false
+
+    # Rails 7.0 changed this to true
+    config.active_record.verify_foreign_keys_for_fixtures = false
+    config.active_record.automatic_scope_inversing = false
+
     # Setup additional routes by loading all routes file from routes directory
     Dir["#{Rails.root}/config/routes/**/*.rb"].each do |route_file|
       config.paths['config/routes.rb'] << route_file
@@ -109,13 +115,13 @@ module Foreman
     # Application configuration should go into files in config/initializers
     # -- all .rb files in that directory are automatically loaded.
 
+    # Recommended by Rails: https://guides.rubyonrails.org/v7.0/configuring.html#config-add-autoload-paths-to-load-path
+    config.add_autoload_paths_to_load_path = false
     # Autoloading
-    config.autoload_paths += %W(#{config.root}/app/models/power_manager)
     config.autoload_paths += %W(#{config.root}/app/models/auth_sources)
     config.autoload_paths += %W(#{config.root}/app/models/compute_resources)
     config.autoload_paths += %W(#{config.root}/app/models/fact_names)
     config.autoload_paths += %W(#{config.root}/app/models/lookup_keys)
-    config.autoload_paths += %W(#{config.root}/app/models/host_status)
     config.autoload_paths += %W(#{config.root}/app/models/operatingsystems)
     config.autoload_paths += %W(#{config.root}/app/models/parameters)
     config.autoload_paths += %W(#{config.root}/app/models/taxonomies)
@@ -127,6 +133,7 @@ module Foreman
 
     # Eager load all classes under lib directory
     config.eager_load_paths += ["#{config.root}/lib"]
+    config.eager_load_paths += ["#{config.root}/app/lib"]
 
     # Only load the plugins named here, in the order given (default is alphabetical).
     # :all can be used as a placeholder for all plugins not explicitly named.
@@ -277,22 +284,27 @@ module Foreman
     config.active_record.logger = Foreman::Logging.logger('sql')
 
     # enables in memory cache store with ttl
-    # config.cache_store = TimedCachedStore.new
     rails_cache_settings = SETTINGS[:rails_cache_store]
     if (rails_cache_settings && rails_cache_settings[:type] == 'redis')
       options = [:redis_cache_store]
       redis_urls = Array.wrap(rails_cache_settings[:urls])
-      options << { namespace: 'foreman', url: redis_urls }.merge(rails_cache_settings[:options] || {})
+
+      options << {
+        namespace: 'foreman',
+        url: redis_urls,
+        reconnect_attempts: ::Redis::Client::DEFAULTS[:reconnect_attempts],
+      }.merge(rails_cache_settings[:options] || {})
+
       config.cache_store = options
       Foreman::Logging.logger('app').info "Rails cache backend: Redis"
     else
-      config.cache_store = :file_store, Rails.root.join('tmp', 'cache')
+      config.cache_store = :file_store, Rails.root.join('tmp', 'cache/')
       Foreman::Logging.logger('app').info "Rails cache backend: File"
     end
 
     if config.public_file_server.enabled
       ::Rails::Engine.subclasses.map(&:instance).each do |engine|
-        if File.exist?("#{engine.root}/public/assets")
+        if File.exist?("#{engine.root}/public/assets") || File.exist?("#{engine.root}/public/webpack")
           config.middleware.use ::ActionDispatch::Static, "#{engine.root}/public"
         end
       end
@@ -344,6 +356,12 @@ module Foreman
     # of the application. Switching the order helps a lot.
     initializer(:sooner_routes_load, :before => :run_prepare_callbacks) do
       routes_reloader.execute_if_updated
+    end
+
+    initializer(:register_gettext, :after => :load_config_initializers) do |app|
+      ::Foreman::Plugin.all.select { |p| p.gettext_domain }.each do |plugin|
+        Foreman::Gettext::Support.add_text_domain plugin.gettext_domain, plugin.locale_path
+      end
     end
 
     config.after_initialize do

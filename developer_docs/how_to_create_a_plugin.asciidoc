@@ -464,12 +464,93 @@ Possible mount points:
 * main_tabs
 * hosts_table_column_header
 * hosts_table_column_content
+* tab_headers
+* tab_content
+
+[[extending-hosts-table-with-pagelets]]
+==== Extending hosts table with pagelets
+
+Hosts table on the index page can be extended using two predefined pagelets:
+[source, ruby]
+----
+add_pagelet :hosts_table_column_header, key: :name, label: _('Name'), sortable: true, width: '25%'
+add_pagelet :hosts_table_column_content, key: :name, class: 'ellipsis', callback: ->(host) { name_column(host) }
+----
+notice that `key` is mandatory, since we will present it to the user when selecting columns.
+
+`hosts_table_column_header` supports the following attributes:
+
+* `key` - the name that will be used to choose the column
+* `label` - a string that will be shown in the header row
+* `sortable` - true/false value that indicates whether the column should support sorting
+* `width` - width percentage of the column
+* `class` - additional html classes to put on the `<th>` element
+* `attr_callbacks` - a hash where the key is the name of html attribute, and the value is a function in the form `->(host) { attribute_value }`
+* `callback` - a function that receives the host model and returns html content for the `<th>` element: `->(host) { "<span>...</span>".html_safe }`
+* `export_key` - a string that is used to derive exported column's name and value from. Passing `reported_data.sockets` results into header called `Reported Data - Sockets` and value corresponding to the result of calling `host&.reported_data&.sockets`. Alternatively, for cases where WebUI columns aggregate multiple values, this can be an array of strings to split the values into their own columns in the export.
+* `export_data` - An instance (or an array of instances) of CsvExporter::ExportDefinition to be used when the data to be exported cannot be retrieved by a series of calls from the exported object. A lambda can be passed into it with the callback keyword argument. First positional argument is the key, a label can be derived from it unless provided explicitly with the label keyword argument.
+
+`hosts_table_column_content` supports the following attributes:
+
+* `key` - the name that will be used to choose the column
+* `width` - width percentage of the column
+* `class` - additional html classes to put on the `<th>` element
+* `attr_callbacks` - a hash where the key is the name of html attribute, and the value is a function in the form `->(host) { attribute_value }`
+* `callback` - a function that receives the host model and returns html content for the `<th>` element: `->(host) { "<span>...</span>".html_safe }`
+
+You can find usage of those pagelets in the https://github.com/theforeman/foreman/blob/fd2d3f160ca7db0d56cac1e61ce6a474b5cf7def/config/initializers/foreman_register.rb#L8[core repository]
 
 [[using-react-in-plugins]]
 === Using React in plugins
 
 _Requires Foreman 1.18 or higher, set `requires_foreman '>= 1.18'` in
 engine.rb_
+
+[[adding-columns-to-the-react-hosts-index-page]]
+==== Adding columns to the React hosts index page
+
+Similar to the way the legacy hosts index page can be extended via pagelets, columns can also be added to the React hosts index page, or any other page that uses the ColumnSelector component and user TablePreferences.
+These columns will then be available in the ColumnSelector so that users can customize which columns are displayed in the table.
+Instead of pagelets, column data is defined in the plugin's `webpack/global_index.js` file.
+The following example demonstrates how to add a new column to the React hosts index page:
+
+[source, javascript]
+----
+import React from 'react';
+import { RelativeDateTime } from 'foremanReact/components/RelativeDateTime';
+import { registerColumns } from 'foremanReact/components/HostsIndex/Columns/core';
+import { __ as translate } from 'foremanReact/common/i18n';
+
+const hostsIndexColumnExtensions = [
+  {
+    columnName: 'last_checkin',
+    title: __('Last seen'),
+    wrapper: (hostDetails) => {
+      const lastCheckin =
+        hostDetails?.subscription_facet_attributes?.last_checkin;
+      return <RelativeDateTime defaultValue={__('Never')} date={lastCheckin} />;
+    },
+    weight: 400,
+    tableName: 'hosts',
+    categoryName: __('Content'),
+    categoryKey: 'content',
+    isSorted: false,
+  },
+];
+
+registerColumns(hostsIndexColumnExtensions);
+----
+
+Each column extension object must contain the following properties:
+
+* `columnName` - the name of the column, which must match the column name in the API response.
+* `title` - the title of the column to be displayed on screen in the <th> element. Should be translated.
+* `wrapper` - a function that returns the content (as JSX) to be displayed in the table cell. The function receives the host details as an argument.
+* `weight` - the weight of the column, which determines the order in which columns are displayed. Lower weights are displayed first.
+* `tableName` - the name of the table. Should match the `name` of the user's TablePreference.
+* `categoryName` - the name of the category to which the column belongs. Displayed on screen in the ColumnSelector. Should be translated.
+* `categoryKey` - the key of the category to which the column belongs. Used to group columns in the ColumnSelector. Should not be translated.
+* `isSorted` - whether the column is sortable. Sortable columns must have a `columnName` that matches a sortable column in the API response.
 
 [[new-structure-for-assets]]
 ===== New structure for assets.
@@ -1427,6 +1508,37 @@ my_host.refresh_statuses
 The method refreshes *all* statuses by default, this is usually not what
 you want so provide status for refresh.
 
+For each status, the user should be able to search host by it's possible values.
+Your plugin must extend the `Host::Managed` object. Here is an example of how
+such extension definition could look like.
+
+[source, ruby]
+----
+module ForemanRemoteExecution
+  module HostExtensions
+    def self.prepended(base)
+      base.instance_eval do
+         # We need to make sure, there's a AR relation we'd be searching on, because the class name can't be determined by the
+         # association name, it needs to be specified explicitly (as a string). Similarly for the foreign key.
+         has_one :execution_status_object, :class_name => 'HostStatus::ExecutionStatus', :foreign_key => 'host_id'
+         
+         # Then we define the searching, the relation is the association name we define on a line above
+         # :rename key indicates the term user will use to search hosts for a given state, the convention is $feature_status
+         # :complete_value must be a hash with symbolized keys specifying all possible state values, otherwise the autocompletion
+         # would only offer values that are already in the database, however it's not guaranteed that user have hosts covering
+         # the whole set of values, that's why the explicit list is necessary. That way user can easily search of all hosts with
+         # "error" even though no host has such status.
+         scoped_search :relation => :execution_status_object, :on => :status,
+                       :rename => :execution_status,
+                       :complete_value => { :ok => HostStatus::ExecutionStatus::OK, :error => HostStatus::ExecutionStatus::ERROR }
+      end
+    end
+  end
+end
+----
+
+For more information about searching capabilities, check the [scoped_search](https://github.com/wvanbergen/scoped_search) gem documentation.
+
 [source, ruby]
 ----
 my_host.refresh_statuses([HostStatus.find_status_by_humanized_name("statusname")])
@@ -1744,15 +1856,12 @@ The `:text` type supports markdown and usage of such setting should expect markd
 
 ==== Initial setting value
 
-If you want the setting to have initial value please use migration to seed it.
+In most cases, a setting should only have a default defined via the DSL, not an initial value.
+If you really need the setting to have an initial value, please use a seed to set it.
 
 [source, ruby]
 ```
-class SeedInitialFooSettingValue < ActiveRecord::Migration[6.0]
-  def up
-    Setting.find_or_create(name: 'foo').update(value: Foreman.uuid)
-  end
-end
+Setting[:instance_id] = Foreman.uuid unless Setting.where(name: 'instance_id').exists?
 ```
 
 ==== Validate setting values
@@ -2321,6 +2430,7 @@ folder):
 $ mkdir ../foreman_plugin/locale
 $ mkdir ../foreman_plugin/locale/en
 $ rake plugin:gettext[foreman_plugin]
+$ rake plugin:po_to_json[foreman_plugin]
 ----
 
 This should create locale/foreman_plugin.pot file. Edit the header
@@ -2389,7 +2499,9 @@ the latest updates:
 `make -C locale tx-update`
 2.  In the Foreman dir, merge the updates into the PO files:
 `rake plugin:gettext[foreman_plugin]`
-3.  In the plugin dir, rebuild the MO files: `make -C locale mo-files`
+3.  In the Foreman dir, generate files with translations for use in frontend:
+`rake plugin:po_to_json[foreman_plugin]`
+4.  In the plugin dir, rebuild the MO files: `make -C locale mo-files`
 
 These files should be .gitignored:
 
@@ -2401,6 +2513,7 @@ locale/*/*.po.time_stamp
 These files must be committed to git:
 
 ....
+app/assets/javascripts/locale/**/*.js
 locale/foreman_plugin.pot +
 locale/*/foreman_plugin.po +
 locale/*/LC_MESSAGES/foreman_plugin.mo
@@ -2410,6 +2523,23 @@ Ensure that the whole locale/ directory is included in the gem via the
 gemspec file list. The .po and .mo files are important in development
 and production environments respectively, so must both be shipped in the
 gem.
+
+[[registering-translations]]
+=== Registering Translations
+_Requires Foreman 3.7 or higher, set `requires_foreman '>= 3.7'` in
+engine.rb_
+
+If your plugin has translations, you can register its gettext domain to have the
+translations processed properly. The `domain` keyword argument can be omitted,
+in which case the domain will be derived from plugin name.
+
+[source, ruby]
+....
+Foreman::Plugin.register :sample_plugin do
+  # other code here
+  register_gettext domain: "sample_plugin"
+end
+....
 
 [[translating-template-kind]]
 === Translating Template Kind

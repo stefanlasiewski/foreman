@@ -34,7 +34,8 @@ module Api
 
       def index
         base = nested_obj.send(parameters_method).authorized(current_permission)
-        @parameters = base.search_for(*search_options).paginate(paginate_options)
+        @parameters = base.search_for(*search_options)
+        @parameters = @parameters.paginate(paginate_options) unless paginate_options[:per_page] == 'all'
         @total = base.count
       end
 
@@ -63,6 +64,7 @@ module Api
           param :name, String, :required => true
           param :value, String, :required => true
           param :parameter_type, Parameter::KEY_TYPES, :desc => N_("Type of value"), :required => true
+          param :hidden_value, :bool, :desc => N_("Should the value be hidden")
         end
       end
 

@@ -14,24 +14,34 @@ module Foreman::Controller::Registration
                                .map(&:allowed_registration_vars)
                                .flatten.compact.uniq
 
-    organization = Organization.authorized(:view_organizations).find(params['organization_id']) if params['organization_id'].present?
-    location = Location.authorized(:view_locations).find(params['location_id']) if params['location_id'].present?
-    host_group = Hostgroup.authorized(:view_hostgroups).find(params['hostgroup_id']) if params["hostgroup_id"].present?
-    operatingsystem = Operatingsystem.authorized(:view_operatingsystems).find(params['operatingsystem_id']) if params["operatingsystem_id"].present?
+    if params['repo'].present?
+      repo_data = {}
+      repo_data[params['repo']] = params['repo_gpg_key_url'] || ''
+    end
+
+    if params['repo_data'].present?
+      repo_data = {} unless repo_data.present?
+      params['repo_data'].each { |repo| repo_data[repo['repo']] = repo['repo_gpg_key_url'] }
+    end
+
+    organization = find_object(Organization, params['organization_id'], params['organization']) || default_organization
+    location = find_object(Location, params['location_id'], params['location']) || default_location
+    hostgroup = find_object(Hostgroup, params['hostgroup_id'], params['hostgroup'])
+    operatingsystem = find_object(Operatingsystem, params['operatingsystem_id'], params['operatingsystem'])
 
     context = {
       user: User.current,
       auth_token: api_authorization_token,
-      organization: (organization || User.current.default_organization || User.current.my_organizations.first),
-      location: (location || User.current.default_location || User.current.my_locations.first),
-      hostgroup: host_group,
+      organization: organization,
+      location: location,
+      hostgroup: hostgroup,
       operatingsystem: operatingsystem,
       setup_insights: ActiveRecord::Type::Boolean.new.deserialize(params['setup_insights']),
       setup_remote_execution: ActiveRecord::Type::Boolean.new.deserialize(params['setup_remote_execution']),
       packages: params['packages'],
       update_packages: params['update_packages'],
-      repo: params['repo'],
-      repo_gpg_key_url: params['repo_gpg_key_url'],
+      repo_data: repo_data,
+      download_utility: params['download_utility'],
     }
 
     params.permit(permitted)
@@ -133,5 +143,22 @@ module Foreman::Controller::Registration
       actions: [:global, :host],
     }]
     User.current.jwt_token!(expiration: 4.hours.to_i, scope: scope)
+  end
+
+  def find_object(klass, id = nil, title = nil)
+    return unless id || title
+
+    permission = "view_#{klass.name.underscore.pluralize}".to_sym
+    scope = klass.authorized(permission)
+
+    scope.friendly.find(id || title)
+  end
+
+  def default_organization
+    User.current.default_organization || User.current.my_organizations.first
+  end
+
+  def default_location
+    User.current.default_location || User.current.my_locations.first
   end
 end

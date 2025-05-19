@@ -124,9 +124,21 @@ class Api::V2::TestableControllerTest < ActionController::TestCase
   test "should have server error message" do
     get :new
     assert_response 500
-    msg = "Internal Server Error: the server was unable to finish the request. "
-    msg << "This may be caused by unavailability of some required service, incorrect API call or a server-side bug. "
-    msg << "There may be more information in the server's logs."
+    msg = "Internal Server Error: the server was unable to finish the request. " \
+      "This may be caused by unavailability of some required service, incorrect API call or a server-side bug. " \
+      "There may be more information in the server's logs."
     assert_equal JSON.parse(response.body)['error']['message'], msg
+  end
+
+  test "adds permissions to index node" do
+    @controller.stubs(:index_node_permissions).returns({:test_permission => true})
+    result = @controller.index_node_permissions_snippet
+    assert_equal result, "\"test_permission\": true"
+  end
+
+  test "correctly handles nested hashes in index_node_permissions" do
+    @controller.stubs(:index_node_permissions).returns({:test_permission => {:nested => true}})
+    result = @controller.index_node_permissions_snippet
+    assert_equal result, "\"test_permission\": {\"nested\":true}"
   end
 end

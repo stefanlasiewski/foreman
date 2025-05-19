@@ -1,12 +1,13 @@
-require_dependency 'facets'
-
 module Facets
   module HostgroupExtensions
     extend ActiveSupport::Concern
     include Facets::ModelExtensionsBase
+    include SelectiveClone
 
     included do
-      configure_facet(:hostgroup, :hostgroup, :hostgroup_id)
+      configure_facet(:hostgroup, :hostgroup, :hostgroup_id) do |facet_config|
+        include_in_clone facet_config.name
+      end
     end
 
     def hostgroup_ancestry_cache

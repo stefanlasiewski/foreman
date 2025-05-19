@@ -1,27 +1,55 @@
 //= require parameter_override
+var compute_resource_id = null;
 
-$(document).ready(function() {
+$(document).on('ContentLoad', function() {
   var searchParams = new URLSearchParams(window.location.search);
   if(searchParams.has('hostgroup_id')) {
     var param = searchParams.get('hostgroup_id');
     $('#host_hostgroup_id').val(param).trigger('change');
   }
-});
-$(document).on('ContentLoad', function() {
   onHostEditLoad();
+  const overrideButtons = document.querySelectorAll('[name=is_overridden_btn]');
+  overrideButtons.forEach(button =>
+    button.addEventListener('click', function(event) {
+      const item = event.target;
+      var formControl = $(item)
+        .closest('.input-group')
+        .find('.form-control');
+      const itemId = formControl.attr('id');
+      if (itemId.includes('compute_resource_id')) {
+        const select2Id = itemId.replace('s2id_', '');
+        const isDisabled = formControl.attr('disabled');
+        if (isDisabled) {
+          $(`#${select2Id}`)
+            .val(compute_resource_id)
+            .trigger('change');
+        }
+      }
+    })
+  );
+  if (window.location.href.includes('hostgroup')) {
+    document.querySelector('form').addEventListener('submit', function() {
+      // making sure inherited compute resource is included in the form
+      const hostgroup_compute_resource_id = $('#hostgroup_compute_resource_id');
+      hostgroup_compute_resource_id.prop('disabled', false);
+    });
+  }
+  update_default_compute_resource($('.hostgroup-select').val());
 });
 $(document)
-  .on('change', '.hostgroup-select', function(evt) {
+  .on('select2:select select2:unselecting', '.hostgroup-select', function(evt) {
     hostgroup_changed(evt.target);
-  }).on('change', '.host-form-compute-resource-handle', function(evt) {
+  }).on('select2:select select2:unselecting', '.host-form-compute-resource-handle', function(evt) {
     computeResourceSelected(evt.target);
-  }).on('change', '.host-taxonomy-select', function(evt) {
+  }).on('select2:select select2:unselecting', '.host-taxonomy-select', function(evt) {
     update_form(evt.target);
-  }).on('change', '.host-architecture-select', function(evt) {
+  }).on('select2:select select2:unselecting', '#host_architecture_id', function(evt) {
     architecture_selected(evt.target);
-  }).on('change', '.host-architecture-os-select', function(evt) {
+  }).on('select2:select select2:unselecting', '#hostgroup_architecture_id', function(evt) {
+    architecture_selected(evt.target);
+  }).on('select2:select select2:unselecting', '.host-architecture-os-select', function(evt) {
     os_selected(evt.target);
-  }).on('change', '.host-os-media-select', function(evt) {
+  }).on('select2:select select2:unselecting', '.host-os-media-select', function(evt) {
     medium_selected(evt.target);
   });
 
@@ -145,11 +173,11 @@ function update_capabilities(capabilities) {
   var build = capabilities.indexOf('build') > -1;
   if (build) {
     $('#manage_network_build').show();
-    $('#host_provision_method_build').click();
+    $('#host_provision_method_build').trigger('click');
     build_provision_method_selected();
   } else if (capabilities.length > 0) {
     $('#manage_network_build').hide();
-    $('#host_provision_method_' + capabilities[0]).click();
+    $('#host_provision_method_' + capabilities[0]).trigger('click');
     if (capabilities[0].toLowerCase() === 'image') {
       image_provision_method_selected();
     }
@@ -176,10 +204,10 @@ function submit_with_all_params() {
     type: 'POST',
     url: $('form').attr('action'),
     data: serializeForm(),
-    success: function(response, _responseStatus, _jqXHR) {
+    success: function(response, _responseStatus, jqXHR) {
       // workaround for redirecting to the new host details page
       if (!response.includes('id="main"')) {
-        return tfm.nav.pushUrl(tfm.tools.foremanUrl('/new/hosts/' + construct_host_name()));
+        return tfm.nav.pushUrl(tfm.tools.foremanUrl(jqXHR.getResponseHeader('X-Request-Path')));
       }
 
       $('#host-progress').hide();
@@ -246,6 +274,24 @@ function update_progress(data) {
   $('#tasks_progress').replaceWith(data);
 }
 
+function update_default_compute_resource(hostgroup_id) {
+  if(hostgroup_id) {
+    tfm.tools.showSpinner();
+    $.ajax({
+      type: 'get',
+      url: '/api/hostgroups/' + hostgroup_id,
+      complete: function() {
+        tfm.tools.hideSpinner();
+      },
+      success: function(response) {
+        compute_resource_id = response['compute_resource_id'];
+      }});
+  }
+  else {
+    compute_resource_id = null
+  }
+}
+
 function hostgroup_changed(element) {
   var host_id = $('form').data('id');
   var host_changed = $('form').data('type-changed');
@@ -255,6 +301,9 @@ function hostgroup_changed(element) {
     // a new host
     handleHostgroupChangedNew(element);
   }
+  const hostgroup_id = element.value;
+  update_default_compute_resource(hostgroup_id);
+
 }
 
 function handleHostgroupChangeEdit(element, host_id, host_changed) {
@@ -329,7 +378,7 @@ function update_form(element, options) {
       if (host_compute_resource_id.exists()) {
         // to handle case if def process_taxonomy changed compute_resource_id to nil
         if (!host_compute_resource_id.val()) {
-          host_compute_resource_id.change();
+          host_compute_resource_id.trigger('change');
         } else {
           // in case the compute resource was selected, we still want to check for
           // free ip if applicable
@@ -380,6 +429,7 @@ function architecture_selected(element) {
     },
     success: function(request) {
       $('#os_select').html(request);
+      os_selected($('.host-architecture-os-select'));
     },
   });
 }
@@ -530,6 +580,9 @@ function onHostEditLoad() {
   $('#params-tab').on('shown', function() {
     mark_params_override();
   });
+  $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+    $('a[rel="popover"]').popover("destroy");
+  });
   if ($('#supports_update') && !$('#supports_update').data('supports-update'))
     disable_vm_form_fields();
   pxeLoaderCompatibilityCheck();
@@ -578,7 +631,7 @@ $(document).on(
   image_provision_method_selected
 );
 
-$(document).on('change', '.interface_domain', function() {
+$(document).on('select2:select select2:unselecting', '.interface_domain', function() {
     interface_domain_selected(this);
     clearIpField(this, '.interface_ip');
     clearIpField(this, '.interface_ip6');

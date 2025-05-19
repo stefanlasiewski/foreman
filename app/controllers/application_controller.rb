@@ -23,7 +23,6 @@ class ApplicationController < ActionController::Base
   before_action :set_taxonomy, :require_mail, :check_empty_taxonomy
   before_action :authorize
   before_action :welcome, :find_selected_columns, :only => :index, :unless => :api_request?
-  prepend_before_action :allow_webpack, if: -> { Rails.configuration.webpack.dev_server.enabled }
   around_action :set_timezone
 
   attr_reader :original_search_parameter
@@ -82,13 +81,14 @@ class ApplicationController < ActionController::Base
   end
 
   def require_mail
-    if User.current && !User.current.hidden? && User.current.mail.blank?
+    user = User.current
+    if user && !user.hidden? && user.mail_enabled && user.mail.blank?
       msg = _("An email address is required, please update your account details")
       respond_to do |format|
         format.html do
           error msg
           flash.keep # keep any warnings added by the user login process, they may explain why this occurred
-          redirect_to main_app.edit_user_path(:id => User.current)
+          redirect_to main_app.edit_user_path(:id => user)
         end
         format.text do
           render :plain => msg, :status => :unprocessable_entity, :content_type => Mime[:text]
@@ -146,7 +146,7 @@ class ApplicationController < ActionController::Base
       process_error(:redirect => :back, :error_msg => exception.message)
     else
       process_error(:render => { :plain => exception.message },
-                    :error_msg => exception.message)
+        :error_msg => exception.message)
     end
   end
 
@@ -167,16 +167,16 @@ class ApplicationController < ActionController::Base
 
   def action_permission
     case params[:action]
-      when 'new', 'create'
-        'create'
-      when 'edit', 'update'
-        'edit'
-      when 'destroy'
-        'destroy'
-      when 'index', 'show'
-        'view'
-      else
-        raise ::Foreman::Exception.new(N_("unknown permission for %s"), "#{params[:controller]}##{params[:action]}")
+    when 'new', 'create'
+      'create'
+    when 'edit', 'update'
+      'edit'
+    when 'destroy'
+      'destroy'
+    when 'index', 'show'
+      'view'
+    else
+      raise ::Foreman::Exception.new(N_("unknown permission for %s"), "#{params[:controller]}##{params[:action]}")
     end
   end
 
@@ -195,14 +195,12 @@ class ApplicationController < ActionController::Base
   def setup_search_options
     @original_search_parameter = params[:search]
     params[:search] ||= ""
-    params.keys.each do |param|
-      if param =~ /(\w+)_id$/
-        if params[param].present?
-          query = "#{Regexp.last_match(1)} = #{params[param]}"
-          unless params[:search].include? query
-            params[:search] += ' and ' if params[:search].present?
-            params[:search] += query
-          end
+    params.each do |param, value|
+      if param =~ /(\w+)_id$/ && value.present?
+        query = "#{Regexp.last_match(1)} = #{value}"
+        unless params[:search].include? query
+          params[:search] += ' and ' if params[:search].present?
+          params[:search] += query
         end
       end
     end
@@ -335,10 +333,6 @@ class ApplicationController < ActionController::Base
     render :partial => "common/ajax_error", :status => :internal_server_error, :locals => { :message => message }
   end
 
-  def redirect_back_or_to(url)
-    redirect_back(fallback_location: url)
-  end
-
   def saved_redirect_url_or(default)
     session["redirect_to_url_#{controller_name}"] || default
   end
@@ -397,21 +391,6 @@ class ApplicationController < ActionController::Base
 
   def parameter_filter_context
     Foreman::ParameterFilter::Context.new(:ui, controller_name, params[:action])
-  end
-
-  def allow_webpack
-    webpack_csp = {
-      script_src: [webpack_server], connect_src: [webpack_server],
-      style_src: [webpack_server], img_src: [webpack_server],
-      font_src: ["data: #{webpack_server}"], default_src: [webpack_server]
-    }
-
-    append_content_security_policy_directives(webpack_csp)
-  end
-
-  def webpack_server
-    port = Rails.configuration.webpack.dev_server.port
-    @dev_server ||= "#{request.protocol}#{request.host}:#{port}"
   end
 
   class << self

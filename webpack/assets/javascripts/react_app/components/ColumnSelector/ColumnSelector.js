@@ -16,6 +16,7 @@ const ColumnSelector = props => {
   const initialColumns = cloneDeep(categories);
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState(categories);
+  const [saving, setSaving] = useState(false);
 
   const getColumnKeys = () => {
     const keys = selectedColumns
@@ -32,8 +33,10 @@ const ColumnSelector = props => {
   };
 
   async function updateTablePreference() {
+    if (!url || !controller) return;
+    setSaving(true);
     if (!hasPreference) {
-      await API.post(url, { name: 'hosts', columns: getColumnKeys() });
+      await API.post(url, { name: controller, columns: getColumnKeys() });
     } else {
       await API.put(`${url}/${controller}`, { columns: getColumnKeys() });
     }
@@ -69,6 +72,7 @@ const ColumnSelector = props => {
   const toggleModal = () => {
     setSelectedColumns(initialColumns);
     setModalOpen(!isModalOpen);
+    setSaving(false);
   };
 
   const updateCheckBox = (treeViewItem, checked = true) => {
@@ -80,6 +84,20 @@ const ColumnSelector = props => {
         }
       });
     }
+    selectedColumns.forEach(category => {
+      category.children.forEach(column => {
+        if (treeViewItem.key === column.key && !column.checkProps.disabled) {
+          column.checkProps.checked = checked;
+        }
+        if (treeViewItem.children) {
+          treeViewItem.children.forEach(item => {
+            if (item.key === column.key && !column.checkProps.disabled) {
+              column.checkProps.checked = checked;
+            }
+          });
+        }
+      });
+    });
   };
 
   const onCheck = (evt, treeViewItem) => {
@@ -125,20 +143,22 @@ const ColumnSelector = props => {
   };
 
   return (
-    <div className="pf-c-select-input">
-      <div className="pf-c-input-group" id="column-selector">
+    <div className="pf-v5-c-select-input">
+      <div className="pf-v5-c-input-group" id="column-selector">
         <Button
+          ouiaId="manage-columns-button"
           id="btn-select-columns"
           variant="link"
           icon={<ColumnsIcon />}
           iconPosition="left"
           className="columns-selector"
-          onClick={() => toggleModal()}
+          onClick={toggleModal}
           title={__('Manage columns')}
         >
           <span className="columns-selector-text">{__('Manage columns')}</span>
         </Button>
         <Modal
+          ouiaId="manage-columns-modal"
           variant={ModalVariant.small}
           title={__('Manage columns')}
           isOpen={isModalOpen}
@@ -148,18 +168,26 @@ const ColumnSelector = props => {
           position="top"
           actions={[
             <Button
+              ouiaId="save-columns-button"
               key="save"
               variant="primary"
+              isLoading={saving}
+              isDisabled={saving}
               onClick={() => updateTablePreference()}
             >
               {__('Save')}
             </Button>,
-            <Button key="cancel" variant="secondary" onClick={toggleModal}>
+            <Button
+              ouiaId="cancel-columns-button"
+              key="cancel"
+              variant="secondary"
+              onClick={toggleModal}
+            >
               {__('Cancel')}
             </Button>,
           ]}
         >
-          <TreeView data={selectedColumns} onCheck={onCheck} hasChecks />
+          <TreeView data={selectedColumns} onCheck={onCheck} hasCheckboxes />
         </Modal>
       </div>
     </div>

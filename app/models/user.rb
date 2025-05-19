@@ -2,7 +2,7 @@ require 'digest/sha1'
 
 class User < ApplicationRecord
   audited :except => [:last_login_on, :password_hash, :password_salt, :password_confirmation],
-          :associations => [:roles, :usergroups]
+    :associations => [:roles, :usergroups]
   include Authorizable
   include Foreman::TelemetryHelper
   extend FriendlyId
@@ -23,6 +23,7 @@ class User < ApplicationRecord
 
   validates_lengths_from_database :except => [:firstname, :lastname, :format, :mail, :login]
   attr_accessor :password_confirmation, :current_password
+
   attribute :password
 
   after_save :ensure_default_role
@@ -83,7 +84,7 @@ class User < ApplicationRecord
 
   validates :mail, :email => true, :allow_blank => true
   validates :mail, :presence => true, :on => :update,
-            :if => proc { |u| !AuthSourceHidden.where(:id => u.auth_source_id).any? && (u.mail_enabled || (User.current == u && !User.current.hidden?)) }
+            :if => proc { |u| !AuthSourceHidden.where(:id => u.auth_source_id).any? && u.mail_enabled }
 
   validates :locale, :format => { :with => /\A\w{2}([_-]\w{2})?\Z/ }, :allow_blank => true, :if => proc { |user| user.respond_to?(:locale) }
   before_validation :normalize_locale
@@ -93,11 +94,11 @@ class User < ApplicationRecord
   end
 
   def self.name_format
-    /\A[[:alnum:]\s'_\-\.()<>;=,]*\z/
+    /\A[[:alnum:]\s'_\-.()<>;=,]*\z/
   end
 
   validates :login, :presence => true, :uniqueness => {:case_sensitive => false, :message => N_("already exists")},
-                    :format => {:with => /\A[[:alnum:]_\-@\.\\$#+]*\Z/}, :length => {:maximum => 100},
+                    :format => {:with => /\A[[:alnum:]_\-@.\\$#+]*\Z/}, :length => {:maximum => 100},
                     :exclusion => { in: %w(current_user) }
   validates :auth_source_id, :presence => true
   validates :password_hash, :presence => true, :if => proc { |user| user.manage_password? }
@@ -139,6 +140,8 @@ class User < ApplicationRecord
     end
   }
 
+  scope :with_enabled_email, -> { where(disabled: [nil, false], mail_enabled: true).where.not(mail: ['', nil]) }
+
   dirty_has_many_associations :roles
 
   attr_exportable :firstname, :lastname, :mail, :description, :fullname, :name => ->(user) { user.login }, :ssh_authorized_keys => ->(user) { user.ssh_keys.map(&:to_export_hash) }
@@ -149,7 +152,7 @@ class User < ApplicationRecord
 
   set_crud_hooks :user
 
-  apipie :class, desc: "A class representing #{model_name.human} object" do
+  apipie :class do
     sections only: %w[all additional]
     property :id, Integer, desc: 'Numerical ID of the User'
     property :firstname, String, desc: 'Returns the user first name'
@@ -199,7 +202,7 @@ class User < ApplicationRecord
     }
   end
 
-  # note that if you assign user new usergroups which change the admin flag you must save
+  # NOTE: that if you assign user new usergroups which change the admin flag you must save
   # the record before #admin? will reflect this
   def admin?
     self[:admin] || inherited_admin?
@@ -334,6 +337,7 @@ class User < ApplicationRecord
         user.usergroups = new_usergroups.uniq
       end
 
+      user.post_successful_login
       user
     # not existing user and creating is disabled by settings
     elsif auth_source_name.nil?
@@ -460,7 +464,7 @@ class User < ApplicationRecord
 
   def editing_self?(options = {})
     options[:controller].to_s == 'users' &&
-      options[:action] =~ /edit|update/ &&
+      options[:action] =~ /edit|update|invalidate_jwt/ &&
       options[:id].to_i == id ||
     options[:controller].to_s =~ /\Aapi\/v\d+\/users\Z/ &&
       options[:action] =~ /show|update/ &&
@@ -473,7 +477,10 @@ class User < ApplicationRecord
       options[:user_id].to_i == id ||
     options[:controller].to_s == 'api/v2/personal_access_tokens' &&
       options[:action] =~ /show|destroy|index|create/ &&
-      options[:user_id].to_i == id
+      options[:user_id].to_i == id ||
+    options[:controller].to_s == 'api/v2/registration_tokens' &&
+      options[:action] =~ /invalidate_jwt/ &&
+      options[:id].to_i == id
   end
 
   def taxonomy_foreign_conditions

@@ -5,19 +5,13 @@ import {
   DropdownToggle,
   DropdownItem,
   DropdownSeparator,
-} from '@patternfly/react-core';
+} from '@patternfly/react-core/deprecated';
 import { UserAltIcon } from '@patternfly/react-icons';
 
 import { userPropType } from '../../LayoutHelper';
 import { translate as __ } from '../../../../common/I18n';
 
-const UserDropdowns = ({
-  user,
-  changeActiveMenu,
-  notificationUrl,
-  instanceTitle,
-  ...props
-}) => {
+const UserDropdowns = ({ user, notificationUrl, instanceTitle, ...props }) => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const onDropdownToggle = newUserDropdownOpen => {
@@ -30,15 +24,13 @@ const UserDropdowns = ({
 
   const userDropdownItems = user.user_dropdown[0].children.map((item, i) =>
     item.type === 'divider' ? (
-      <DropdownSeparator key={i} />
+      <DropdownSeparator ouiaId="user-dropdown-separator" key={i} />
     ) : (
       <DropdownItem
+        ouiaId={`user-dropdown-item-${i}`}
         key={i}
         className="user_menuitem"
         href={item.url}
-        onClick={() => {
-          changeActiveMenu({ title: 'User' });
-        }}
         {...item.html_options}
       >
         {__(item.name)}
@@ -49,12 +41,18 @@ const UserDropdowns = ({
   return (
     userInfo && (
       <Dropdown
+        ouiaId="user-info-dropdown"
         isPlain
         position="right"
         onSelect={onDropdownSelect}
         isOpen={userDropdownOpen}
         toggle={
-          <DropdownToggle onToggle={onDropdownToggle}>
+          <DropdownToggle
+            ouiaId="user-dropdown-toggle"
+            onToggle={(_event, newUserDropdownOpen) =>
+              onDropdownToggle(newUserDropdownOpen)
+            }
+          >
             <UserAltIcon className="user-icon" />
             {userInfo.name}
           </DropdownToggle>
@@ -73,15 +71,12 @@ UserDropdowns.propTypes = {
   user: userPropType,
   /** notification URL */
   notificationUrl: PropTypes.string,
-  /** changeActiveMenu Func */
-  changeActiveMenu: PropTypes.func,
   instanceTitle: PropTypes.string,
 };
 UserDropdowns.defaultProps = {
   className: '',
   user: {},
   notificationUrl: '',
-  changeActiveMenu: null,
   instanceTitle: '',
 };
 export default UserDropdowns;

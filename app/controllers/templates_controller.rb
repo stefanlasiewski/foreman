@@ -24,7 +24,9 @@ class TemplatesController < ApplicationController
   # parent classes (so all controllers don't have actions like id, clone, dup, ...), unfortunatelly they don't
   # detect method definitions in controller ancestors, only methods defined directly in child controller
   def clone_template
+    original = @template
     @template = @template.dup
+    @template.cloned_from = original
     @template.name += ' clone'
     @template.locked = false
     load_vars_from_template
@@ -160,8 +162,8 @@ class TemplatesController < ApplicationController
     return unless @template
     @history = Audit.descending
                     .where(:auditable_id => @template.id,
-                           :auditable_type => @template.class.base_class.name,
-                           :action => %w(update create))
+                      :auditable_type => @template.class.base_class.name,
+                      :action => %w(update create))
                     .select { |audit| audit_template? audit }
   end
 

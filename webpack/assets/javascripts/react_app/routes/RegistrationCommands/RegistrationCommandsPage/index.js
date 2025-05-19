@@ -1,8 +1,10 @@
+/* eslint-disable max-lines */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 
 import {
   Alert,
+  Button,
   Form,
   Grid,
   GridItem,
@@ -10,18 +12,16 @@ import {
   Tabs,
   TabContent,
   TabTitleText,
-  Title,
 } from '@patternfly/react-core';
-import { HelpIcon } from '@patternfly/react-icons';
 
 import { translate as __ } from '../../../common/I18n';
+import { getDocsURL } from '../../../common/helpers';
 import {
   useForemanOrganization,
   useForemanLocation,
-  useForemanVersion,
 } from '../../../Root/Context/ForemanContext';
 import { STATUS } from '../../../constants';
-import Head from '../../../components/Head';
+import PageLayout from '../../common/PageLayout/PageLayout';
 import Slot from '../../../components/common/Slot';
 
 import {
@@ -38,13 +38,13 @@ import {
   selectPluginData,
 } from './RegistrationCommandsPageSelectors';
 import { dataAction, commandAction } from './RegistrationCommandsPageActions';
-import { docUrl } from './RegistrationCommandsPageConstants';
 
 import General from './components/General';
 import Advanced from './components/Advanced';
 import Actions from './components/Actions';
 import Command from './components/Command';
 import './RegistrationCommandsPage.scss';
+import { DownloadUtilities } from './components/fields/DownloadUtility';
 
 const RegistrationCommandsPage = () => {
   const dispatch = useDispatch();
@@ -52,7 +52,6 @@ const RegistrationCommandsPage = () => {
   // Context
   const currentOrganization = useForemanOrganization();
   const currentLocation = useForemanLocation();
-  const foremanVersion = useForemanVersion();
 
   // Form tabs
   const [activeTab, setActiveTab] = useState(0);
@@ -66,8 +65,14 @@ const RegistrationCommandsPage = () => {
   const isGenerating = apiStatusCommand === STATUS.PENDING;
 
   // Form data
-  const organizations = useSelector(selectOrganizations);
-  const locations = useSelector(selectLocations);
+  let organizations = useSelector(selectOrganizations);
+  if (currentOrganization !== undefined) {
+    organizations = organizations.filter(f => f.id === currentOrganization.id);
+  }
+  let locations = useSelector(selectLocations);
+  if (currentLocation !== undefined) {
+    locations = locations.filter(f => f.id === currentLocation.id);
+  }
   const hostGroups = useSelector(selectHostGroups);
   const operatingSystems = useSelector(selectOperatingSystems);
   const operatingSystemTemplate = useSelector(selectOperatingSystemTemplate);
@@ -87,9 +92,10 @@ const RegistrationCommandsPage = () => {
   const [jwtExpiration, setJwtExpiration] = useState(4);
   const [packages, setPackages] = useState('');
   const [updatePackages, setUpdatePackages] = useState(false);
-  const [repo, setRepo] = useState('');
-  const [repoGpgKeyUrl, setRepoGpgKeyUrl] = useState('');
+  const [repoData, setRepoData] = useState([]);
+  const [repoDataInternal, setRepoDataInternal] = useState([]);
   const [invalidFields, setInvalidFields] = useState([]);
+  const [downloadUtility, setDownloadUtility] = useState(DownloadUtilities[0]);
 
   // Command
   const command = useSelector(selectCommand);
@@ -128,9 +134,9 @@ const RegistrationCommandsPage = () => {
       setupInsights,
       jwtExpiration,
       packages,
-      repo,
-      repoGpgKeyUrl,
+      repoData,
       updatePackages,
+      downloadUtility,
       ...pluginValues,
     };
 
@@ -141,6 +147,18 @@ const RegistrationCommandsPage = () => {
     e.preventDefault();
     setActiveTab(tab);
   };
+
+  // Update internal repoData that is submitted to server
+  useEffect(() => {
+    setRepoData(
+      repoDataInternal
+        .filter(r => r.repository !== '')
+        .map(repo => ({
+          repo: repo.repository,
+          repo_gpg_key_url: repo.gpgKeyUrl,
+        }))
+    );
+  }, [repoDataInternal]);
 
   // Reset form values when Organization / Location is selected
   useEffect(() => {
@@ -172,44 +190,47 @@ const RegistrationCommandsPage = () => {
   }, [dispatch, hostGroupId, operatingSystemId]);
 
   return (
-    <>
-      <Head>
-        <title>{__('Register Host')}</title>
-      </Head>
+    <PageLayout
+      header={__('Register Host')}
+      searchable={false}
+      toolbarButtons={
+        <Button
+          ouiaId="register-host-documentation-button"
+          component="a"
+          className="btn-docs"
+          href={getDocsURL(
+            'Managing_Hosts',
+            'registering-a-host_managing-hosts'
+          )}
+          rel="noreferrer"
+          target="_blank"
+          variant="secondary"
+        >
+          {__(' Documentation')}
+        </Button>
+      }
+    >
       <Form
         onSubmit={e => handleSubmit(e)}
         className="registration_commands_form"
         isHorizontal
       >
         <Grid hasGutter>
-          <GridItem span={12} />
-          <GridItem span={6}>
-            <Title headingLevel="h1">{__('Register Host')}</Title>
-          </GridItem>
-          <GridItem span={6}>
-            <a
-              href={docUrl(foremanVersion)}
-              target="_blank"
-              rel="noreferrer"
-              className="pf-c-button pf-m-secondary pf-m-small pull-right"
-            >
-              <HelpIcon /> {__('Documentation')}
-            </a>
-          </GridItem>
-
           <GridItem span={12}>
             <Tabs
+              ouiaId="tabs-register-host"
               activeKey={activeTab}
               onSelect={(e, tab) => changeTab(e, tab)}
             >
               <Tab
+                ouiaId="tab-general"
                 eventKey={0}
                 title={<TabTitleText>{__('General')}</TabTitleText>}
                 tabContentId="generalTab"
                 tabContentRef={generalTabRef}
               />
-
               <Tab
+                ouiaId="tab-advanced"
                 eventKey={1}
                 title={<TabTitleText>{__('Advanced')}</TabTitleText>}
                 tabContentId="advancedTab"
@@ -222,6 +243,7 @@ const RegistrationCommandsPage = () => {
             <>
               <GridItem span={4}>
                 <Alert
+                  ouiaId="alert-register-host-error"
                   variant="danger"
                   title={__(
                     'There was an error while loading the data, see the logs for more information.'
@@ -232,8 +254,13 @@ const RegistrationCommandsPage = () => {
             </>
           )}
           <GridItem span={4}>
-            <TabContent eventKey={0} id="generalSection" ref={generalTabRef}>
-              <div className="pf-c-form">
+            <TabContent
+              ouiaId="tab-content-register-host-general"
+              eventKey={0}
+              id="generalSection"
+              ref={generalTabRef}
+            >
+              <div className="pf-v5-c-form">
                 <General
                   organizationId={organizationId}
                   organizations={organizations}
@@ -256,6 +283,8 @@ const RegistrationCommandsPage = () => {
                   handleInvalidField={handleInvalidField}
                   invalidFields={invalidFields}
                   isLoading={isLoading}
+                  downloadUtility={downloadUtility}
+                  handleDownloadUtility={setDownloadUtility}
                 />
 
                 <Slot
@@ -275,12 +304,13 @@ const RegistrationCommandsPage = () => {
             </TabContent>
 
             <TabContent
+              ouiaId="tab-content-register-host-advanced"
               eventKey={1}
               id="advancedSection"
               ref={advancedTabRef}
               hidden
             >
-              <div className="pf-c-form">
+              <div className="pf-v5-c-form">
                 <Advanced
                   configParams={configParams}
                   setupRemoteExecution={setupRemoteExecution}
@@ -298,10 +328,8 @@ const RegistrationCommandsPage = () => {
                   hostGroupId={hostGroupId}
                   packages={packages}
                   handlePackages={setPackages}
-                  repo={repo}
-                  handleRepo={setRepo}
-                  repoGpgKeyUrl={repoGpgKeyUrl}
-                  handleRepoGpgKeyUrl={setRepoGpgKeyUrl}
+                  repoData={repoDataInternal}
+                  handleRepoData={setRepoDataInternal}
                   updatePackages={updatePackages}
                   handleUpdatePackages={setUpdatePackages}
                   isLoading={isLoading}
@@ -333,7 +361,7 @@ const RegistrationCommandsPage = () => {
           </GridItem>
         </Grid>
       </Form>
-    </>
+    </PageLayout>
   );
 };
 

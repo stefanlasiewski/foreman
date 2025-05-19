@@ -1,4 +1,5 @@
 import { STATUS } from '../../../../constants';
+import { DownloadUtilities } from '../components/fields/DownloadUtility'
 
 export const generalComponentProps = {
   organizationId: 0,
@@ -21,6 +22,8 @@ export const generalComponentProps = {
   handleInsecure: () => {},
   handleInvalidField: () => {},
   isLoading: false,
+  downloadUtility: DownloadUtilities.curl,
+  handleDownloadUtility: () => {},
 };
 export const advancedComponentProps = {
   configParams: {},
@@ -33,10 +36,8 @@ export const advancedComponentProps = {
   handleInvalidField: () => {},
   packages: '',
   handlePackages: () => {},
-  repo: '',
-  repoGpgKeyUrl: '',
-  handleRepo: () => {},
-  handleRepoGpgKeyUrl: () => {},
+  repoData: [],
+  handleRepoData: () => {},
   updatePackages: false,
   handleUpdatePackages: () => {},
   isLoading: false,
@@ -100,11 +101,15 @@ export const updatePackagesProps = {
   isLoading: false,
 };
 
+export const downloadUtilityProps = {
+  downloadUtility: DownloadUtilities.curl,
+  handleDownloadUtility: () => {},
+  isLoading: false,
+};
+
 export const repositoryProps = {
-  repo: '',
-  handleRepo: () => {},
-  repoGpgKeyUrl: '',
-  handleRepoGpgKeyUrl: () => {},
+  repoData: [],
+  handleRepoData: () => {},
   isLoading: false,
 };
 
@@ -168,11 +173,19 @@ export const formData = {
       id: 1,
       name: 'Default Organization',
     },
+    {
+      id: 3,
+      name: 'ACME',
+    },
   ],
   locations: [
     {
       id: 2,
       name: 'Default Location',
+    },
+    {
+      id: 4,
+      name: 'munich',
     },
   ],
 };

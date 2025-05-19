@@ -5,7 +5,7 @@ module Foreman
         module Base
           extend ApipieDSL::Module
           include Foreman::Renderer::Errors
-          include ::Foreman::ForemanUrlRenderer
+          include ::Foreman::ForemanURLRenderer
           include ActiveSupport::NumberHelper
 
           attr_reader :template_name, :medium_provider
@@ -105,15 +105,18 @@ module Foreman
             desc "This is useful if some multiline string needs to be saved somewhere on the hard disk. This
               is typically used in provisioning or job templates, e.g. when puppet configuration file is
               generated based on host configuration and stored for puppet agent. The content must end with
-              a line end, if not an extra trailing line end is appended automatically."
+              a line end, if not an extra trailing line end is appended automatically.
+              Note that, the file name or path is printed as it is without any escaping
+              even if it contains any whitespace or special charecters. In order to escape the special
+              charecters, process the file name using the shell_escape function."
             required :filename, String, desc: 'the file path to store the content to'
             required :content, String, desc: 'content to be stored'
             keyword :verbatim, [true, false], desc: 'Controls whether the file should be put on disk as-is or if variables should be replaced by shell before the file is written out', default: false
             returns String, desc: 'String representing the shell command'
             example "save_to_file('/etc/motd', \"hello\\nworld\\n\") # => 'cat << EOF-0e4f089a > /etc/motd\\nhello\\nworld\\nEOF-0e4f089a'"
+            example "save_to_file(shell_escape('/tmp/a file with spaces'), nil) # => 'cp /dev/null /tmp/a\ file\ with\ spaces'"
           end
           def save_to_file(filename, content, verbatim: false)
-            filename = filename.shellescape
             delimiter = 'EOF-' + Digest::SHA512.hexdigest(filename)[0..7]
             if content.empty?
               "cp /dev/null #{filename}"
@@ -130,18 +133,21 @@ module Foreman
             desc "This is useful when rendering output is a whitespace sensitive format, such as YAML."
             required :count, Integer, desc: 'The number of spaces'
             keyword :skip1, [true, false], desc: 'Skips the first line prefixing, defaults to false', default: false
+            keyword :skip_content, String, desc: 'Skips indentation, if the line equals the given content', default: nil
             block 'Optional. Does nothing if no block is given', schema: '{ code }'
             returns String, desc: 'The indented text, that was the result of block of code'
             example "indent(2) { snippet('epel') } # => '  echo Installing yum repo\n  yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm'"
             example "indent(2) { snippet('epel', skip1: true) } # => 'echo Installing yum repo\n  yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm'"
             example "indent 4 do\n    snippet 'subscription_manager_registration'\nend"
           end
-          def indent(count, skip1: false)
+          def indent(count, skip1: false, skip_content: nil)
             return unless block_given? && (text = yield.to_s)
             prefix = ' ' * count
             result = []
             text.each_line.with_index do |line, line_no|
               if line_no == 0 && skip1
+                result << line
+              elsif skip_content.present? && line.chomp == skip_content
                 result << line
               else
                 result << prefix + line
@@ -188,14 +194,14 @@ module Foreman
             protocol = uri.scheme
 
             url_for(:only_path => false, :action => :hostgroup_template, :controller => '/unattended',
-                    :id => template.name, :hostgroup => hostgroup.title, :protocol => protocol,
-                    :host => host, :port => port)
+              :id => template.name, :hostgroup => hostgroup.title, :protocol => protocol,
+              :host => host, :port => port)
           end
 
           apipie :method, 'Returns an array of all possible host status classes sorted alphabetically by status name' do
             desc "Useful to generate a report on all host statuses."
             returns array_of: 'HostStatus', desc: 'Array of host status objects'
-            example "all_host_statuses # => [Katello::PurposeAddonsStatus, HostStatus::BuildStatus, ForemanOpenscap::ComplianceStatus, HostStatus::ConfigurationStatus, Katello::ErrataStatus, HostStatus::ExecutionStatus, Katello::PurposeRoleStatus, Katello::PurposeSlaStatus, Katello::SubscriptionStatus, Katello::PurposeStatus, Katello::TraceStatus, Katello::PurposeUsageStatus] "
+            example "all_host_statuses # => [HostStatus::BuildStatus, ForemanOpenscap::ComplianceStatus, HostStatus::ConfigurationStatus, Katello::ErrataStatus, HostStatus::ExecutionStatus, Katello::PurposeRoleStatus, Katello::PurposeSlaStatus, Katello::SubscriptionStatus, Katello::PurposeStatus, Katello::TraceStatus, Katello::PurposeUsageStatus] "
           end
           def all_host_statuses
             @all_host_statuses ||= HostStatus.status_registry.to_a.sort_by(&:status_name)
@@ -204,11 +210,21 @@ module Foreman
           apipie :method, 'Returns hash representing all statuses for a given host' do
             required :host, 'Host::Managed', desc: 'a host object to get the statuses for'
             returns object_of: Hash, desc: 'Hash representing all statuses for a given host'
-            example 'all_host_statuses(@host) # => {"Addons"=>0, "Build"=>1, "Compliance"=>0, "Configuration"=>0, "Errata"=>0, "Execution"=>1, "Role"=>0, "Service Level"=>0, "Subscription"=>0, "System Purpose"=>0, "Traces"=>0, "Usage"=>0}'
+            example 'all_host_statuses(@host) # => {"Build"=>1, "Compliance"=>0, "Configuration"=>0, "Errata"=>0, "Execution"=>1, "Role"=>0, "Service Level"=>0, "Subscription"=>0, "System Purpose"=>0, "Traces"=>0, "Usage"=>0}'
             example "<%- load_hosts.each_record do |host| -%>\n<%= host.name -%>, <%=   all_host_statuses(host)['Subscription'] %>\n<%- end -%>"
           end
           def all_host_statuses_hash(host)
             all_host_statuses.map { |status| [status.status_name, host_status(host, status.status_name).status] }.to_h
+          end
+
+          apipie :method, 'Returns hash representing all statuses for a given host in human-readable format' do
+            required :host, 'Host::Managed', desc: 'a host object to get the statuses for'
+            returns object_of: Hash, desc: 'Hash representing all statuses for a given host in human-readable format'
+            example 'all_host_statuses_labels(@host) # => {"Build"=>"Installed", "Compliance"=>"Not applicable", "Configuration"=>"No reports", "Errata"=>"Security errata applicable", "Execution"=>"Last execution succeeded", "Role"=>"Unknown", "Service Level"=>"Unknown", "Subscription"=>"Simple Content Access", "System Purpose"=>"Unknown", "Traces"=>"No processes require restarting", "Usage"=>"Unknown"}'
+            example "<%- load_hosts.each_record do |host| -%>\n<%= host.name -%>, <%=   all_host_statuses_labels(host)['Subscription'] %>\n<%- end -%>"
+          end
+          def all_host_statuses_labels_hash(host)
+            all_host_statuses.map { |status| [status.status_name, host_status(host, status.status_name).to_label] }.to_h
           end
 
           apipie :method, 'Returns a specific status for a given host' do

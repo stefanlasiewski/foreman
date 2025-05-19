@@ -1,8 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Row, Col, Spinner } from 'patternfly-react';
+import { Col, Spinner } from 'patternfly-react';
+import {
+  PageSection,
+  PageSectionVariants,
+  TextContent,
+  Text,
+} from '@patternfly/react-core';
 import { changeQuery } from '../../../common/urlHelpers';
-
 import BreadcrumbBar from '../../../components/BreadcrumbBar';
 import SearchBar from '../../../components/SearchBar';
 import Head from '../../../components/Head';
@@ -12,57 +17,82 @@ const PageLayout = ({
   searchProps,
   searchQuery,
   onSearch,
-  onBookmarkClick,
   customBreadcrumbs,
   breadcrumbOptions,
   toolbarButtons,
   header,
   beforeToolbarComponent,
   isLoading,
+  pageSectionType,
   children,
-}) => (
-  <div id="main">
-    <div id="react-content">
+}) => {
+  const title = (
+    <TextContent>
+      <Text ouiaId="breadcrumb_title" component="h1">
+        {header}
+      </Text>
+    </TextContent>
+  );
+
+  return (
+    <>
       <Head>
         <title>{header}</title>
       </Head>
-      <div id="breadcrumb">
-        {!breadcrumbOptions && (
-          <div className="row form-group">
-            <h1 className="col-md-8">{header}</h1>
+
+      {(customBreadcrumbs || breadcrumbOptions) && (
+        <PageSection variant={PageSectionVariants.light} type="breadcrumb">
+          <div id="breadcrumb">
+            {customBreadcrumbs ||
+              (breadcrumbOptions && <BreadcrumbBar {...breadcrumbOptions} />)}
           </div>
-        )}
-        {customBreadcrumbs ||
-          (breadcrumbOptions && <BreadcrumbBar {...breadcrumbOptions} />)}
-      </div>
-      {beforeToolbarComponent}
-      <Row>
-        <Col className="title_filter" md={searchable ? 6 : 4}>
-          {searchable && (
-            <SearchBar
-              data={searchProps}
-              initialQuery={searchQuery}
-              onSearch={onSearch}
-              onBookmarkClick={onBookmarkClick}
-            />
-          )}
-          &nbsp;
-        </Col>
-        <Col id="title_action" md={searchable ? 6 : 8}>
-          <div className="btn-toolbar pull-right">
-            {isLoading && (
-              <div id="toolbar-spinner">
-                <Spinner loading size="sm" />
+        </PageSection>
+      )}
+
+      {(searchable || !toolbarButtons) && (
+        <PageSection variant={PageSectionVariants.light} type="breadcrumb">
+          <div id="breadcrumb">{title}</div>
+        </PageSection>
+      )}
+
+      {(searchable ||
+        beforeToolbarComponent ||
+        isLoading ||
+        toolbarButtons) && (
+        <PageSection variant={PageSectionVariants.light}>
+          {beforeToolbarComponent}
+          <div className="title_filter_parent">
+            <Col className="title_filter" md={6}>
+              {!searchable && toolbarButtons && title}
+              {searchable && (
+                <SearchBar
+                  data={{
+                    ...searchProps,
+                    autocomplete: { ...searchProps.autocomplete, searchQuery },
+                  }}
+                  onSearch={onSearch}
+                />
+              )}
+            </Col>
+            <Col md={6}>
+              <div className="btn-toolbar pull-right">
+                {isLoading && (
+                  <div id="toolbar-spinner">
+                    <Spinner loading size="sm" />
+                  </div>
+                )}
+                {toolbarButtons}
               </div>
-            )}
-            {toolbarButtons}
+            </Col>
           </div>
-        </Col>
-      </Row>
-      {children}
-    </div>
-  </div>
-);
+        </PageSection>
+      )}
+      <PageSection variant={PageSectionVariants.light} type={pageSectionType}>
+        {children}
+      </PageSection>
+    </>
+  );
+};
 
 PageLayout.propTypes = {
   children: PropTypes.node.isRequired,
@@ -108,10 +138,10 @@ PageLayout.propTypes = {
   }),
   toolbarButtons: PropTypes.node,
   onSearch: PropTypes.func,
-  onBookmarkClick: PropTypes.func,
   searchQuery: PropTypes.string,
   beforeToolbarComponent: PropTypes.node,
   isLoading: PropTypes.bool,
+  pageSectionType: PropTypes.string,
 };
 
 PageLayout.defaultProps = {
@@ -123,9 +153,8 @@ PageLayout.defaultProps = {
   breadcrumbOptions: null,
   isLoading: false,
   onSearch: searchQuery => changeQuery({ search: searchQuery.trim(), page: 1 }),
-  onBookmarkClick: searchQuery =>
-    changeQuery({ search: searchQuery.trim(), page: 1 }),
   beforeToolbarComponent: null,
+  pageSectionType: 'default',
 };
 
 export default PageLayout;

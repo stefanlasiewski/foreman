@@ -7,8 +7,21 @@
 //= require lookup_keys
 
 $(function() {
-  $(document).trigger('ContentLoad');
+  if(window.allJsLoaded){
+    $(document).trigger('ContentLoad');
+  }
+  else {
+  $(document).on('loadJS', function() {
+    $(document).trigger('ContentLoad');
+  });}
 });
+
+
+// Override jQuery's ready function to run only after all scripts are loaded instead of when the DOM is ready
+$.fn.ready = function(fn) {
+  this.on('loadJS', fn);
+  return this;
+};
 
 // Prevents all links with the disabled attribute set to "disabled"
 // from being clicked.
@@ -22,13 +35,38 @@ $(document).on('click', 'a[disabled="disabled"]', function(event) {
   return handleDisabledClick(event, this);
 });
 
-function onContentLoad() {
-  tfm.store.observeStore('layout', tfm.nav.showContent);
+const autoUpdateSelect2Titles = function() {
+  const targetNodes = document.querySelectorAll(
+    '.select2-selection__rendered'
+  );
 
+  const config = { attributes: true, attributeFilter: ['title'] };
+
+  const callback = function(mutationsList) {
+    for (let mutation of mutationsList) {
+      if (
+        mutation.type === 'attributes' &&
+        mutation.attributeName === 'title'
+      ) {
+        mutation.target.setAttribute(
+          'data-original-title',
+          mutation.target.getAttribute('title')
+        );
+      }
+    }
+  };
+
+  targetNodes.forEach(targetNode => {
+    const observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
+  });
+};
+
+function onContentLoad() {
   if ($('input[focus_on_load=true]').length > 0) {
     $('input[focus_on_load]')
       .first()
-      .focus();
+      .trigger("focus");
   }
 
   // highlight tabs with errors
@@ -69,24 +107,44 @@ function onContentLoad() {
 
   password_caps_lock_hint();
 
-  tfm.i18n.intl.ready.then(function() {
-    var tz = jstz.determine();
-    $.cookie('timezone', tz.name(), {
-      path: '/',
-      secure: location.protocol === 'https:',
-    });
-  });
-
   $('.full-value').SelectOnClick();
   activate_select2(':root');
 
   $('input.remove_form_templates')
     .closest('form')
-    .submit(function(event) {
+    .on('submit', function(event) {
       $(this)
         .find('.form_template')
         .remove();
     });
+
+  const hideSelect2ClearTooltip = function() {
+    $(document).on('blur', '.select2-selection__clear', function() {
+      $('.tooltip').tooltip('hide');
+    });
+
+    const targetNode = document.querySelector('body');
+    const config = { attributes: false, childList: true, subtree: true };
+    const callback = function(mutationsList) {
+      for (let mutation of mutationsList) {
+        if (mutation.type === 'childList') {
+          const node = Array.from(mutation.removedNodes).find(
+            node =>
+              node.classList &&
+              node.classList.contains('select2-selection__clear')
+          );
+          if (node) {
+            $('.tooltip').tooltip('hide');
+          }
+        }
+      }
+    };
+    const observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
+  };
+
+  hideSelect2ClearTooltip();
+  autoUpdateSelect2Titles();
 }
 
 function preserve_selected_options(elem) {
@@ -96,7 +154,7 @@ function preserve_selected_options(elem) {
 }
 
 function password_caps_lock_hint() {
-  $('[type=password]').keypress(function(e) {
+  $('[type=password]').trigger('keypress', function(e) {
     var $addon = $(this)
         .parent()
         .children('.input-addon'),
@@ -158,18 +216,6 @@ function add_fields(target, association, content, direction) {
   }
 }
 
-$(document).ready(function() {
-  $('#check_all_roles').click(function(e) {
-    e.preventDefault();
-    $('.role_checkbox').prop('checked', true);
-  });
-
-  $('#uncheck_all_roles').click(function(e) {
-    e.preventDefault();
-    $('.role_checkbox').prop('checked', false);
-  });
-});
-
 function toggleCheckboxesBySelector(selector) {
   boxes = $(selector);
   var all_checked = true;
@@ -180,16 +226,6 @@ function toggleCheckboxesBySelector(selector) {
   }
   for (i = 0; i < boxes.length; i++) {
     boxes[i].checked = !all_checked;
-  }
-}
-
-function toggleRowGroup(el) {
-  var tr = $(el).closest('tr');
-  var n = tr.next();
-  tr.toggleClass('open');
-  while (n.length > 0 && !n.hasClass('group')) {
-    n.toggle();
-    n = n.next();
   }
 }
 
@@ -321,7 +357,7 @@ function ignore_subnet(item) {
 
 // shows provisioning templates in a new window
 $(function() {
-  $('[data-provisioning-template=true]').click(function() {
+  $('[data-provisioning-template=true]').on('click', function() {
     window.open(this.href, [
       (width = '300'),
       (height = '400'),
@@ -338,39 +374,6 @@ function spinner_placeholder(text) {
     text +
     "</p><div id='Loading' class='spinner spinner-md spinner-inline'> </div></div>"
   );
-}
-
-function typeToIcon(type) {
-  switch (type) {
-    case 'success':
-      return tfm.tools.iconText('ok', __('Success') + ': ', 'pficon');
-    case 'warning':
-      return tfm.tools.iconText(
-        'warning-triangle-o',
-        __('Warning') + ': ',
-        'pficon'
-      );
-    case 'danger':
-      return tfm.tools.iconText('error-circle-o', __('Error') + ': ', 'pficon');
-  }
-}
-
-function filter_permissions(item) {
-  var term = $(item)
-    .val()
-    .trim();
-  if (term.length > 0) {
-    $('.form-group .collapse')
-      .parents('.form-group')
-      .hide();
-    $(".form-group .control-label:icontains('" + term + "')")
-      .parents('.form-group')
-      .show();
-  } else {
-    $('.form-group .collapse')
-      .parents('.form-group')
-      .show();
-  }
 }
 
 function setPowerState(item, status) {
@@ -409,6 +412,7 @@ function reloadOnAjaxComplete(element) {
   activate_select2(':root');
   tfm.advancedFields.initAdvancedFields();
   tfm.templateInputs.initTypeChanges();
+  autoUpdateSelect2Titles();
 }
 
 function set_fullscreen(element) {
@@ -423,7 +427,7 @@ function set_fullscreen(element) {
     .before("<span id='fullscreen-placeholder'></span>")
     .data('position', $(window).scrollTop())
     .addClass('fullscreen')
-    .appendTo($('.container-pf-nav-pf-vertical'))
+    .appendTo($('#rails-app-content'))
     .resize()
     .after(exit_button);
   $('#content').addClass('hidden');
@@ -476,19 +480,47 @@ function disableButtonToggle(item, explicit) {
     $(formControl).val('');
   }
 
-  $(item).blur();
+  $(item).trigger('blur');
 }
 
-function activate_select2(container, allowClear) {
-  allowClear = typeof allowClear !== 'undefined' ? allowClear : true;
+function activate_select2(container, allowClear ) {
+  const htmlElemnt = document.getElementsByTagName('html')[0];
+  const langAttr = htmlElemnt.getAttribute('lang') || 'en';
   $(container)
     .find('select:not(.without_select2)')
     .not('.form_template select')
+    .not('.without_select2 select')
     .not('#interfaceForms select')
-    .select2({
-      allowClear: allowClear,
-      formatNoMatches: __('No matches found'),
+    .each(function() {
+      const placeholder = $(this).data('placeholder');
+      let selectAllowClear = allowClear
+      if (typeof selectAllowClear === 'undefined') {
+       if ($(this).hasClass('include_blank')) {
+          selectAllowClear = true;
+        } else {
+          selectAllowClear = false;
+        }
+      }
+      var dropdownParent = $(document.body);
+      if ($(this).parents('.modal').length !== 0)
+        dropdownParent = $(this).parents('.modal');
+      $(this).select2({
+        dropdownParent,
+        language: langAttr,
+        width: '100%',
+        allowClear: selectAllowClear,
+        formatNoMatches: __('No matches found'),
+        placeholder: selectAllowClear? placeholder || '' : { id: '-1', text: '' },
+      });
+      $(this).on("select2:clear", function (evt) {
+        $(this).on("select2:opening.cancelOpen", function (evt) {
+          evt.preventDefault();
+          
+          $(this).off("select2:opening.cancelOpen");
+        });
+      });
     });
+
 }
 
 function setError(field, text) {
@@ -508,3 +540,14 @@ function clearError(field) {
     .children('.error-message');
   error_block.remove();
 }
+
+// jQuery deprecated functions
+// used by gridster and bootstrap
+$.fn.isFunction = function(func) {
+  return typeof func === 'function';
+};
+$.fn.isArray = Array.isArray;
+$.fn.trim = String.prototype.trim;
+$.fn.bind = function(event, func) {
+  return this.on(event, func);
+};

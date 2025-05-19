@@ -42,6 +42,18 @@ module Foreman
       new.rhel9_dhcp
     end
 
+    def self.rocky8_dhcp
+      new.rocky8_dhcp
+    end
+
+    def self.rocky9_dhcp
+      new.rocky9_dhcp
+    end
+
+    def self.windows10_dhcp
+      new.windows10_dhcp
+    end
+
     def self.render_template(template, host_name = :host4dhcp)
       host_stub = send(host_name.to_sym)
       source = Foreman::Renderer::Source::Snapshot.new(template)
@@ -58,18 +70,24 @@ module Foreman
         "enable-epel" => "true",
         "package_upgrade" => "true",
         "ansible_tower_provisioning" => "true",
+        "ansible_tower_api_url" => "https://host.example.com/api/controller/v2",
+        "ansible_job_template_id" => "20",
         "schedule_reboot" => "true",
         "fips_enabled" => "true",
         "force-puppet" => "true",
         "remote_execution_create_user" => "true",
         "blacklist_kernel_modules" => "amodule",
+        "subscription_manager" => "true",
         "subscription_manager_org" => "Org",
         "activation_key" => "key",
         "host_registration_insights" => "true",
         "syspurpose_role" => "Red Hat Enterprise Linux Server",
         "syspurpose_usage" => "Development/Test",
         "syspurpose_sla" => "Self-Support",
-        "syspurpose_addons" => "first addon, second addon, third addon",
+        "ansible_user" => "win_ansible_user",
+        "create_ansible_user" => "true",
+        "ansible_ssh_pass" => "win_ansible_user_ssh_pass",
+        "remote_desktop" => "true",
       }
       host_params.each_pair do |name, value|
         FactoryBot.build(:host_parameter, host: host, name: name, value: value)
@@ -105,6 +123,7 @@ module Foreman
         name: 'snapshot-ipv4-dhcp-el7',
         subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
         interfaces: [ipv4_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
       define_host_params(host)
     end
 
@@ -113,6 +132,7 @@ module Foreman
         name: 'snapshot-ipv4-static-el7',
         subnet: FactoryBot.build(:subnet_ipv4_static_for_snapshots),
         interfaces: [ipv4_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
       define_host_params(host)
     end
 
@@ -121,6 +141,7 @@ module Foreman
         name: 'snapshot-ipv6-dhcp-el7',
         subnet: FactoryBot.build(:subnet_ipv6_dhcp_for_snapshots),
         interfaces: [ipv6_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
       define_host_params(host)
     end
 
@@ -129,6 +150,7 @@ module Foreman
         name: 'snapshot-ipv6-static-el7',
         subnet: FactoryBot.build(:subnet_ipv6_static_for_snapshots),
         interfaces: [ipv6_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
       define_host_params(host)
     end
 
@@ -138,6 +160,7 @@ module Foreman
         subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
         subnet6: FactoryBot.build(:subnet_ipv6_dhcp_for_snapshots),
         interfaces: [ipv46_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
       define_host_params(host)
     end
 
@@ -146,6 +169,7 @@ module Foreman
         name: 'snapshot-ipv4-dhcp-deb10',
         subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
         interfaces: [ipv4_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
       define_host_params(host)
     end
 
@@ -162,12 +186,38 @@ module Foreman
         name: 'snapshot-ipv4-dhcp-ubuntu20',
         subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
         interfaces: [ipv4_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
       define_host_params(host)
     end
 
     def rhel9_dhcp
       host = FactoryBot.build(:host_for_snapshots_ipv4_dhcp_rhel9,
         name: 'snapshot-ipv4-dhcp-rhel9',
+        subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
+        interfaces: [ipv4_interface])
+      host.define_singleton_method(:managed_interfaces) { interfaces }
+      define_host_params(host)
+    end
+
+    def rocky8_dhcp
+      host = FactoryBot.build(:host_for_snapshots_ipv4_dhcp_rocky8,
+        name: 'snapshot-ipv4-dhcp-rocky8',
+        subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
+        interfaces: [ipv4_interface])
+      define_host_params(host)
+    end
+
+    def rocky9_dhcp
+      host = FactoryBot.build(:host_for_snapshots_ipv4_dhcp_rocky9,
+        name: 'snapshot-ipv4-dhcp-rocky9',
+        subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
+        interfaces: [ipv4_interface])
+      define_host_params(host)
+    end
+
+    def windows10_dhcp
+      host = FactoryBot.build(:host_for_snapshots_ipv4_dhcp_windows10,
+        name: 'snapshot-ipv4-dhcp-windows10',
         subnet: FactoryBot.build(:subnet_ipv4_dhcp_for_snapshots),
         interfaces: [ipv4_interface])
       define_host_params(host)

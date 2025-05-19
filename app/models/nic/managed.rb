@@ -5,7 +5,7 @@ module Nic
     include Orchestration::DNS
     include Orchestration::TFTP
     include Orchestration::ExternalIPAM
-    include DnsInterface
+    include DNSInterface
     include InterfaceCloning
 
     include Exportable
@@ -119,10 +119,4 @@ module Nic
       @old
     end
   end
-
-  Base.register_type(Managed)
 end
-
-require_dependency 'nic/bmc'
-require_dependency 'nic/bond'
-require_dependency 'nic/bridge'

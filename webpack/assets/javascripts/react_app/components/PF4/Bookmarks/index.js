@@ -22,6 +22,8 @@ const ConnectedBookmarks = ({
   url,
   canCreate,
   documentationUrl,
+  searchQuery,
+  bookmarksPosition,
 }) => {
   const key = `${BOOKMARKS}_${controller.toUpperCase()}`;
   const modalID = getBookmarksModalId(id);
@@ -51,6 +53,8 @@ const ConnectedBookmarks = ({
       setModalOpen={setModalOpen}
       setModalClosed={setModalClosed}
       isModalOpen={isModalOpen}
+      searchQuery={searchQuery}
+      bookmarksPosition={bookmarksPosition}
     />
   );
 };
@@ -62,12 +66,16 @@ ConnectedBookmarks.propTypes = {
   url: PropTypes.string.isRequired,
   canCreate: PropTypes.bool,
   documentationUrl: PropTypes.string,
+  searchQuery: PropTypes.string,
+  bookmarksPosition: PropTypes.string,
 };
 
 ConnectedBookmarks.defaultProps = {
   id: 'searchBar',
   canCreate: false,
   documentationUrl: '',
+  searchQuery: '',
+  bookmarksPosition: 'left',
 };
 
 export const reducers = { bookmarksPF4: reducer };

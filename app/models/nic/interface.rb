@@ -11,7 +11,7 @@ module Nic
     before_validation :copy_hostname_from_host, :if => proc { |nic| nic.primary? && nic.hostname.blank? }
     before_validation :normalize_name
 
-    validates :name, :allow_nil => true, :allow_blank => true, :format => {:with => Net::Validations::HOST_REGEXP, :message => _(Net::Validations::HOST_REGEXP_ERR_MSG)}
+    validates :name, :allow_nil => true, :allow_blank => true, :format => {:with => Net::Validations::HOST_REGEXP, :message => N_(Net::Validations::HOST_REGEXP_ERR_MSG)}
 
     validate :name_uniqueness, :if => proc { |i| i.name.present? }
 
@@ -25,6 +25,10 @@ module Nic
 
     alias_method :network, :subnet_network
     alias_method :network6, :subnet6_network
+
+    class Jail < Nic::Base::Jail
+      allow :mtu, :vlanid, :bridge?, :alias?
+    end
 
     def vlanid
       # Determine a vlanid according to the following cascading rules:
@@ -139,5 +143,3 @@ module Nic
     end
   end
 end
-
-require_dependency 'nic/managed'

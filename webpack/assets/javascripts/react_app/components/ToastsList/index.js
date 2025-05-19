@@ -18,14 +18,15 @@ const ToastsList = ({ railsMessages }) => {
   const messages = useSelector(selectToastsList);
 
   useEffect(() => {
-    railsMessages.forEach(({ message, type, key }) => {
-      dispatch(addToast({ message, type, key }));
+    railsMessages.forEach(({ message, type }) => {
+      dispatch(addToast({ message, type }));
     });
   }, [dispatch, railsMessages]);
 
   const toastsList = Object.entries(messages).map(
     ([key, { type, message, link, sticky, ...toastProps }]) => (
       <Alert
+        ouiaId={`toast-item-${key}`}
         key={key}
         title={toastTitle(message, toastType(type))}
         variant={toastType(type)}

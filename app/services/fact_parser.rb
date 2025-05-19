@@ -1,10 +1,10 @@
 class FactParser
   delegate :logger, :to => :Rails
-  VIRTUAL = /\A([a-z0-9]+)[_|\.|:]([a-z0-9]+)\Z/
+  VIRTUAL = /\A([a-z0-9]+)[_|.|:]([a-z0-9]+)\Z/
   BRIDGES = /\A(vir|lxc)?br(\d+|-[a-z0-9]+)(_nic)?\Z/
   BONDS = /\A(bond\d+)\Z|\A(lagg\d+)\Z/
-  ALIASES = /(\A[a-z0-9\.]+):([a-z0-9]+)\Z/
-  VLANS = /\A([a-z0-9]+)\.([0-9]+)\Z/
+  ALIASES = /(\A[a-z0-9.]+):([a-z0-9]+)\Z/
+  VLANS = /\A([a-zA-Z0-9]+)\.([0-9]+)\Z/
   VIRTUAL_NAMES = /#{ALIASES}|#{VLANS}|#{VIRTUAL}|#{BRIDGES}|#{BONDS}/
   # spend 500ms per IP on primary interface lookup
   PRIMARY_INTERFACE_RESOLVE_TIMEOUTS = [0.50]
@@ -78,7 +78,7 @@ class FactParser
   # tries to detect primary interface among interfaces using host name
   def suggested_primary_interface(host)
     # we search among interface with ip and mac if we didn't find it by name
-    potential = interfaces.select { |_, values| values[:ipaddress].present? && values[:macaddress].present? }
+    potential = interfaces.select { |_, values| (values[:ipaddress].present? || values[:ipaddress6].present?) && values[:macaddress].present? }
     find_interface_by_name(host.name) || find_physical_interface(potential) ||
       find_virtual_interface(potential) || potential.first || interfaces.first
   end
@@ -139,20 +139,21 @@ class FactParser
   def find_interface_by_name(host_name)
     resolver = Resolv::DNS.new
     resolver.timeouts = PRIMARY_INTERFACE_RESOLVE_TIMEOUTS
-    interfaces.detect do |int, values|
-      if (ip = values[:ipaddress]).present?
-        begin
-          logger.debug { "Resolving fact '#{ip}' via DNS to match reported hostname #{host_name}" }
-          if resolver.getnames(ip).any? { |name| name.to_s == host_name }
-            logger.debug { "Match: '#{ip}', interface #{int} is selected as primary" }
-            return [int, values]
-          end
-        rescue Resolv::ResolvError => e
-          logger.debug { "Could not resolv name for #{ip} because of #{e} #{e.message}" }
-          nil
-        end
-      end
+    interfaces.find do |int, values|
+      [values[:ipaddress], values[:ipaddress6]].find { |ip| try_resolve(int, ip, host_name, resolver) }
     end
+  end
+
+  def try_resolve(int, ip, host_name, resolver)
+    return nil unless ip
+    logger.debug { "Resolving fact '#{ip}' via DNS to match reported hostname #{host_name}" }
+    if resolver.getnames(ip).any? { |name| name.to_s == host_name }
+      logger.debug { "Match: '#{ip}', interface #{int} is selected as primary" }
+      true
+    end
+  rescue Resolv::ResolvError => e
+    logger.debug { "Could not resolv name for #{ip} because of #{e} #{e.message}" }
+    nil
   end
 
   def find_physical_interface(interfaces)

@@ -4,9 +4,6 @@ module Foreman::Model
 
     ALLOWED_DISPLAY_TYPES = %w(vnc spice)
 
-    # 'custom' is not implemented. This needs extra UI.
-    CPU_MODES = %w(default host-model host-passthrough)
-
     validates :url, :format => { :with => URI::DEFAULT_PARSER.make_regexp }, :presence => true
     validates :display_type, :inclusion => { :in => ALLOWED_DISPLAY_TYPES }
 
@@ -81,7 +78,7 @@ module Foreman::Model
       errors[:url].empty? && hypervisor
     rescue => e
       disconnect rescue nil
-      errors[:base] << e.message
+      errors.add(:base, e.message)
     end
 
     def new_nic(attr = {})
@@ -131,7 +128,7 @@ module Foreman::Model
 
     def template(id)
       template = client.volumes.get(id)
-      raise Foreman::Exception.new(N_("Unable to find template %s"), id) unless template.persisted?
+      raise Foreman::Exception.new(N_("Unable to find template %s"), id) unless template&.persisted?
       template
     end
 
@@ -150,6 +147,9 @@ module Foreman::Model
 
       opts[:boot_order] = %w[hd]
       opts[:boot_order].unshift 'network' unless attr[:image_id]
+
+      firmware_type = opts.delete(:firmware_type).to_s
+      opts.merge!(process_firmware_attributes(opts[:firmware], firmware_type))
 
       vm = client.servers.new opts
       vm.memory = opts[:memory] if opts[:memory]
@@ -285,13 +285,16 @@ module Foreman::Model
 
     def vm_instance_defaults
       super.merge(
+        :cpu        => { mode: 'host-passthrough' },
         :memory     => 2048.megabytes,
         :nics       => [new_nic],
         :volumes    => [new_volume].compact,
         :display    => { :type     => display_type,
                          :listen   => Setting[:libvirt_default_console_address],
                          :password => random_password(console_password_length(display_type)),
-                         :port     => '-1' }
+                         :port     => '-1' },
+        :firmware   => 'automatic',
+        :firmware_features => { "secure-boot" => "no" }
       )
     end
 
@@ -327,6 +330,21 @@ module Foreman::Model
       if vol.capacity.to_s.empty? || /\A\d+G?\Z/.match(vol.capacity.to_s).nil?
         raise Foreman::Exception.new(N_("Please specify volume size. You may optionally use suffix 'G' to specify volume size in gigabytes."))
       end
+    end
+
+    # Generates Secure Boot settings for Libvirt based on the provided firmware type.
+    # The `secure_boot` setting is used to properly configure and display the Firmware in the `compute_attributes` form.
+    #
+    # @param firmware [String] The firmware type.
+    # @return [Hash] A hash with secure boot settings if applicable.
+    def generate_secure_boot_settings(firmware)
+      return {} unless firmware == 'uefi_secure_boot'
+
+      {
+        firmware_features: { 'secure-boot' => 'yes', 'enrolled-keys' => 'yes' },
+        loader_attributes: { 'secure' => 'yes' },
+        secure_boot: true,
+      }
     end
   end
 end

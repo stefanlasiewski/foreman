@@ -23,9 +23,9 @@ const AuditsPage = ({
     searchQuery={searchQuery}
     isLoading={isLoading && hasData}
     onSearch={search => fetchAndPush({ searchQuery: search, page: 1 })}
-    onBookmarkClick={search => fetchAndPush({ searchQuery: search, page: 1 })}
     toolbarButtons={
       <Button
+        ouiaId="audits-documentation-button"
         component="a"
         className="btn-docs"
         href={getManualURL('4.1.4Auditing')}

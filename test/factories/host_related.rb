@@ -12,6 +12,34 @@ def set_nic_attributes(host, attributes, evaluator)
   host
 end
 
+# @param subnet [Optional[Subnet::Ipv4]]
+# @param n [Integer]
+# @param base [Integer]
+#   The base address if subnet is nil
+def ip_from_subnet(subnet, n = 1, base = 0)
+  addr = if (ipaddr = subnet&.ipaddr)
+           available_ips = 2**(32 - ipaddr.prefix) - 1
+           ipaddr.to_i + (n % available_ips)
+         else
+           base + n
+         end
+  IPAddr.new(addr, Socket::AF_INET).to_s
+end
+
+# @param subnet6 [Optional[Subnet::Ipv6]]
+# @param n [Integer]
+# @param base [Integer]
+#   The base address if subnet is nil
+def ip_from_subnet6(subnet6, n = 1, base = 0)
+  addr = if (ipaddr = subnet6&.ipaddr)
+           available_ips = 2**(128 - ipaddr.prefix)
+           ipaddr.to_i + (n % available_ips)
+         else
+           base + n
+         end
+  IPAddr.new(addr, Socket::AF_INET6).to_s
+end
+
 FactoryBot.define do
   factory :ptable do
     sequence(:name) { |n| "ptable#{n}" }
@@ -36,6 +64,12 @@ FactoryBot.define do
       sequence(:name) { |n| "suse default#{n}" }
       layout { "<partitioning  config:type=\"list\">\n  <drive>\n    <device>/dev/hda</device>\n    <use>all</use>\n  </drive>\n</partitioning>" }
       os_family { 'Suse' }
+    end
+
+    trait :windows do
+      sequence(:name) { |n| "windows default#{n}" }
+      layout { "select disk 0\nclean\nconvert gpt\ncreate partition efi size=200\nformat quick fs=fat32 label=\"System\"\nassign letter=\"S\"\ncreate partition msr size=16\ncreate partition primary\nformat quick fs=ntfs label=\"Windows\"\nassign letter=\"W\"\nlist volume\nexit" }
+      os_family { 'Windows' }
     end
   end
 
@@ -74,7 +108,7 @@ FactoryBot.define do
   factory :nic_managed, :class => Nic::Managed, :parent => :nic_interface do
     type { 'Nic::Managed' }
     sequence(:mac) { |n| "00:33:45:ab:" + n.to_s(16).rjust(4, '0').insert(2, ':') }
-    sequence(:ip) { |n| IPAddr.new((subnet.present? ? subnet.ipaddr.to_i : 0) + n, Socket::AF_INET).to_s }
+    sequence(:ip) { |n| ip_from_subnet(subnet, n) }
 
     trait :without_ipv4 do
       ip { nil }
@@ -88,7 +122,7 @@ FactoryBot.define do
   factory :nic_bmc, :class => Nic::BMC, :parent => :nic_managed do
     type { 'Nic::BMC' }
     sequence(:mac) { |n| "00:43:56:cd:" + n.to_s(16).rjust(4, '0').insert(2, ':') }
-    sequence(:ip) { |n| IPAddr.new((subnet.present? ? subnet.ipaddr.to_i : 256 * 256 * 256) + n, Socket::AF_INET).to_s }
+    sequence(:ip) { |n| ip_from_subnet(subnet, n, 256 * 256 * 256) }
     provider { 'IPMI' }
     username { 'admin' }
     password { 'admin' }
@@ -107,7 +141,7 @@ FactoryBot.define do
     primary { true }
     provision { true }
     sequence(:mac) { |n| "00:53:67:ab:" + n.to_s(16).rjust(4, '0').insert(2, ':') }
-    sequence(:ip) { |n| IPAddr.new(n, Socket::AF_INET).to_s }
+    sequence(:ip) { |n| ip_from_subnet(subnet, n) }
   end
 
   factory :model do
@@ -210,7 +244,7 @@ FactoryBot.define do
         overrides[:locations] = [host.location] unless host.location.nil?
         overrides[:organizations] = [host.organization] unless host.organization.nil?
         host.subnet = FactoryBot.build(:subnet_ipv4, overrides)
-        host.ip = IPAddr.new(IPAddr.new(host.subnet.network).to_i + 1, Socket::AF_INET).to_s
+        host.ip = ip_from_subnet(host.subnet)
       end
     end
 
@@ -270,7 +304,7 @@ FactoryBot.define do
           :primary => true,
           :provision => true,
           :domain => FactoryBot.build(:domain),
-          :ip6 => IPAddr.new(subnet6.ipaddr.to_i + 1, subnet6.family).to_s)]
+          :ip6 => ip_from_subnet6(subnet6))]
       end
     end
 
@@ -289,8 +323,8 @@ FactoryBot.define do
           :primary => true,
           :provision => true,
           :domain => FactoryBot.build(:domain),
-          :ip => subnet.network.sub(/0\Z/, '1'),
-          :ip6 => IPAddr.new(subnet6.ipaddr.to_i + 1, subnet6.family).to_s)]
+          :ip => ip_from_subnet(subnet),
+          :ip6 => ip_from_subnet6(subnet6))]
       end
     end
 
@@ -326,6 +360,18 @@ FactoryBot.define do
 
       factory :host_for_snapshots_ipv4_dhcp_rhel9 do
         operatingsystem { FactoryBot.build(:for_snapshots_rhel9) }
+      end
+
+      factory :host_for_snapshots_ipv4_dhcp_rocky8 do
+        operatingsystem { FactoryBot.build(:for_snapshots_rocky8) }
+      end
+
+      factory :host_for_snapshots_ipv4_dhcp_rocky9 do
+        operatingsystem { FactoryBot.build(:for_snapshots_rocky9) }
+      end
+
+      factory :host_for_snapshots_ipv4_dhcp_windows10 do
+        operatingsystem { FactoryBot.build(:for_snapshots_windows10) }
       end
     end
 
@@ -415,7 +461,7 @@ FactoryBot.define do
           :primary => true,
           :provision => true,
           :domain => FactoryBot.build(:domain),
-          :ip6 => IPAddr.new(subnet6.ipaddr.to_i + 1, subnet6.family).to_s)]
+          :ip6 => ip_from_subnet6(subnet6))]
       end
     end
 
@@ -427,8 +473,8 @@ FactoryBot.define do
           :primary => true,
           :provision => true,
           :domain => FactoryBot.build(:domain),
-          :ip => subnet.network.sub(/0\Z/, '1'),
-          :ip6 => IPAddr.new(subnet6.ipaddr.to_i + 1, subnet6.family).to_s)]
+          :ip => ip_from_subnet(subnet),
+          :ip6 => ip_from_subnet6(subnet6))]
       end
     end
 
@@ -462,6 +508,27 @@ FactoryBot.define do
       end
     end
 
+    trait :with_separate_provision_interface_dualstack do
+      interfaces do
+        [
+          FactoryBot.build(
+            :nic_managed,
+            :primary => true,
+            :provision => false,
+            :domain => FactoryBot.build(:domain)
+          ),
+          FactoryBot.build(
+            :nic_managed,
+            :primary => false,
+            :provision => true,
+            :domain => FactoryBot.build(:domain),
+            :subnet => FactoryBot.build(:subnet_ipv4, :tftp, locations: [location], organizations: [organization]),
+            :subnet6 => FactoryBot.build(:subnet_ipv6, :tftp, locations: [location], organizations: [organization])
+          ),
+        ]
+      end
+    end
+
     trait :with_tftp_v6_subnet do
       subnet6 { FactoryBot.build(:subnet_ipv6, :tftp, locations: [location], organizations: [organization]) }
     end
@@ -486,7 +553,7 @@ FactoryBot.define do
                                          :provision => true,
                                          :domain => FactoryBot.build(:domain),
                                          :subnet => subnet,
-                                         :ip => subnet.network.sub(/0\Z/, '2'))]
+                                         :ip => ip_from_subnet(subnet, 2))]
       end
     end
 
@@ -498,7 +565,7 @@ FactoryBot.define do
                                          :provision => true,
                                          :domain => FactoryBot.build(:domain),
                                          :subnet6 => subnet6,
-                                         :ip6 => IPAddr.new(subnet6.ipaddr.to_i + 1, subnet6.family).to_s)]
+                                         :ip6 => ip_from_subnet6(subnet6))]
       end
     end
 
@@ -512,8 +579,8 @@ FactoryBot.define do
                                          :domain => FactoryBot.build(:domain),
                                          :subnet => subnet,
                                          :subnet6 => subnet6,
-                                         :ip => subnet.network.sub(/0\Z/, '2'),
-                                         :ip6 => IPAddr.new(subnet6.ipaddr.to_i + 1, subnet6.family).to_s)]
+                                         :ip => ip_from_subnet(subnet, 2),
+                                         :ip6 => ip_from_subnet6(subnet6))]
       end
     end
 

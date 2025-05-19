@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Dropdown, DropdownToggle } from '@patternfly/react-core';
+import { Dropdown, DropdownToggle } from '@patternfly/react-core/deprecated';
 import { OutlinedBookmarkIcon } from '@patternfly/react-icons';
 import BookmarkModal from '../../BookmarkForm/SearchModal';
 import { STATUS } from '../../../constants';
@@ -27,6 +27,8 @@ const Bookmarks = ({
   onBookmarkClick,
   setModalOpen,
   setModalClosed,
+  searchQuery,
+  bookmarksPosition,
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -41,12 +43,15 @@ const Bookmarks = ({
     const query = stringifyParams({ searchQuery: `controller=${controller}` });
     history.push({ pathname: '/bookmarks', search: query });
   };
-
+  const _onBookmarkClick = newQuery => {
+    onBookmarkClick(newQuery);
+    setIsDropdownOpen(false);
+  };
   const dropdownItems = [
     canCreate && addBookmarkItem({ setModalOpen }),
     savedBookmarksItems({
       bookmarks,
-      onBookmarkClick,
+      onBookmarkClick: _onBookmarkClick,
       status,
       errors,
     }),
@@ -65,14 +70,16 @@ const Bookmarks = ({
         url={url}
         setModalClosed={setModalClosed}
         bookmarks={bookmarks}
+        searchQuery={searchQuery}
       />
       <Dropdown
         ouiaId="bookmarks-dropdown"
+        position={bookmarksPosition}
         isOpen={isDropdownOpen}
         onSelect={() => setIsDropdownOpen(false)}
         toggle={
           <DropdownToggle
-            onToggle={onToggle}
+            onToggle={(_event, isOpen) => onToggle(isOpen)}
             title={__('Bookmarks')}
             aria-label="bookmarks dropdown toggle"
             ouiaId="bookmarks-dropdown-toggle"
@@ -101,6 +108,8 @@ Bookmarks.propTypes = {
   getBookmarks: PropTypes.func,
   setModalOpen: PropTypes.func.isRequired,
   setModalClosed: PropTypes.func.isRequired,
+  searchQuery: PropTypes.string.isRequired,
+  bookmarksPosition: PropTypes.string,
 };
 
 Bookmarks.defaultProps = {
@@ -110,6 +119,7 @@ Bookmarks.defaultProps = {
   status: null,
   documentationUrl: '',
   getBookmarks: noop,
+  bookmarksPosition: 'left',
 };
 
 export default Bookmarks;

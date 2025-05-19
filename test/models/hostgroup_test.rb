@@ -2,7 +2,7 @@ require 'test_helper'
 
 # Generates a list of valid host group names.
 def valid_hostgroup_name_list
-  # Note::
+  # NOTE:
   # Host group name max length is 245 chars.
   # 220 chars for html as the largest html tag in fauxfactory is 10 chars long,
   # so 245 - (10 chars + 10 chars + '<></>' chars) = 220 chars.
@@ -49,14 +49,14 @@ class HostgroupTest < ActiveSupport::TestCase
     # and overrides.
     pid = Time.now.to_i
     top = Hostgroup.new(:name => "topA",
-                        :group_parameters_attributes => { pid += 1 => {"name" => "topA", "value" => "1"},
-                                                          pid += 1 => {"name" => "topB", "value" => "1"},
-                                                          pid += 1 => {"name" => "topC", "value" => "1"}})
+      :group_parameters_attributes => { pid += 1 => {"name" => "topA", "value" => "1"},
+                                        pid += 1 => {"name" => "topB", "value" => "1"},
+                                        pid += 1 => {"name" => "topC", "value" => "1"}})
     assert top.save
 
     second = Hostgroup.new(:name => "SecondA", :parent_id => top.id,
-                           :group_parameters_attributes => { pid += 1 => {"name" => "topA", "value" => "2"},
-                                                             pid += 1 => {"name" => "secondA", "value" => "2"}})
+      :group_parameters_attributes => { pid += 1 => {"name" => "topA", "value" => "2"},
+                                        pid += 1 => {"name" => "secondA", "value" => "2"}})
     assert second.save
 
     assert second.parameters.include? "topA"
@@ -69,8 +69,8 @@ class HostgroupTest < ActiveSupport::TestCase
     assert_equal "2", second.parameters["secondA"]
 
     third = Hostgroup.new(:name => "ThirdA", :parent_id => second.id,
-                          :group_parameters_attributes => { pid += 1 => {"name" => "topB", "value" => "3"},
-                                                            pid +  1 => {"name" => "topA", "value" => "3"}})
+      :group_parameters_attributes => { pid += 1 => {"name" => "topB", "value" => "3"},
+                                        pid +  1 => {"name" => "topA", "value" => "3"}})
     assert third.save
 
     assert third.parameters.include? "topA"
@@ -224,7 +224,7 @@ class HostgroupTest < ActiveSupport::TestCase
   test "root_pass inherited from settings if blank" do
     Setting[:root_pass] = '12345678'
     PasswordCrypt.expects(:crypt_gnu_compatible?).at_least_once.returns(true)
-    PasswordCrypt.expects(:passw_crypt).with(Setting[:root_pass]).at_least_once.returns(Setting[:root_pass])
+    PasswordCrypt.expects(:passw_crypt).with(Setting[:root_pass], nil).at_least_once.returns(Setting[:root_pass])
     hostgroup = FactoryBot.build(:hostgroup, :root_pass => '')
     assert_equal '12345678', hostgroup.root_pass
     hostgroup.save!
@@ -234,7 +234,7 @@ class HostgroupTest < ActiveSupport::TestCase
   test "root_pass inherited from settings if group and parent are blank" do
     Setting[:root_pass] = '12345678'
     PasswordCrypt.expects(:crypt_gnu_compatible?).at_least_once.returns(true)
-    PasswordCrypt.expects(:passw_crypt).with(Setting[:root_pass]).at_least_once.returns(Setting[:root_pass])
+    PasswordCrypt.expects(:passw_crypt).with(Setting[:root_pass], nil).at_least_once.returns(Setting[:root_pass])
     parent = FactoryBot.create(:hostgroup, :root_pass => '')
     hostgroup = FactoryBot.build(:hostgroup, :parent => parent, :root_pass => '')
     assert_equal '12345678', hostgroup.root_pass

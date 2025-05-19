@@ -31,7 +31,13 @@ class HostFactImporter
       host.save(:validate => false)
     end
 
-    parse_facts(facts, type, source_proxy)
+    state = parse_facts(facts, type, source_proxy)
+    begin
+      host.trigger_hook(:host_facts_updated)
+    rescue => e
+      Foreman::Logging.exception("Cannot trigger hook :host_facts_updated on #{host.class} with #{host.id} ID, ignoring", e)
+    end
+    state
   end
 
   def parse_facts(facts, type, source_proxy)
@@ -84,11 +90,9 @@ class HostFactImporter
     end
   end
 
-  def skipping_orchestration
+  def skipping_orchestration(&block)
     if host.is_a?(Host::Managed)
-      host.without_orchestration do
-        yield
-      end
+      host.without_orchestration(&block)
     else
       yield
     end

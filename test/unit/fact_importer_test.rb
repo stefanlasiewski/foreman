@@ -5,7 +5,9 @@ class FactImporterTest < ActiveSupport::TestCase
   include FactImporterIsolation
 
   attr_reader :importer
+
   class CustomFactName < FactName; end
+
   class CustomImporter < FactImporter
     def fact_name_class
       CustomFactName
@@ -37,7 +39,7 @@ class FactImporterTest < ActiveSupport::TestCase
     end
 
     test 'importers without authorized_smart_proxy_features return empty set of features' do
-      assert_equal [], fact_importer_registry.get(:custom_importer).authorized_smart_proxy_features
+      assert_empty fact_importer_registry.get(:custom_importer).authorized_smart_proxy_features
     end
 
     context 'importing facts' do

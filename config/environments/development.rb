@@ -4,7 +4,7 @@ Foreman::Application.configure do
   # In the development environment your application's code is reloaded on
   # every request. This slows down response time but is perfect for development
   # since you don't have to restart the web server when you make code changes.
-  config.cache_classes = false
+  config.cache_classes = Foreman.in_rake?('apipie:cache')
 
   # Eager load is set for all environments
   config.eager_load = true
@@ -54,10 +54,6 @@ Foreman::Application.configure do
       Bullet.counter_cache_enable = false
     end
   end
-
-  # Allow disabling the webpack dev server from the settings
-  config.webpack.dev_server.enabled = SETTINGS.fetch(:webpack_dev_server, true)
-  config.webpack.dev_server.https = SETTINGS.fetch(:webpack_dev_server_https, false)
 
   config.hosts += SETTINGS[:hosts]
   config.hosts << SETTINGS[:fqdn]

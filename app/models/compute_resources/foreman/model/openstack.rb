@@ -2,6 +2,7 @@ module Foreman::Model
   class Openstack < ComputeResource
     include KeyPairComputeResource
     attr_accessor :scheduler_hint_value
+
     delegate :flavors, :to => :client
     delegate :security_groups, :to => :client
 
@@ -90,7 +91,7 @@ module Foreman::Model
       super
       errors[:user].empty? && errors[:password] && tenants
     rescue => e
-      errors[:base] << e.message
+      errors.add(:base, e.message)
     end
 
     def available_images
@@ -262,7 +263,7 @@ module Foreman::Model
 
     def url_for_fog
       u = URI.parse(url)
-      match_data = u.path.match(%r{(.*)\/v\d+.*})
+      match_data = u.path.match(%r{(.*)/v\d+.*})
       path = match_data && (match_data[1] || '')
       "#{u.scheme}://#{u.host}:#{u.port}#{path}"
     end

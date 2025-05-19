@@ -24,6 +24,7 @@ module Foreman
         :user_auth_source_name,
         :all_host_statuses,
         :all_host_statuses_hash,
+        :all_host_statuses_labels_hash,
         :host_status,
         :preview?,
         :raise,
@@ -58,6 +59,7 @@ module Foreman
         :shell_escape,
         :join_with_line_break,
         :current_date,
+        :current_time,
         :truthy?,
         :falsy?,
         :previous_revision,
@@ -78,7 +80,8 @@ module Foreman
         :host_puppet_environment,
         :host_enc,
         :install_packages,
-        :update_packages
+        :update_packages,
+        :generate_web_request
       ]
 
       DEFAULT_ALLOWED_VARIABLES = [

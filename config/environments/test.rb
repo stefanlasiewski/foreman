@@ -10,10 +10,10 @@ Foreman::Application.configure do
   # test suite. You never need to work with it otherwise. Remember that
   # your test database is "scratch space" for the test suite and is wiped
   # and recreated between test runs. Don't rely on the data there!
-  config.cache_classes = true
+  # Disable reloading for integration tests
+  config.cache_classes = ARGV.grep(/test\/integration/).any?
 
-  # Eager load currently cannot be set due to: https://projects.theforeman.org/issues/31977
-  config.eager_load = false
+  config.eager_load = true
 
   # Configure static asset server for tests with Cache-Control for performance.
   config.public_file_server.enabled = true
@@ -63,8 +63,6 @@ Foreman::Application.configure do
 
   # Randomize the order test cases are executed.
   config.active_support.test_order = :random
-
-  config.webpack.dev_server.enabled = false
 
   # Whitelist all plugin engines by default from raising errors on deprecation warnings for
   # compatibility, allow them to override it by adding an ASDT configuration file.

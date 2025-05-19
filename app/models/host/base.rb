@@ -10,6 +10,7 @@ module Host
     include Hostext::Ownership
     include Foreman::TelemetryHelper
     include Facets::BaseHostExtensions
+    include Foreman::ObservableModel
 
     self.table_name = :hosts
     extend FriendlyId
@@ -27,7 +28,7 @@ module Host
     has_one :domain, :through => :primary_interface
     has_one :subnet, :through => :primary_interface
     has_one :subnet6, :through => :primary_interface
-    has_one :kernel_release, -> { joins(:fact_name).where({ 'fact_names.name' => KERNEL_RELEASE_FACTS }).order('fact_names.type') }, :class_name => '::FactValue', :foreign_key => 'host_id'
+    has_one :kernel_release, -> { joins(:fact_name).where({ 'fact_names.name' => KERNEL_RELEASE_FACTS }).order('fact_values.updated_at desc') }, :class_name => '::FactValue', :foreign_key => 'host_id'
     accepts_nested_attributes_for :interfaces, :allow_destroy => true
 
     belongs_to :location
@@ -36,13 +37,18 @@ module Host
 
     alias_attribute :hostname, :name
 
-    validates :name, :presence => true, :uniqueness => true, :format => {:with => Net::Validations::HOST_REGEXP, :message => _(Net::Validations::HOST_REGEXP_ERR_MSG)}
+    validates :name, :presence => true, :uniqueness => true, :format => {:with => Net::Validations::HOST_REGEXP, :message => N_(Net::Validations::HOST_REGEXP_ERR_MSG)}
     validate :host_has_required_interfaces
     validate :uniq_interfaces_identifiers
 
     include PxeLoaderSuggestion
 
+    belongs_to :creator, :class_name => 'User'
+    before_create :set_creator_id
+
     default_scope -> { where(taxonomy_conditions) }
+
+    register_custom_hook :host_facts_updated
 
     def self.taxonomy_conditions
       conditions = {}
@@ -84,11 +90,12 @@ module Host
     # initializer and we set name when we are sure that we have primary interface
     # we can't create primary interface before calling super because args may contain nested
     # interface attributes
-    def initialize(*args)
+    def initialize(attributes = nil, &block)
       values_for_primary_interface = {}
-      build_values_for_primary_interface!(values_for_primary_interface, args)
+      attributes = attributes&.with_indifferent_access
+      build_values_for_primary_interface!(values_for_primary_interface, attributes)
 
-      super(*args)
+      super(attributes, &block)
 
       build_required_interfaces
       update_primary_interface_attributes(values_for_primary_interface)
@@ -112,6 +119,7 @@ module Host
       :domain=, :domain_id=, :domain_name=, :to => :primary_interface
 
     attr_writer :updated_virtuals
+
     def updated_virtuals
       @updated_virtuals ||= []
     end
@@ -211,19 +219,32 @@ module Host
       desc 'Note that available facts depend on what facts have been uploaded to Foreman,
            typical sources are Puppet facter, subscription manager etc.
            The facts can be out of date, this macro only provides access to the value stored in the database.'
+      list :fact_names, desc: 'A list of fact names to return. If empty all facts are returned'
       returns Hash, desc: 'A hash of facts, keys are fact names, values are fact values'
       example '@host.facts # => { "hardwareisa"=>"x86_64", "kernel"=>"Linux", "virtual"=>"physical", ... }', desc: 'Getting all host facts'
       example '@host.facts["uptime"] # => "30 days"', desc: 'Getting specific fact value, +uptime+ in this case'
       aliases :facts
     end
-    def facts_hash
-      hash = {}
-      fact_values.includes(:fact_name).collect do |fact|
-        hash[fact.fact_name.name] = fact.value
-      end
-      hash
+    def facts_hash(*fact_names)
+      # keep it to one SQL query
+      query = if fact_names.present?
+                fact_values.joins(:fact_name).where(fact_names: {name: fact_names}).pluck('fact_names.name', :value)
+              else
+                fact_values.joins(:fact_name).pluck('fact_names.name', :value)
+              end
+      query.to_h # { fact_name.name => fact_value.value}
     end
-    alias_method :facts, :facts_hash
+
+    def facts(*fact_names)
+      if fact_names.blank?
+        Rails.cache.fetch("hosts/#{id}/facts", :expires_in => 1.minute) do
+          Rails.logger.debug "Caching facts for #{name}"
+          facts_hash
+        end
+      else
+        facts_hash(*fact_names)
+      end
+    end
 
     def ==(comparison_object)
       super ||
@@ -348,6 +369,10 @@ module Host
       template.render(host: self, **params)
     end
 
+    def to_label
+      HostPresenter.display_name(name)
+    end
+
     private
 
     def parse_ip_address(address, ignore_link_local: true)
@@ -373,19 +398,17 @@ module Host
       addr.to_s
     end
 
-    def build_values_for_primary_interface!(values_for_primary_interface, args)
-      new_attrs = args.shift
-      unless new_attrs.nil?
-        new_attrs = new_attrs.with_indifferent_access
-        values_for_primary_interface[:name] = NameGenerator.new.next_random_name unless new_attrs.has_key?(:name)
+    def build_values_for_primary_interface!(values_for_primary_interface, attributes)
+      unless attributes.nil?
+        values_for_primary_interface[:name] = NameGenerator.new.next_random_name unless attributes.has_key?(:name)
         PRIMARY_INTERFACE_ATTRIBUTES.each do |attr|
-          values_for_primary_interface[attr] = new_attrs.delete(attr) if new_attrs.has_key?(attr)
+          values_for_primary_interface[attr] = attributes.delete(attr) if attributes.has_key?(attr)
         end
 
-        model_name = new_attrs.delete(:model_name)
-        new_attrs[:hardware_model_name] = model_name if model_name.present?
+        model_name = attributes.delete(:model_name)
+        attributes[:hardware_model_name] = model_name if model_name.present?
 
-        args.unshift(new_attrs)
+        attributes
       end
     end
 
@@ -606,13 +629,19 @@ module Host
     end
 
     def password_base64_encrypted?
-      if root_pass_changed?
-        root_pass == hostgroup.try(:read_attribute, :root_pass)
+      hostgroup_root_pass = hostgroup.try(:read_attribute, :root_pass)
+
+      if self[:root_pass].blank? && hostgroup_root_pass.blank?
+        false
+      elsif root_pass_changed?
+        root_pass == hostgroup_root_pass
       else
         true
       end
     end
+
+    def set_creator_id
+      self.creator_id = User.current.id if User&.current&.id
+    end
   end
 end
-
-require_dependency 'host/managed'

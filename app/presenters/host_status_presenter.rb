@@ -17,6 +17,7 @@ class HostStatusPresenter
   end
 
   attr_reader :status_class
+
   delegate :status_name, to: :status_class
   alias_method :name, :status_name
 
@@ -34,6 +35,10 @@ class HostStatusPresenter
         HostStatus::Global::OK
       end
     end
+  end
+
+  def current_hosts_path(*args)
+    ApplicationHelper.current_hosts_path(*args)
   end
 
   [:ok, :warn, :error].each do |status_name|
@@ -55,14 +60,14 @@ class HostStatusPresenter
       query = send("#{status_name}_total_query")
       return if query.empty?
 
-      Rails.application.routes.url_helpers.hosts_path(search: query)
+      current_hosts_path(search: query)
     end
 
     define_method :"#{status_name}_owned_path" do
       query = send("#{status_name}_owned_query")
       return if query.empty?
 
-      Rails.application.routes.url_helpers.hosts_path(search: query)
+      current_hosts_path(search: query)
     end
   end
 
@@ -87,13 +92,13 @@ class HostStatusPresenter
 
   def total_paths
     total_queries.transform_values do |query|
-      Rails.application.routes.url_helpers.hosts_path(search: query)
+      current_hosts_path(search: query)
     end
   end
 
   def owned_paths
     owned_queries.transform_values do |query|
-      Rails.application.routes.url_helpers.hosts_path(search: query)
+      current_hosts_path(search: query)
     end
   end
 
@@ -106,11 +111,11 @@ class HostStatusPresenter
   private
 
   def total_data
-    status_class.group(:status).count
+    status_class.joins(:host).merge(Host.authorized).group(:status).count
   end
 
   def owned_data
-    status_class.where(host_id: Host::Managed.search_for('owner = current_user').select(:id)).group(:status).count
+    status_class.joins(:host).merge(Host::Managed.authorized.search_for('owner = current_user').reorder('')).group(:status).count
   end
 
   def total_queries

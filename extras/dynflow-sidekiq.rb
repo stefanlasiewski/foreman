@@ -10,21 +10,21 @@ require app_file
   # Loading and initializing of all gettext languages takes about 100ms per language
   # in development environment and little less on production. Let's eager load languages
   # but only for production.
-  FastGettext.human_available_locales
+  Foreman::Gettext::Support.human_available_locales
 end
 
 rails_env_file = File.expand_path('./config/environment.rb', rails_root)
 require rails_env_file
 
-if Sidekiq.options[:queues].include?("dynflow_orchestrator")
-  Sidekiq.options[:dynflow_executor] = true
+if Sidekiq[:queues].include?("dynflow_orchestrator")
+  Sidekiq[:dynflow_executor] = true
   ::Rails.application.dynflow.executor!
-elsif (Sidekiq.options[:queues] - ['dynflow_orchestrator']).any?
+elsif (Sidekiq[:queues] - ['dynflow_orchestrator']).any?
   ::Rails.application.dynflow.config.remote = true
 end
 
 ::Rails.application.dynflow.config.on_init(false) do |world|
-  Sidekiq.options[:dynflow_world] = world
+  Sidekiq[:dynflow_world] = world
 end
 
 # To be able to ensure ordering, dynflow requires that there is only one
@@ -33,7 +33,7 @@ end
 # dynflow.initialize! block until the lock is acquired by the current process.
 # To play nice with sd_notify, we need to mark the process as ready before it
 # attempts to acquire the lock.
-if Sidekiq.options[:dynflow_executor]
+if Sidekiq[:dynflow_executor]
   msg = 'orchestrator in passive mode'
   Rails.logger.info(msg)
   Sidekiq::SdNotify.status(msg)

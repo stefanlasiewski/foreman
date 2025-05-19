@@ -1,91 +1,28 @@
-@import '~@theforeman/vendor/scss/variables';
 @import '../../common/colors.scss';
 @import '../../common/variables.scss';
 
-.secondary-nav-item-pf > .nav-pf-secondary-nav {
-  background-color: $nav-pf-vertical-active-bg-color;
+.react-page #foreman-main-container {
+  overflow-x: auto;
+  white-space: normal;
+  height: 100%;
+}
+#foreman-main-container {
+  height: fit-content;
+}
 
-  .mobile-active {
-    // Mark active Location/Org in Mobile view
-    a {
-      .list-group-item-value {
-        background-color: $nav-pf-vertical-secondary-active-bg-color;
-      }
+.collapsed-nav {
+  #react-app-root {
+    main.pf-v5-c-page__main {
+      padding-left: 0;
     }
   }
-
-  .list-group-item {
-    a {
-      background-color: $nav-pf-vertical-active-bg-color;
-
-      &:hover {
-        .list-group-item-value {
-          background-color: $nav-pf-vertical-secondary-active-bg-color;
-        }
-      }
-    }
-
-    span {
-      color: $nav-pf-vertical-active-icon-color;
-    }
+  #rails-app-content {
+    margin-left: 0;
   }
 }
 
-#react-app-root {
-  .react-container {
-    margin-right: auto;
-    margin-left: 200px;
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
-  .nav-pf-vertical {
-    background-color: $nav-pf-vertical-secondary-active-bg-color;
-
-    .list-group {
-      .list-group-item {
-        a {
-          span {
-            color: $nav-pf-vertical-icon-color;
-          }
-
-          &:hover {
-            background-color: $nav-pf-vertical-active-bg-color;
-
-            span {
-              color: $nav-pf-vertical-active-icon-color;
-            }
-          }
-
-          &::after {
-            color: $nav-pf-vertical-icon-color;
-          }
-        }
-
-        &:hover {
-          a {
-            background-color: $nav-pf-vertical-active-bg-color;
-
-            span {
-              color: $nav-pf-vertical-active-icon-color;
-            }
-          }
-        }
-
-        &.active {
-          a {
-            background-color: $nav-pf-vertical-active-bg-color;
-
-            span {
-              color: $nav-pf-vertical-active-icon-color;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  .secondary-nav-item-pf.hidden-nav-lg {
+#page-sidebar {
+  .pf-v5-c-nav__item.hidden-nav-lg {
     display: none;
 
     @media (max-width: $header-max-width) {
@@ -94,53 +31,92 @@
   }
 }
 
-/*
-  patternfly-sass hides the vertical-nav on smaller screens, see: https://github.com/patternfly/patternfly-sass/blob/5e7cce3445d5b1af1e16500695b9f33edc6a4f6c/assets/javascripts/patternfly-functions.js#L260
-  the react-container needs to be shifted when it happens.
-*/
-@media only screen and (max-width: $pf-global--breakpoint--md) {
-  #react-app-root .react-container,
-  #rails-app-content {
-    margin-left: 0;
+.pf-v5-c-nav {
+  .nav-title-icon {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
-}
-
-#account_menu {
-  outline: none;
-}
-
-#vertical-spinner {
-  margin-top: 15px;
-  margin-left: 5px;
-}
-
-.navbar-header {
-  width: 42px;
-}
-
-#navbar-header {
-  left: 42px;
-}
-
-#data-toolbar {
-  padding: 0;
-  background-color: transparent;
-}
-
-.pf-c-page {
-  background-color: rgba(0, 0, 0, 0);
-}
-
-.collapsed-nav {
-  #react-app-root .react-container,
-  #rails-app-content {
-    margin-left: 75px;
+  .nav-icon {
+    pointer-events: none;
+    padding-right: 10px;
+  }
+  .nav-title {
+    pointer-events: none;
+  }
+  .pf-v5-c-nav__item .pf-v5-c-nav__item.pf-m-expandable .pf-v5-c-nav__list::before {
+    border: 0;
+  }
+  .pf-v5-c-nav__item.pf-m-expandable::before {
+    z-index: var(--pf-v5-c-page__sidebar--ZIndex);
+  }
+  .pf-v5-c-nav__item .pf-v5-c-nav__item.pf-m-expandable::before {
+    // in small screens, the expandable items have css to add a second border
+    border-bottom: none;
+  }
+  
+  .pf-m-expandable>.pf-v5-c-nav__link{
+    text-align: left;
   }
 
-  @media only screen and (max-width: $pf-global--breakpoint--md) {
-    #react-app-root .react-container,
-    #rails-app-content {
-      margin-left: 0;
+  .navigation-search-menu {
+    .pf-v5-c-menu__item {
+      padding: 5px;
+      .pf-v5-c-menu__item-description {
+        word-break: break-word;
+      }
+    }
+    min-width: 0;
+    margin: 0;
+    --pf-v5-c-menu__list-item--hover--BackgroundColor: var(
+      --pf-v5-global--BackgroundColor--200
+    );
+    --pf-v5-c-menu--BackgroundColor: var(--pf-v5-global--BackgroundColor--100);
+    --pf-v5-c-menu__list-item--Color: var(--pf-v5-global--Color--100);
+    --pf-v5-c-menu__list-item--BackgroundColor: transparent;
+    --pf-v5-c-menu__list-item--hover--BackgroundColor: var(
+      --pf-v5-global--BackgroundColor--200
+    );
+    --pf-v5-c-menu__list-item--focus-within--Color: var(--pf-v5-global--palette--blue-400);
+    --pf-v5-c-menu__list-item--focus-within--BackgroundColor: var(
+      --pf-v5-global--BackgroundColor--200
+    );
+
+    --pf-v5-c-menu__item-description--Color: var(--pf-v5-global--Color--200);
+    --pf-v5-c-menu__list-item--hover--Color: unset;
+  }
+  #navigation-search {
+    width:calc(#{var(--pf-v5-c-page__sidebar--Width)} - 10px);
+    margin-left: 5px;
+    .pf-v5-c-button.pf-m-control {
+      display: none;
     }
   }
+}
+
+.pf-v5-c-page {
+  --pf-v5-c-page--BackgroundColor: var(--pf-v5-global--BackgroundColor--100);
+}
+
+.pf-v5-c-page .pf-v5-c-masthead {
+  background-repeat: no-repeat;
+  background-size: cover;
+
+  .pf-v5-c-toolbar__item {
+    .pf-v5-c-context-selector__menu {
+      top: auto;
+    }
+
+    .pf-v5-c-context-selector {
+      &.pf-m-expanded,
+      &:hover {
+        background: rgba(255, 255, 255, 0.24);
+      }
+    }
+
+    .pf-v5-c-context-selector__toggle::before {
+      border-width: 0;
+    }
+  }
+  
 }

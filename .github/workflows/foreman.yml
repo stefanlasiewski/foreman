@@ -1,0 +1,157 @@
+---
+name: Foreman
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'develop'
+      - '*-stable'
+
+env:
+  RAILS_ENV: test
+  DATABASE_URL: postgresql://postgres:password@localhost/test
+  DATABASE_CLEANER_ALLOW_REMOTE_DATABASE_URL: true
+  BUNDLE_WITHOUT: "console:development:journald"
+
+concurrency:
+  group: ${{ github.ref_name }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  setup_matrix:
+    name: Setup matrix
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.build_matrix.outputs.matrix }}
+    steps:
+      - name: Build test matrix
+        id: build_matrix
+        uses: theforeman/gha-matrix-builder@v0
+
+  rubocop:
+    name: Rubocop
+    needs: setup_matrix
+    runs-on: ubuntu-24.04
+    env:
+      BUNDLE_WITHOUT: assets:console:development:dynflow_sidekiq:ec2:journald:jsonp:libvirt:openid:openstack:ovirt:redis:service:telemetry:vmware
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ fromJson(needs.setup_matrix.outputs.matrix).ruby[0] }}
+          bundler-cache: true
+      - name: Run rubocop
+        run: bundle exec rubocop -P
+
+  tests:
+    name: "${{ matrix.task }} - Ruby ${{ matrix.ruby }} and Node ${{ matrix.node }} on PostgreSQL ${{ matrix.postgresql }}"
+    runs-on: ubuntu-24.04
+    needs:
+      - setup_matrix
+      - rubocop
+    services:
+      postgres:
+        image: 'postgres:${{ matrix.postgresql }}'
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        env:
+          POSTGRES_PASSWORD: password
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ${{ fromJson(needs.setup_matrix.outputs.matrix).ruby }}
+        node: ${{ fromJson(needs.setup_matrix.outputs.matrix).node }}
+        postgresql: ${{ fromJson(needs.setup_matrix.outputs.matrix).postgresql }}
+        task:
+          - 'test:units'
+          - 'test:functionals'
+          - 'test:graphql'
+          - 'webpack:compile test:integration'
+          - 'db:seed'
+          - 'assets:precompile RAILS_ENV=production DATABASE_URL=nulldb://nohost'
+          - 'test:external'
+    steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get -qq -y install build-essential libcurl4-openssl-dev zlib1g-dev libpq-dev libvirt-dev
+      - name: generate artifact suffix
+        run: echo "ARTIFACT_SUFFIX=$(echo 'ruby-${{ matrix.ruby }}-node-${{ matrix.node }}-pg-${{ matrix.postgresql }}-${{ matrix.task }}' | tr -cd '[:alnum:]-.')" >> "${GITHUB_ENV}"
+      - name: "Check out Foreman"
+        uses: actions/checkout@v4
+      - name: "Set up Ruby ${{ matrix.ruby }}"
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - name: Archive Gemfile.lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gemfile-${{ env.ARTIFACT_SUFFIX }}.lock
+          path: Gemfile.lock
+      - name: "Set up Node ${{ matrix.node }}"
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Setup NPM Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node }}-
+        if: contains(matrix.task, 'compile')
+      - name: Generate package-lock.json
+        run: npm install --package-lock-only --no-audit
+        if: contains(matrix.task, 'compile')
+      - name: Archive package-lock.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock-${{ env.ARTIFACT_SUFFIX }}.json
+          path: package-lock.json
+        if: contains(matrix.task, 'compile')
+      - name: Install NPM packages
+        run: npm ci --no-audit
+        if: contains(matrix.task, 'compile')
+      - name: Install external test dependencies
+        run: |
+          pip3 install --break-system-packages pykickstart
+          sudo apt-get -qq -y install --no-install-recommends grub-common
+        if: contains(matrix.task, 'external')
+      - name: Prepare test env
+        run: |
+          bundle exec rake db:create
+          bundle exec rake db:migrate
+      - name: Run rake ${{ matrix.task }}
+        run: bundle exec rake ${{ matrix.task }}
+      - name: Archive all_react_app_exports
+        if: contains(matrix.task, 'compile')
+        uses: actions/upload-artifact@v4
+        with:
+          name: all_react_app_exports-${{ env.ARTIFACT_SUFFIX }}.js
+          path: webpack/assets/javascripts/all_react_app_exports.js
+
+  katello:
+    name: Katello
+    needs:
+      - rubocop
+    uses: theforeman/actions/.github/workflows/foreman_plugin.yml@v0
+    with:
+      plugin: katello
+      plugin_repository: Katello/katello
+      foreman_version: ${{ github.ref }}
+      postgresql_container: ghcr.io/theforeman/postgresql-evr
+      test_existing_database: false
+
+  result:
+    if: always()
+    name: Test suite
+    runs-on: ubuntu-24.04
+    needs:
+      - tests
+      - katello
+    steps:
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}

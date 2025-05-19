@@ -37,7 +37,6 @@ const ConfigParams = ({
     <>
       <FormGroup
         label={__('Setup REX')}
-        isRequired
         labelIcon={
           <LabelIcon
             text={__(
@@ -48,8 +47,9 @@ const ConfigParams = ({
         fieldId="registration_setup_remote_execution"
       >
         <FormSelect
+          ouiaId="registration_setup_remote_execution"
           value={setupRemoteExecution}
-          onChange={v => handleRemoteExecution(v)}
+          onChange={(_event, v) => handleRemoteExecution(v)}
           className="without_select2"
           id="registration_setup_remote_execution"
           isDisabled={isLoading}
@@ -61,7 +61,6 @@ const ConfigParams = ({
       </FormGroup>
       <FormGroup
         label={__('Setup Insights')}
-        isRequired
         fieldId="registration_setup_insights"
         labelIcon={
           <LabelIcon
@@ -72,8 +71,9 @@ const ConfigParams = ({
         }
       >
         <FormSelect
+          ouiaId="registration_setup_insights"
           value={setupInsights}
-          onChange={v => handleInsights(v)}
+          onChange={(_event, v) => handleInsights(v)}
           className="without_select2"
           id="registration_setup_insights"
           isDisabled={isLoading}

@@ -2,8 +2,9 @@ object @host
 
 extends "api/v2/hosts/base"
 extends "api/v2/smart_proxies/children_nodes"
+extends "api/v2/layouts/permissions"
 
-# we need to cache results with @last_reports, rabl can't pass custom parameters to attriute methods
+# we need to cache results with @last_reports, rabl can't pass custom parameters to attribute methods
 @object.global_status_label(:last_reports => @last_reports)
 @object.configuration_status(:last_reports => @last_reports)
 @object.configuration_status_label(:last_reports => @last_reports)
@@ -11,7 +12,7 @@ extends "api/v2/smart_proxies/children_nodes"
 attributes :ip, :ip6, :last_report, :mac, :realm_id, :realm_name,
   :sp_mac, :sp_ip, :sp_name, :domain_id, :domain_name, :architecture_id, :architecture_name, :operatingsystem_id, :operatingsystem_name,
   :subnet_id, :subnet_name, :subnet6_id, :subnet6_name, :sp_subnet_id, :ptable_id, :ptable_name, :medium_id, :medium_name, :pxe_loader,
-  :build, :comment, :disk, :initiated_at, :installed_at, :model_id, :hostgroup_id, :owner_id, :owner_name, :owner_type,
+  :build, :comment, :disk, :initiated_at, :installed_at, :model_id, :hostgroup_id, :owner_id, :owner_name, :owner_type, :creator_id, :creator,
   :enabled, :managed, :use_image, :image_file, :uuid,
   :compute_resource_id, :compute_resource_name,
   :compute_profile_id, :compute_profile_name, :capabilities, :provision_method,
@@ -25,6 +26,10 @@ attributes :configuration_status => :puppet_status
 
 # to avoid renaming model_name to match accessors
 attributes :hardware_model_name => :model_name
+
+node :compute_resource_provider do |host|
+  host.compute_resource&.provider&.downcase
+end
 
 HostStatus.status_registry.each do |status_class|
   attributes "#{status_class.humanized_name}_status", "#{status_class.humanized_name}_status_label", :if => @object.get_status(status_class).relevant?

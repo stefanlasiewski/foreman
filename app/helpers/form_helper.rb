@@ -2,7 +2,10 @@ module FormHelper
   def text_f(f, attr, options = {})
     field(f, attr, options) do
       addClass options, "form-control"
-      options[:focus_on_load] = true if options[:focus_on_load].nil? && attr.to_s == 'name'
+      if attr.to_s == 'name'
+        options[:focus_on_load] ||= true
+        options[:autocomplete] ||= "section-#{f.object_name} name"
+      end
       f.text_field attr, options
     end
   end
@@ -119,6 +122,9 @@ module FormHelper
       # that was defined in the struct.
       blank_option.instance_eval('undef to_s', __FILE__, __LINE__) if method.to_s == 'to_s' || id.to_s == 'to_s'
       array.insert(0, blank_option)
+      html_options['data-placeholder'] = blank_value || html_options[:placeholder]
+    elsif html_options[:placeholder]
+      html_options['data-placeholder'] = html_options[:placeholder]
     end
 
     select_options[:disabled] = '' if select_options[:disabled] == include_blank
@@ -127,7 +133,9 @@ module FormHelper
     html_options[:size] = 'col-md-10' if html_options[:multiple]
     field(f, attr, html_options) do
       addClass html_options, "form-control"
-
+      if include_blank.is_a?(TrueClass)
+        addClass html_options, "include_blank"
+      end
       collection_select = f.collection_select(attr, array, id, method, select_options, html_options)
 
       if disable_button
@@ -211,7 +219,6 @@ module FormHelper
   # * <tt>:url</tt> - path where the search results should be fetched from.
   # * <tt>:disabled</tt> - If set to true, the user will not be able to use this input.
   # * <tt>:search_query</tt> - Default search query.
-  # * <tt>:use_key_shortcuts</tt> - If set to true, keyboard shortcuts are enabled on the field.
   #
   # ==== Examples
   #   form_for(@user) do |f|
@@ -219,15 +226,15 @@ module FormHelper
   #   end
   #   # => <AutoComplete id="user_country" name="user[country]" url="/api/countries/auto_complete_country" searchQuery="Czech" />
   def autocomplete_f(f, attr, options = {})
-    options.merge!(
-      {
+    options[:data] = {
+      autocomplete: {
+        searchQuery: options[:search_query] || f.object&.search || '',
         url: options[:full_path] || (options[:path] || send("#{auto_complete_controller_name}_path")) + "/auto_complete_#{attr}",
-        controller: options[:path] || auto_complete_controller_name,
-        search_query: options[:search_query] || f.object&.search || '',
-        use_key_shortcuts: options[:use_key_shortcuts] || false,
-      }
-    )
-
+      },
+      controller: options[:path] || auto_complete_controller_name,
+      disabled: options[:disabled] || false,
+    }
+    options[:onSearch] = nil
     react_form_input('autocomplete', f, attr, options)
   end
 
@@ -263,11 +270,9 @@ module FormHelper
     options
   end
 
-  def add_help_to_label(size_class, label, help_inline)
+  def add_help_to_label(size_class, label, help_inline, &block)
     label.html_safe +
-        content_tag(:div, :class => size_class) do
-          yield
-        end.html_safe + help_inline.html_safe
+        content_tag(:div, :class => size_class, &block).html_safe + help_inline.html_safe
   end
 
   def is_required?(f, attr)
@@ -318,8 +323,7 @@ module FormHelper
     if options[:label_help].present?
       label += ' '.html_safe + popover("", options[:label_help], options[:label_help_options] || {})
     end
-    label = label.present? ? label_tag(attr, label.to_s + required_mark.to_s, :class => label_size + " control-label") : ''
-    label
+    label.present? ? label_tag(attr, label.to_s + required_mark.to_s, :class => label_size + " control-label") : ''
   end
 
   def check_required(options, f, attr)
@@ -357,7 +361,7 @@ module FormHelper
     link_to_function(name, "add_fields('#{options[:target]}', '#{association}', '#{escape_javascript(fields)}', '#{options[:direction] || 'append'}')".html_safe, options)
   end
 
-  def field(f, attr, options = {})
+  def field(f, attr, options = {}, &block)
     table_field = options.delete(:table_field)
     error       = options.delete(:error) || get_attr_error(f, attr)
     help_inline = help_inline(options.delete(:help_inline), error)
@@ -368,9 +372,7 @@ module FormHelper
     label = options[:no_label] ? "" : add_label(options, f, attr)
 
     if table_field
-      add_help_to_label(size_class, label, help_inline) do
-        yield
-      end.html_safe
+      add_help_to_label(size_class, label, help_inline, &block).html_safe
     else
       help_block = content_tag(:span, options.delete(:help_block), :class => "help-block")
 
@@ -440,12 +442,26 @@ module FormHelper
 
   def form_select_f(f, attr, array, select_options = {}, html_options = {})
     addClass html_options, "form-control"
+    include_blank = select_options[:include_blank]
+    if include_blank
+      addClass html_options, "include_blank"
+      blank_value = include_blank.is_a?(TrueClass) ? nil : include_blank
+      if array.kind_of?(Array) # incase array is options_for_select
+        array = array.to_a.dup
+        blank_option = [blank_value, nil]
+        array.insert(0, blank_option)
+        select_options.delete(:include_blank)
+      end
+      html_options['data-placeholder'] = blank_value || html_options[:placeholder]
+    elsif html_options[:placeholder]
+      html_options['data-placeholder'] = html_options[:placeholder]
+    end
     f.select attr, array, select_options, html_options
   end
 
   def link_to_add_fields_classes(options = {})
     classes = "btn btn-default #{options[:class]}"
-    classes << ' btn-primary' if options.fetch(:primary_button, true)
+    classes += ' btn-primary' if options.fetch(:primary_button, true)
     classes
   end
 end

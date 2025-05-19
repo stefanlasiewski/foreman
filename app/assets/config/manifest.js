@@ -1,3 +1,4 @@
+//= link late_load.js
 //= link_tree ../../../vendor/assets/fonts
 //= link_tree ../images
 //= link application.css
@@ -18,8 +19,8 @@
 // link reports.js
 //= link taxonomy_edit.js
 // link gettext/all.js
-//= link filters.js
 //= link subnets.js
 //= link proxy_status.js
 //= link about.js
 //= link parameter_override.js
+//= link templates.js

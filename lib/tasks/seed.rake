@@ -5,14 +5,14 @@ namespace :seed do
   namespace :forgeries do
     task :load_factories => :environment do
       if Rails.env.production?
-        STDERR.puts "Refusing to seed data in a production environment"
+        $stderr.puts "Refusing to seed data in a production environment"
         exit 1
       end
 
       begin
         require 'factory_bot'
       rescue LoadError
-        STDERR.puts "Factory bot is unavailable"
+        $stderr.puts "Factory bot is unavailable"
         exit 1
       end
 
@@ -199,10 +199,10 @@ namespace :seed do
                 "A message"
               end
         base["logs"].append({
-                              "log" => { "sources" => { "source" => src },
-                              "messages" => { "message" => msg },
-                              "level" => (i.even? ? "notice" : "err") },
-                            })
+          "log" => { "sources" => { "source" => src },
+          "messages" => { "message" => msg },
+          "level" => (i.even? ? "notice" : "err") },
+        })
       end
       base["reporter"] = "ansible" if is_ansible
       base

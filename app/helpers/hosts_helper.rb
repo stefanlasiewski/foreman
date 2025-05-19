@@ -3,7 +3,7 @@ module HostsHelper
   include HostsAndHostgroupsHelper
   include ComputeResourcesVmsHelper
   include HostsNicHelper
-  include BmcHelper
+  include BMCHelper
   include AuthorizeHelper
 
   def provider_partial_exist?(compute_resource, partial)
@@ -86,9 +86,10 @@ module HostsHelper
   end
 
   def host_owner_column(host)
-    if host.owner_type == 'User'
+    case host.owner_type
+    when 'User'
       icon_text('user', host.owner, :kind => 'fa')
-    elsif host.owner_type == 'Usergroup'
+    when 'Usergroup'
       icon_text('users', host.owner, :kind => 'fa')
     end
   end

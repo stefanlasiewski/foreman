@@ -5,9 +5,14 @@ class PuppetFactParser < FactParser
     orel = os_release.dup
 
     if orel.present?
-      major, minor = orel.split('.', 2)
-      major = major.to_s.gsub(/\D/, '')
-      minor = minor.to_s.gsub(/[^\d\.]/, '')
+      if os_name =~ /ubuntu/i
+        major = os_major_version.to_s
+        minor = os_minor_version.to_s
+      else
+        major, minor = orel.split('.', 2)
+        major = major.to_s.gsub(/\D/, '')
+        minor = minor.to_s.gsub(/[^\d\.]/, '')
+      end
       args = {:name => os_name, :major => major, :minor => minor}
       os = Operatingsystem.find_or_initialize_by(args)
       if os_name[/debian|ubuntu/i] || os.family == 'Debian'
@@ -227,6 +232,14 @@ class PuppetFactParser < FactParser
     raise(::Foreman::Exception.new("invalid facts, missing operating system value"))
   end
 
+  def os_major_version
+    facts.dig(:os, :release, :major)
+  end
+
+  def os_minor_version
+    facts.dig(:os, :release, :minor)
+  end
+
   def os_release
     case os_name
     when /(windows)/i
@@ -238,7 +251,7 @@ class PuppetFactParser < FactParser
       majorjunos, minorjunos = os_release_full.split("R")
       majorjunos + "." + minorjunos
     when /FreeBSD/i
-      os_release_full.gsub(/\-RELEASE\-p[0-9]+/, '')
+      os_release_full.gsub(/-RELEASE-p[0-9]+/, '')
     when /Solaris/i
       os_release_full.gsub(/_u/, '.')
     when /PSBM/i
@@ -248,11 +261,12 @@ class PuppetFactParser < FactParser
       # Archlinux is a rolling release, so it has no releases. 1.0 is always used
       '1.0'
     when /Debian/i
-      return "99" if distro_codename =~ /sid/
       release = os_release_full
       case release
-      when 'bullseye/sid' # Debian Bullseye testing will be 11
-        '11'
+      when 'trixie/sid' # Debian Trixie will be 13
+        '13'
+      when 'forky/sid' # Debian Forky will be 14
+        '14'
       else
         release
       end

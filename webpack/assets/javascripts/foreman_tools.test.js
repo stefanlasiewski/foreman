@@ -36,6 +36,7 @@ describe('activateDatatables', () => {
     $.fn.DataTable = jest.fn();
     tools.activateDatatables();
     expect($.fn.DataTable).toBeCalledWith({
+      pagingType: "simple_numbers",
       processing: true,
       serverSide: true,
       ordering: false,
@@ -75,31 +76,5 @@ describe('deprecate', () => {
     expect(console.warn).toHaveBeenCalledWith(
       'DEPRECATION WARNING: you are using deprecated oldtest, it will be removed in Foreman 1.42. Use tfm.tools.newtest instead.'
     );
-  });
-});
-
-/* eslint-disable max-statements */
-describe('initTypeAheadSelect', () => {
-  it('initializes select2 on given input field', () => {
-    document.body.innerHTML =
-      '<input type="text" id="typeahead" data-url="testurl" data-scope="testscope">';
-
-    const field = $('#typeahead');
-
-    $.ajax = jest.fn(url => {
-      const ajaxMock = $.Deferred();
-
-      ajaxMock.resolve([
-        { id: 1, name: 'testoption' },
-        { id: 2, name: 'anotheroption' },
-      ]);
-      return ajaxMock.promise();
-    });
-
-    tools.initTypeAheadSelect(field);
-    $('.select2-choice').trigger('mousedown');
-    $('.select2-choice').trigger('mouseup');
-    expect(document.body.innerHTML).toContain('select2-container');
-    expect($('.select2-chosen').text()).toEqual('testoption');
   });
 });

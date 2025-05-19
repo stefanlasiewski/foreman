@@ -44,14 +44,16 @@ config/hooks
 *.csv
 .envrc
 node_modules
+vendor/bundle
 vendor/ruby
 public/webpack
 .env*
 package-lock.json
 npm-debug.log
 .vscode
-.yo-rc.json
 .vendor/
 .solargraph.yml
 .nvmrc
 mkmf.log
+.yardoc/
+webpack/assets/javascripts/all_react_app_exports.js

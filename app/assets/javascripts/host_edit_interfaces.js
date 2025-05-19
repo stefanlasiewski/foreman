@@ -1,6 +1,6 @@
-$(document).ready(function() {
-  $('#host_name').select();
-  $('#host_name').focus();
+$(document).on('ContentLoad', function() {
+  $('#host_name').trigger("select");
+  $('#host_name').trigger("focus");
 });
 
 function remove_interface(interface_id) {
@@ -27,7 +27,7 @@ function show_interface_modal(modal_content) {
   modal_window
     .find('.modal-title')
     .text(__('Interface') + ' ' + String(identifier));
-  modal_window.modal({ show: true });
+  modal_window.modal({ show: true , backdrop: 'static'});
 
   modal_window.find('a[rel="popover-modal"]').popover();
   activate_select2(modal_window);
@@ -107,12 +107,12 @@ function get_interface_row(interface_id) {
     interface_row.attr('id', 'interface' + interface_id);
     interface_row.data('interface-id', interface_id);
 
-    interface_row.find('.showModal').click(function() {
+    interface_row.find('.showModal').on('click', function() {
       edit_interface(interface_id);
       return false;
     });
 
-    interface_row.find('.removeInterface').click(function() {
+    interface_row.find('.removeInterface').on('click', function() {
       remove_interface(interface_id);
       return false;
     });
@@ -344,8 +344,6 @@ $(document).on('click', '.managed-flag', function() {
   update_interface_table();
 });
 
-var providerSpecificNICInfo = null;
-
 function nic_info(form) {
   var info = '';
   var virtual_types = ['Nic::Bond', 'Nic::Bridge'];
@@ -391,11 +389,6 @@ $(document).on('change', '.virtual', function() {
 function construct_host_name() {
   var host_name_el = $('#host_name')
   var host_name = host_name_el.val();
-  if (host_name_el.data('appendDomainNameForHosts') === false ||
-      host_name_el.data('managed') === false
-  ) {
-    return host_name;
-  }
   var domain_name = primary_nic_form()
     .find('.interface_domain option:selected')
     .text();
@@ -418,9 +411,9 @@ $(document).on('change', '.interface_mac', function(event) {
       .find('.interface_mac')
       .attr('id')
   ) {
-    var interface = $('#interfaceModal').find('.interface_mac');
-    var mac = interface.val();
-    var baseurl = interface.attr('data-url');
+    var host_interface = $('#interfaceModal').find('.interface_mac');
+    var mac = host_interface.val();
+    var baseurl = host_interface.attr('data-url');
     $.ajax({
       type: 'GET',
       url: baseurl + '?mac=' + mac,

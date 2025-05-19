@@ -18,33 +18,6 @@ test_on:
 # lang = en_US
 #   System locale
 #
-<%
-  iface = @host.provision_interface
-  hostname = @host.name
-  mac = @host.provision_interface.mac
-  subnet4 = iface.subnet
-  subnet6 = iface.subnet6
-  options = []
-
-  if host_param('blacklist')
-    options << host_param('blacklist').split(',').collect{|x| "#{x.strip}.blacklist=yes"}.join(' ')
-  end
-
-  if mac
-    # hardware type is always 01 (ethernet) unless specified otherwise
-    options << "BOOTIF=#{host_param("hardware_type", "01")}-#{mac.gsub(':', '-')}"
-  end
-  if subnet4 && subnet4.dhcp_boot_mode?
-    options << "ip=dhcp"
-  elsif subnet4 && !subnet4.dhcp_boot_mode?
-    options << "ip=#{iface.ip}::#{subnet4.gateway}:#{subnet4.mask}:#{hostname}:#{iface.identifier}:none:#{subnet4.dns_primary}:#{subnet4.dns_secondary}"
-  end
-
-  options << "locale=#{host_param('lang') || 'en_US'}"
-  options = options.join(' ')
-  image_path = @preseed_path.sub(/\/?$/, '.iso')
--%>
-#
 # WARNING
 #
 # Foreman will not download the kernel/initramdisk to PXE automatically. Please follow
@@ -55,6 +28,6 @@ DEFAULT linux cloud-init autoinstall
 LABEL linux cloud-init autoinstall
     KERNEL <%= @kernel %>
     INITRD <%= @initrd %>
-    APPEND url=http://<%= @preseed_server %><%= image_path %> autoinstall ds=nocloud-net;s=http://<%= foreman_request_addr %>/userdata/ root=/dev/ram0 ramdisk_size=1500000 fsck.mode=skip <%= options %>
+    APPEND root=/dev/ram0 <%= snippet('preseed_kernel_options_autoinstall').strip %>
 
 <%= snippet_if_exists(template_name + " custom menu") %>

@@ -22,19 +22,18 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
     volumes_attributes    = { "new_volumes" => { "size_gb" => "10", "_delete" => ""},
                               "0"           => { "size_gb" => "1",  "_delete" => ""}}
 
-    attrs_in = HashWithIndifferentAccess.new("cpus"                  => "1",
-                                             "interfaces_attributes" => interfaces_attributes,
-                                             "volumes_attributes"    => volumes_attributes)
+    attrs_in = HashWithIndifferentAccess.new("cpus" => "1",
+      "interfaces_attributes" => interfaces_attributes,
+      "volumes_attributes"    => volumes_attributes)
 
-    attrs_parsed = HashWithIndifferentAccess.new("cpus"                  => "1",
-                                                 "interfaces_attributes" => {"new_interfaces" => {"type" => "VirtualE1000", "network" => "Test network", "_delete" => ""},
-                                                                            "0" => {"type" => "VirtualVmxnet3", "network" => "Test network", "_delete" => ""}},
-                                                 "volumes_attributes"    => {"new_volumes" => {"size_gb" => "10", "_delete" => ""},
-                                                                             "0" => {"size_gb" => "1", "_delete" => ""}})
+    attrs_parsed = HashWithIndifferentAccess.new("cpus" => "1",
+      "interfaces_attributes" => {"new_interfaces" => {"type" => "VirtualE1000", "network" => "Test network", "_delete" => ""},
+                                 "0" => {"type" => "VirtualVmxnet3", "network" => "Test network", "_delete" => ""}},
+      "volumes_attributes"    => {"new_volumes" => {"size_gb" => "10", "_delete" => ""},
+                                  "0" => {"size_gb" => "1", "_delete" => ""}})
 
     mock_vm = mock('vm')
     mock_vm.expects(:save).returns(mock_vm)
-    mock_vm.expects(:firmware).returns('biod')
 
     cr = FactoryBot.build_stubbed(:vmware_cr)
     cr.expects(:parse_networks).with(attrs_in).returns(attrs_parsed)
@@ -142,17 +141,6 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
       mock_vm.stubs(:firmware).returns('bios')
       @cr.stubs(:parse_networks).returns(args)
       @cr.expects(:clone_vm).times(0)
-      @cr.expects(:new_vm).returns(mock_vm)
-      @cr.create_vm(args)
-    end
-
-    test 'converts automatic firmware to bios default' do
-      args = {"provision_method" => "build"}
-      mock_vm = mock('vm')
-      mock_vm.expects(:save).returns(mock_vm)
-      mock_vm.stubs(:firmware).returns('automatic')
-      mock_vm.expects(:firmware=).with('bios')
-      @cr.stubs(:parse_networks).returns(args)
       @cr.expects(:new_vm).returns(mock_vm)
       @cr.create_vm(args)
     end
@@ -266,8 +254,11 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
       @cr = FactoryBot.build_stubbed(:vmware_cr)
     end
 
-    test "converts empty hash" do
-      assert_equal({}, @cr.parse_args(HashWithIndifferentAccess.new))
+    test "defaults to BIOS firmware when no firmware is provided" do
+      args = HashWithIndifferentAccess.new
+      expected_firmware = { firmware: "bios" }
+
+      assert_equal expected_firmware, @cr.parse_args(args)
     end
 
     test "converts form attrs to fog attrs" do
@@ -297,7 +288,7 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
         }
       )
       # All keys must be symbolized
-      attrs_out = {:cpus => "1", :interfaces => [{:type => "VirtualVmxnet3", :network => "network-17", :_delete => ""}], :volumes => [{:size_gb => "1", :_delete => ""}]}
+      attrs_out = { :cpus => "1", :interfaces => [{ :type => "VirtualVmxnet3", :network => "network-17", :_delete => "" }], :volumes => [{ :size_gb => "1", :_delete => "" }], :firmware => "bios" }
       assert_equal attrs_out, @cr.parse_args(attrs_in)
     end
 
@@ -328,7 +319,7 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
           },
         }
       )
-      attrs_out = {:cpus => "1", :interfaces => [{:type => "VirtualVmxnet3", :network => "network-17", :_delete => ""}], :volumes => [{:size_gb => "1", :_delete => ""}]}
+      attrs_out = {:cpus => "1", :interfaces => [{:type => "VirtualVmxnet3", :network => "network-17", :_delete => ""}], :volumes => [{:size_gb => "1", :_delete => ""}], :firmware => "bios" }
       assert_equal attrs_out, @cr.parse_args(attrs_in)
     end
 
@@ -375,6 +366,7 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
             :_delete => "",
           },
         ],
+        :firmware => "bios",
       }
       assert_equal attrs_out, @cr.parse_args(attrs_in)
     end
@@ -411,31 +403,6 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
       @cr.parse_args(attrs_in)
       assert_equal "network-17", attrs_in["interfaces_attributes"]["0"]["network"]
     end
-
-    context 'scsi_controller_type - from hammer' do
-      test 'parse to be a default scsi_controller_type' do
-        attrs_in = HashWithIndifferentAccess.new('scsi_controller_type' => 'ParaVirtualSCSIController')
-        attrs_out = { scsi_controllers: [{ type: 'ParaVirtualSCSIController' }] }
-        assert_equal attrs_out, @cr.parse_args(attrs_in)
-      end
-
-      test 'do not override scsi_controllers if passed' do
-        attrs_in = HashWithIndifferentAccess.new(
-          'scsi_controller_type' => 'ParaVirtualSCSIController',
-          'scsi_controllers' => [{ 'type' => 'VirtualBusLogicController' }]
-        )
-        attrs_out = { scsi_controllers: [{ type: 'VirtualBusLogicController' }] }
-        assert_equal attrs_out, @cr.parse_args(attrs_in)
-      end
-
-      test 'drop invalid scsi_controller_type attribute' do
-        attrs_in = HashWithIndifferentAccess.new(
-          'scsi_controller_type' => 'ParaVirtualSCSICntrlr'
-        )
-        attrs_out = {}
-        assert_equal attrs_out, @cr.parse_args(attrs_in)
-      end
-    end
   end
 
   describe "#parse_networks" do
@@ -459,7 +426,7 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
     end
 
     test "converts empty hash" do
-      assert_equal({}, @cr.parse_networks(HashWithIndifferentAccess.new))
+      assert_empty(@cr.parse_networks(HashWithIndifferentAccess.new))
     end
 
     test "converts form network name to network ID" do
@@ -596,6 +563,9 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
       scsi_controller1 = mock('scsi_controller1')
       scsi_controller1.stubs(:attributes).returns({:type => "VirtualLsiLogicController", :shared_bus => "noSharing", :unit_number => 7, :key => 1000})
       @vm.stubs(:scsi_controllers).returns([scsi_controller1])
+      nvme_controller1 = mock('nvme_controller1')
+      nvme_controller1.stubs(:attributes).returns({:type => "VirtualNVMEController", :key => 2000})
+      @vm.stubs(:nvme_controllers).returns([nvme_controller1])
 
       @networks = [
         OpenStruct.new(:id => 'dvportgroup-123456', :name => 'Testnetwork'),
@@ -619,7 +589,14 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
             :key => 1000,
           },
         ],
+        :nvme_controllers => [
+          {
+            :type => "VirtualNVMEController",
+            :key => 2000,
+          },
+        ],
       }
+
       attrs = @cr.vm_compute_attributes_for('abc')
 
       assert_equal expected_attrs, attrs
@@ -646,7 +623,7 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
           "0" => { :vol => 1, :size_gb => 4 },
           "1" => { :vol => 2, :size_gb => 4 },
         },
-        :interfaces_attributes => {"0" => {:compute_attributes => {:network => "Testnetwork", :type => "VirtualVmxnet3"}, :mac => "00:50:56:84:f1:b1"}},
+        :interfaces_attributes => {"0" => {:compute_attributes => {:network => "dvportgroup-123456", :type => "VirtualVmxnet3"}, :mac => "00:50:56:84:f1:b1"}},
         :scsi_controllers => [
           {
             :type => "VirtualLsiLogicController",
@@ -655,6 +632,7 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
             :key => 1000,
           },
         ],
+        :nvme_controllers => [{:type => "VirtualNVMEController", :key => 2000}],
       }
       attrs = @cr.vm_compute_attributes_for('abc')
 
@@ -969,6 +947,33 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
       assert_equal(expected_attrs, normalized['scsi_controllers'])
     end
 
+    test 'normalizes nvme_controllers' do
+      vm_attrs = {
+        'nvme_controllers' => [
+          {
+            'type' => 'VirtualNVMEController',
+            'key' => 2000,
+          }, {
+            'type' => 'VirtualNVMEController',
+            'key' => 2001,
+          }
+        ],
+      }
+      expected_attrs = {
+        '0' => {
+          'type' => 'VirtualNVMEController',
+          'key' => 2000,
+        },
+        '1' => {
+          'type' => 'VirtualNVMEController',
+          'key' => 2001,
+        },
+      }
+      normalized = cr.normalize_vm_attrs(vm_attrs)
+
+      assert_equal(expected_attrs, normalized['nvme_controllers'])
+    end
+
     test 'normalizes volumes_attributes' do
       vm_attrs = {
         'volumes_attributes' => {
@@ -1046,6 +1051,7 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
         'memory_hot_add_enabled' => nil,
         'cpu_hot_add_enabled' => nil,
         'scsi_controllers' => {},
+        'nvme_controllers' => {},
         'interfaces_attributes' => {},
         'volumes_attributes' => {},
       }
@@ -1056,6 +1062,49 @@ class Foreman::Model::VmwareTest < ActiveSupport::TestCase
 
     test 'attribute names' do
       check_vm_attribute_names(cr)
+    end
+  end
+
+  describe '#generate_secure_boot_settings' do
+    before do
+      @cr = FactoryBot.build_stubbed(:vmware_cr)
+    end
+
+    test "returns secure boot settings when firmware is 'uefi_secure_boot'" do
+      assert_equal({ secure_boot: true }, @cr.send(:generate_secure_boot_settings, 'uefi_secure_boot'))
+    end
+
+    test "returns an empty hash for firmware types other than 'uefi_secure_boot'" do
+      assert_empty @cr.send(:generate_secure_boot_settings, 'uefi')
+      assert_empty @cr.send(:generate_secure_boot_settings, 'bios')
+      assert_empty @cr.send(:generate_secure_boot_settings, '')
+      assert_empty @cr.send(:generate_secure_boot_settings, nil)
+    end
+  end
+
+  describe '#validate_tpm_compatibility' do
+    before do
+      @cr = FactoryBot.build_stubbed(:vmware_cr)
+    end
+
+    test 'returns true and no errors when firmware is EFI and virtual_tpm is enabled' do
+      assert_equal true, @cr.send(:validate_tpm_compatibility, '1', 'efi')
+      assert_empty @cr.errors.full_messages
+    end
+
+    test 'returns false and no errors when firmware is EFI and virtual_tpm is disabled' do
+      assert_equal false, @cr.send(:validate_tpm_compatibility, '0', 'efi')
+      assert_empty @cr.errors.full_messages
+    end
+
+    test 'returns false and no errors when firmware is BIOS and virtual_tpm is disabled' do
+      assert_equal false, @cr.send(:validate_tpm_compatibility, '0', 'bios')
+      assert_empty @cr.errors.full_messages
+    end
+
+    test 'returns true and adds an error when firmware is BIOS and virtual_tpm is enabled' do
+      assert_equal true, @cr.send(:validate_tpm_compatibility, '1', 'bios')
+      assert_includes @cr.errors.full_messages, 'TPM is not compatible with BIOS firmware. Please change Firmware or disable TPM.'
     end
   end
 end

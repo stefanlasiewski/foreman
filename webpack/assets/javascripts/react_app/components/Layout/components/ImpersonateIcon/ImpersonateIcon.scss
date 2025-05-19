@@ -15,13 +15,14 @@
 }
 
 .blink-image {
+  cursor: pointer;
   -moz-animation: blink normal 1s infinite ease-in-out; /* Firefox */
   -webkit-animation: blink normal 1s infinite ease-in-out; /* Webkit */
   -ms-animation: blink normal 1s infinite ease-in-out; /* IE */
   animation: blink normal 1s infinite ease-in-out; /* Opera and prob css3 final iteration */
 }
 
-.navbar-pf-vertical {
+.pf-v5-c-masthead {
   .nav-item-iconic .blink-image {
     color: $color-pf-gold-200;
   }

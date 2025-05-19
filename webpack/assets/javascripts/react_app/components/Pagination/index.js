@@ -39,17 +39,19 @@ const Pagination = ({
     let nextPage = propsPage;
     let nextPerPage = propsPerPage;
     if (updateParamsByUrl) {
-      if (search !== undefined) {
+      if (search !== undefined && search.length) {
         const params = new URLSearchParams(search);
-        nextPage = Number(params.get('page'));
-        nextPerPage = Number(params.get('per_page'));
+        nextPage = Number(params.get('page') || getURIpage());
+        nextPerPage = Number(params.get('per_page') || getURIperPage());
       } else {
         nextPage = getURIpage();
         nextPerPage = getURIperPage();
       }
     }
-    setPerPage(current => nextPerPage || current || settingsPerPage);
-    setPage(current => nextPage || current);
+    setPerPage(
+      current => nextPerPage || propsPerPage || current || settingsPerPage
+    );
+    setPage(current => nextPage || propsPage || current);
   }, [search, propsPage, propsPerPage, settingsPerPage, updateParamsByUrl]);
 
   const paginationTitles = {
@@ -57,13 +59,13 @@ const Pagination = ({
     page: '', // doesn't work well with translations as it adds 's' for plural, see: https://github.com/patternfly/patternfly-react/issues/6707
     itemsPerPage: __('Items per page'),
     perPageSuffix: __('per page'),
-    toFirstPage: __('Go to first page'),
-    toPreviousPage: __('Go to previous page'),
-    toLastPage: __('Go to last page'),
-    toNextPage: __('Go to next page'),
-    optionsToggle: __('Items per page'),
-    currPage: __('Current page'),
-    paginationTitle: __('Pagination'),
+    toFirstPageAriaLabel: __('Go to first page'),
+    toPreviousPageAriaLabel: __('Go to previous page'),
+    toLastPageAriaLabel: __('Go to last page'),
+    toNextPageAriaLabel: __('Go to next page'),
+    optionsToggleAriaLabel: __('Items per page'),
+    currPageAriaLabel: __('Current page'),
+    paginationAriaLabel: __('Pagination'),
   };
 
   const getPerPageOptions = () => {
@@ -105,6 +107,7 @@ const Pagination = ({
   const cx = classNames('tfm-pagination', className, {
     'no-side-padding': noSidePadding,
   });
+
   return (
     <PF4Pagination
       titles={paginationTitles}

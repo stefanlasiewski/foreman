@@ -253,9 +253,11 @@ Foreman::Application.routes.draw do
       get 'extlogout'
       get 'auto_complete_search'
       delete 'stop_impersonation'
+      delete 'invalidate_jwt_for_all_users'
     end
     member do
       post 'impersonate'
+      patch 'invalidate_jwt'
     end
     resources :ssh_keys, only: [:new, :create, :destroy]
   end
@@ -551,9 +553,13 @@ Foreman::Application.routes.draw do
   end
 
   match 'host_statuses' => 'react#index', :via => :get
+  match 'new/hosts/auto_complete_search', :via => :get, :to => 'hosts#auto_complete_search', :as => "auto_complete_search_hosts_new"
   constraints(id: /[^\/]+/) do
     match 'new/hosts/:id' => 'react#index', :via => :get, :as => :host_details_page
   end
+  match 'new/hosts/' => 'react#index', :via => :get, :as => :new_hosts_index_page
+
   get 'page-not-found' => 'react#index'
   get 'links/:type(/:section)' => 'links#show', :as => 'external_link', :constraints => { section: %r{.*} }
+  get 'upgrade' => 'react#index'
 end

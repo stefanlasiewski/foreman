@@ -19,6 +19,13 @@ threads ENV.fetch('FOREMAN_PUMA_THREADS_MIN', 0).to_i, ENV.fetch('FOREMAN_PUMA_T
 #
 workers ENV.fetch('FOREMAN_PUMA_WORKERS', 2).to_i
 
+# Puma worker timeout.
+#
+# It's not recommended to change this, since it can mask real
+# bugs or incorrect tuning. This is not a request timeout.
+#
+worker_timeout ENV.fetch('FOREMAN_PUMA_WORKER_TIMEOUT').to_i if ENV.key?('FOREMAN_PUMA_WORKER_TIMEOUT')
+
 # In clustered mode, Puma can "preload" your application. This loads all the
 # application code prior to forking. Preloading reduces total memory usage of
 # your application via an operating system feature called copy-on-write
@@ -58,5 +65,5 @@ activate_control_app "unix://#{run_dir}/sockets/pumactl.sock"
 # in development environment and little less on production. Let's eager load languages
 # for production before forking to save memory on CoW operating systems.
 before_fork do
-  FastGettext.human_available_locales
+  Foreman::Gettext::Support.human_available_locales
 end

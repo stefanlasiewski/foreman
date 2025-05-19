@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // eslint bug - https://github.com/eslint/eslint/issues/12117
 
 import { isEmpty } from 'lodash';
@@ -9,6 +8,8 @@ import {
   noop,
   foremanUrl,
 } from '../../common/helpers';
+import { NAV_MENU_ALL_HOST } from './LayoutConstants';
+import { getHostsPageUrl } from '../../Root/Context/ForemanContext';
 
 export const createInitialTaxonomy = (currentTaxonomy, availableTaxonomies) => {
   const taxonomyId = availableTaxonomies.find(
@@ -23,33 +24,24 @@ export const createInitialTaxonomy = (currentTaxonomy, availableTaxonomies) => {
 export const getCurrentPath = () =>
   removeLastSlashFromPath(window.location.pathname);
 
-export const getActiveMenuItem = (items, path = getCurrentPath()) => {
-  for (const item of items) {
-    for (const child of item.children) {
-      if (child.exact) {
-        if (path === child.url) return { title: item.name };
-      } else if (path.startsWith(child.url)) return { title: item.name };
-    }
-  }
-  return { title: '' };
-};
-
-export const handleMenuClick = (primary, activeMenu, changeActive) => {
-  if (primary.title !== __(activeMenu)) changeActive(primary);
-};
-
-export const combineMenuItems = data => {
+export const combineMenuItems = (data, displayNewHostsPage) => {
   const items = [];
 
   data.menu.forEach(item => {
-    const translatedChildren = item.children.map(child => ({
-      ...child,
-      name: isEmpty(child.name) ? child.name : __(child.name),
-    }));
+    const translatedChildren = item.children.map(child => {
+      const newChild = {
+        ...child,
+        title: isEmpty(child.name) ? child.name : __(child.name),
+      };
+      if (child.name === NAV_MENU_ALL_HOST) {
+        newChild.url = getHostsPageUrl(displayNewHostsPage);
+      }
+      return newChild;
+    });
 
     const translatedItem = {
       ...item,
-      name: __(item.name),
+      name: item.name === 'User' ? data.user.current_user.name : __(item.name),
       children: translatedChildren,
       // Hiding user if not on Mobile view
       className: item.name === 'User' ? 'hidden-nav-lg' : '',
@@ -65,7 +57,8 @@ export const combineMenuItems = data => {
 
 const createOrgItem = orgs => {
   const anyOrg = {
-    name: __('Any Organization'),
+    name: 'Any Organization',
+    title: __('Any Organization'),
     onClick: () => {
       window.location.assign(foremanUrl('/organizations/clear'));
     },
@@ -76,6 +69,7 @@ const createOrgItem = orgs => {
     const childObject = {
       type: org.type,
       name: org.title,
+      title: org.title,
       onClick: () => {
         window.location.assign(org.href);
       },
@@ -96,7 +90,8 @@ const createOrgItem = orgs => {
 
 const createLocationItem = locations => {
   const anyLoc = {
-    name: __('Any Location'),
+    name: 'Any Location',
+    title: __('Any Location'),
     onClick: () => {
       window.location.assign(foremanUrl('/locations/clear'));
     },
@@ -107,6 +102,7 @@ const createLocationItem = locations => {
     const childObject = {
       type: loc.type,
       name: loc.title,
+      title: loc.title,
       onClick: () => {
         window.location.assign(loc.href);
       },
@@ -183,9 +179,7 @@ export const layoutPropTypes = {
   children: PropTypes.node,
   isLoading: PropTypes.bool,
   isCollapsed: PropTypes.bool,
-  activeMenu: PropTypes.string,
   navigate: PropTypes.func,
-  changeActiveMenu: PropTypes.func,
   expandLayoutMenus: PropTypes.func,
   collapseLayoutMenus: PropTypes.func,
   items: PropTypes.arrayOf(
@@ -213,9 +207,7 @@ export const layoutDefaultProps = {
   data: {},
   isLoading: false,
   isCollapsed: false,
-  activeMenu: '',
   navigate: noop,
-  changeActiveMenu: noop,
   expandLayoutMenus: noop,
   collapseLayoutMenus: noop,
 };

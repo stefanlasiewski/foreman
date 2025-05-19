@@ -64,6 +64,7 @@ class HostsController < ApplicationController
   def show
     respond_to do |format|
       format.html do
+        response.headers['X-Request-Path'] = request.path
         # filter graph time range
         @range = (params["range"].empty? ? 7 : params["range"].to_i)
 
@@ -97,7 +98,7 @@ class HostsController < ApplicationController
     @host.managed = true if (params[:host] && params[:host][:managed].nil?)
     forward_url_options
     if @host.save
-      process_success :success_redirect => current_host_details_path(@host)
+      process_success :success_redirect => helpers.current_host_details_path(@host)
     else
       load_vars_for_ajax
       offer_to_overwrite_conflicts
@@ -115,7 +116,7 @@ class HostsController < ApplicationController
       attributes = @host.apply_inherited_attributes(host_params)
       attributes.delete(:compute_resource_id)
       if @host.update(attributes)
-        process_success :success_redirect => current_host_details_path(@host)
+        process_success :success_redirect => helpers.current_host_details_path(@host)
       else
         taxonomy_scope
         load_vars_for_ajax
@@ -434,12 +435,7 @@ class HostsController < ApplicationController
       return
     end
     hg = Hostgroup.find_by_id(id)
-    # update the hosts
-    @hosts.each do |host|
-      host.hostgroup = hg
-      host.save(:validate => false)
-    end
-
+    BulkHostsManager.new(hosts: @hosts).reassign_hostgroups(hg)
     success _('Updated hosts: changed host group')
     # We prefer to go back as this does not lose the current search
     redirect_back_or_to hosts_path
@@ -463,7 +459,7 @@ class HostsController < ApplicationController
     end
 
     success _('Updated hosts: changed owner')
-    redirect_back_or_to hosts_path
+    redirect_back_or_to helpers.current_hosts_path
   end
 
   def select_multiple_power_state
@@ -479,7 +475,7 @@ class HostsController < ApplicationController
     end
 
     success _('The power state of the selected hosts will be set to %s') % _(action)
-    redirect_back_or_to hosts_path
+    redirect_back_or_to helpers.current_hosts_path
   end
 
   def multiple_destroy
@@ -492,21 +488,13 @@ class HostsController < ApplicationController
   end
 
   def submit_rebuild_config
-    all_fails = {}
-    @hosts.each do |host|
-      result = host.recreate_config
-      result.each_pair do |k, v|
-        all_fails[k] ||= []
-        all_fails[k] << host.name unless v
-      end
-    end
-
+    all_fails = BulkHostsManager.new(hosts: @hosts).rebuild_configuration
     message = ''
     all_fails.each_pair do |key, values|
       unless values.empty?
-        message << ((n_("%{config_type} rebuild failed for host: %{host_names}.",
+        message += ((n_("%{config_type} rebuild failed for host: %{host_names}.",
           "%{config_type} rebuild failed for hosts: %{host_names}.",
-          values.count) % {:config_type => _(key), :host_names => values.to_sentence})) + " "
+          values.count) % {:config_type => _(key), :host_names => values.map(&:to_label).to_sentence})) + " "
       end
     end
 
@@ -515,26 +503,13 @@ class HostsController < ApplicationController
     else
       error message
     end
-    redirect_to hosts_path
+    redirect_to helpers.current_hosts_path
   end
 
   def submit_multiple_build
     reboot = params[:host][:build] == '1' || false
-
-    missed_hosts = @hosts.select do |host|
-      success = true
-      forward_url_options(host)
-      begin
-        host.built(false) if host.build? && host.token_expired?
-        host.setBuild
-        host.power.reset if host.supports_power_and_running? && reboot
-      rescue => error
-        message = _('Failed to redeploy %s.') % host
-        Foreman::Logging.exception(message, error)
-        success = false
-      end
-      !success
-    end
+    @hosts.each { |host| forward_url_options(host) }
+    missed_hosts = BulkHostsManager.new(hosts: @hosts).build(reboot: reboot)
 
     if missed_hosts.empty?
       if reboot
@@ -545,7 +520,7 @@ class HostsController < ApplicationController
     else
       error _("The following hosts failed the build operation: %s") % missed_hosts.map(&:name).to_sentence
     end
-    redirect_to(hosts_path)
+    redirect_to(helpers.current_hosts_path)
   end
 
   def submit_multiple_destroy
@@ -583,7 +558,7 @@ class HostsController < ApplicationController
       host.disassociate!
     end
     success _('Updated hosts: Disassociated from VM')
-    redirect_back_or_to hosts_path
+    redirect_back_or_to helpers.current_hosts_path
   end
 
   def errors
@@ -775,12 +750,12 @@ class HostsController < ApplicationController
       @hosts ||= resource_base.merge(Host.where(id: params[:host_ids]).or(Host.where(name: params[:host_names])))
       if @hosts.empty?
         error _('No hosts were found with that id, name or query filter')
-        redirect_to(hosts_path)
+        redirect_to(helpers.current_hosts_path)
         return false
       end
     else
       error _('No hosts selected')
-      redirect_to(hosts_path)
+      redirect_to(helpers.current_hosts_path)
       return false
     end
 
@@ -789,7 +764,7 @@ class HostsController < ApplicationController
     message = _("Something went wrong while selecting hosts - %s") % error
     error(message)
     Foreman::Logging.exception(message, error)
-    redirect_to hosts_path
+    redirect_to helpers.current_hosts_path
     false
   end
 
@@ -803,7 +778,7 @@ class HostsController < ApplicationController
     else
       error _("The following hosts were not %{action}: %{missed_hosts}") % { :action => action, :missed_hosts => missed_hosts.map(&:name).to_sentence }
     end
-    redirect_to(hosts_path)
+    redirect_to(helpers.current_hosts_path)
   end
 
   # this is required for template generation (such as pxelinux) which is not done via a web request
@@ -886,7 +861,7 @@ class HostsController < ApplicationController
         "The %{proxy_type} puppet ca proxy could not be set for hosts: %{host_names}",
         failed_hosts.count) % {:proxy_type => proxy_type, :host_names => failed_hosts.map { |h, err| "#{h} (#{err})" }.to_sentence}
     end
-    redirect_back_or_to hosts_path
+    redirect_back_or_to helpers.current_hosts_path
   end
 
   def find_templates
@@ -912,7 +887,9 @@ class HostsController < ApplicationController
   end
 
   def csv_columns
-    [:name, :operatingsystem, :compute_resource_or_model, :hostgroup, :last_report]
+    Pagelets::Manager.pagelets_at("hosts/_list", 'hosts_table_column_header', filter: { selected: @selected_columns })
+      .map { |pagelet| pagelet.opts[:export_data] || pagelet.opts[:export_key] || pagelet.opts[:key] }
+      .flatten
   end
 
   def origin_intervals_query(compare_with)
@@ -928,14 +905,10 @@ class HostsController < ApplicationController
   end
 
   def redirection_url_on_host_deletion
-    default_redirection = { :success_redirect => hosts_path }
+    default_redirection = { :success_redirect => helpers.current_hosts_path }
     return default_redirection unless session["redirect_to_url_#{controller_name}"]
     path_hash = main_app.routes.recognize_path(session["redirect_to_url_#{controller_name}"])
     return default_redirection if (path_hash.nil? || (path_hash && path_hash[:action] != 'index'))
     { :success_redirect => saved_redirect_url_or(send("#{controller_name}_url")) }
-  end
-
-  def current_host_details_path(host)
-    Setting['host_details_ui'] ? host_details_page_path(host) : host_path(host)
   end
 end

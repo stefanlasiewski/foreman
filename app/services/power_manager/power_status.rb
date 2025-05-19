@@ -20,6 +20,19 @@ module PowerManager
       result
     end
 
+    def self.safe_power_state(host, timeout: DEFAULT_TIMEOUT)
+      new(host: host).power_state(timeout)
+    rescue => e
+      Foreman::Logging.exception("Failed to fetch power status", e)
+
+      resp = {
+        id: host.id,
+        statusText: _("Failed to fetch power status: %s") % e,
+      }
+
+      resp.merge(PowerManager::PowerStatus::HOST_POWER[:na])
+    end
+
     private
 
     def host_power_ping(result, timeout = DEFAULT_TIMEOUT)
@@ -34,7 +47,7 @@ module PowerManager
 
       result[:statusText] = n_("Failed to retrieve power status for %{host} within %{req_timeout} second.",
         "Failed to retrieve power status for %{host} within %{req_timeout} seconds.", req_timeout) %
-                              {host: host, req_timeout: req_timeout}
+          {host: host, req_timeout: req_timeout}
       result
     end
   end

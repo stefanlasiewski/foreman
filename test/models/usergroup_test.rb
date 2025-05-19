@@ -55,7 +55,7 @@ class UsergroupTest < ActiveSupport::TestCase
   end
 
   test 'should create with valid user' do
-    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).values.each do |login|
+    RFauxFactory.gen_strings(1..50, exclude: [:html, :punctuation, :cyrillic, :utf8]).each_value do |login|
       user = FactoryBot.create(:user, :login => login)
       usergroup = FactoryBot.build(:usergroup, :user_ids => [user.id])
       assert usergroup.valid?, "Can't create usergroup with valid user #{user}"
@@ -116,7 +116,7 @@ class UsergroupTest < ActiveSupport::TestCase
     assert_equal [@h2, @h3, @h6].sort, @u3.hosts.sort
     assert_equal [@h6], @u4.hosts
     assert_equal [@h2, @h4, @h6].sort, @u5.hosts.sort
-    assert_equal [], @u6.hosts
+    assert_empty @u6.hosts
   end
 
   test "addresses should be retrieved from recursive/complex usergroup definitions" do
@@ -216,7 +216,7 @@ class UsergroupTest < ActiveSupport::TestCase
       @usergroup = FactoryBot.create(:usergroup)
       auth_source_ldap = FactoryBot.create(:auth_source_ldap)
       @external = @usergroup.external_usergroups.new(:auth_source_id => auth_source_ldap.id,
-                                                     :name           => 'aname')
+        :name => 'aname')
       LdapFluff.any_instance.stubs(:ldap).returns(Net::LDAP.new)
       users(:one).update_column(:auth_source_id, auth_source_ldap.id)
     end

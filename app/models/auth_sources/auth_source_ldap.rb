@@ -20,7 +20,7 @@ require 'timeout'
 
 class AuthSourceLdap < AuthSource
   SERVER_TYPES = { :free_ipa => 'FreeIPA', :active_directory => 'Active Directory',
-                   :posix    => 'POSIX'}
+                   :posix    => 'POSIX', :netiq => "NetIQ"}
 
   extend FriendlyId
   friendly_id :name
@@ -32,14 +32,14 @@ class AuthSourceLdap < AuthSource
   validates :host, :presence => true, :length => {:maximum => 60}
   validates :attr_login, :attr_firstname, :attr_lastname, :attr_mail, :presence => true, :if => proc { |auth| auth.onthefly_register? }
   validates :attr_login, :attr_firstname, :attr_lastname, :attr_mail, :length => {:maximum => 30}, :allow_nil => true
-  validates :account_password, :length => {:maximum => 60}, :allow_nil => true
+  validates :account_password, :length => {:maximum => 69}, :allow_nil => true
   validates :port, :presence => true, :numericality => {:only_integer => true}
   validates :server_type, :presence => true, :inclusion => { :in => SERVER_TYPES.keys.map(&:to_s) }
   validate :validate_ldap_filter, :unless => proc { |auth| auth.ldap_filter.blank? }
 
   before_validation :strip_ldap_attributes
   before_validation :sanitize_use_netgroups
-  after_initialize :set_defaults
+  after_initialize :set_defaults, if: :new_record?
 
   scoped_search :on => :name, :complete_value => :true
 

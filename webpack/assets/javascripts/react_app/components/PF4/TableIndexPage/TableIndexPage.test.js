@@ -3,8 +3,6 @@ import { Provider } from 'react-redux';
 import thunk from 'redux-thunk';
 import configureMockStore from 'redux-mock-store';
 import { fireEvent, screen, render, act } from '@testing-library/react';
-// import * as api from 'foremanReact/redux/API';
-// import * as routerSelectors from 'foremanReact/routes/RouterSelector';
 import TableIndexPage from './TableIndexPage';
 import { breadcrumbBar } from '../../../components/BreadcrumbBar/BreadcrumbBar.fixtures';
 import '@testing-library/jest-dom';
@@ -39,6 +37,17 @@ const props = {
   exportable: true,
   creatable: true,
   hasHelpPage: true,
+  response: {
+    response: {
+      search: "",
+      can_create: true,
+      results: [{item: 1}],
+      total: 1,
+      per_page: 20,
+      page: 1,
+      subtotal: 1,
+    },
+  },
   children: <div>Content</div>,
   customActionButtons: [
     {
@@ -46,7 +55,7 @@ const props = {
       action: { href: '/custom' },
     },
   ],
-  cutsomToolbarItems: <button>Custom button</button>,
+  customToolbarItems: <button>Custom button</button>,
 };
 Object.defineProperty(window, 'location', {
   value: { href: '/test?search=name=test' },

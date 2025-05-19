@@ -14,17 +14,18 @@ import Slot from '../../../../../common/Slot';
 import SkeletonLoader from '../../../../../common/SkeletonLoader';
 import DefaultLoaderEmptyState from '../../../../DetailsCard/DefaultLoaderEmptyState';
 import { STATUS } from '../../../../../../constants';
+import { useForemanSettings } from '../../../../../../Root/Context/ForemanContext';
 
 const SystemPropertiesCard = ({ status, hostDetails }) => {
+  const { displayFqdnForHosts } = useForemanSettings();
   const {
     name,
-    uuid,
     model_name: model,
     location_name: location,
     organization_name: organization,
     owner_name: ownerName,
     domain_name: domain,
-    hostgroup_name: hostgroupName,
+    hostgroup_title: hostgroupTitle,
     owner_type: ownerType,
   } = hostDetails;
   return (
@@ -49,7 +50,7 @@ const SystemPropertiesCard = ({ status, hostDetails }) => {
                   hoverTip={__('Copy to clipboard')}
                   clickTip={__('Copied to clipboard')}
                 >
-                  {name}
+                  {displayFqdnForHosts ? name : name?.replace(`.${domain}`, '')}
                 </ClipboardCopy>
               )}
             </SkeletonLoader>
@@ -60,21 +61,6 @@ const SystemPropertiesCard = ({ status, hostDetails }) => {
           multi
           hostDetails={hostDetails}
         />
-        <DescriptionListGroup>
-          <DescriptionListTerm>{__('BIOS UUID')}</DescriptionListTerm>
-          <DescriptionListDescription>
-            <SkeletonLoader
-              status={status}
-              emptyState={<DefaultLoaderEmptyState />}
-            >
-              {uuid && (
-                <ClipboardCopy isBlock variant="inline-compact">
-                  {uuid}
-                </ClipboardCopy>
-              )}
-            </SkeletonLoader>
-          </DescriptionListDescription>
-        </DescriptionListGroup>
       </DescriptionList>
       <Divider className="padded-divider" />
       <DescriptionList isCompact isHorizontal>
@@ -117,7 +103,7 @@ const SystemPropertiesCard = ({ status, hostDetails }) => {
               status={status}
               emptyState={<DefaultLoaderEmptyState />}
             >
-              {hostgroupName}
+              {hostgroupTitle}
             </SkeletonLoader>
           </DescriptionListDescription>
         </DescriptionListGroup>
@@ -134,17 +120,36 @@ const SystemPropertiesCard = ({ status, hostDetails }) => {
         </DescriptionListGroup>
         <DescriptionListGroup>
           <DescriptionListTerm>{__('Owner type')}</DescriptionListTerm>
-          <DescriptionListDescription>{ownerType}</DescriptionListDescription>
+          <DescriptionListDescription>
+            <SkeletonLoader
+              status={status}
+              emptyState={<DefaultLoaderEmptyState />}
+            >
+              {ownerType}
+            </SkeletonLoader>
+          </DescriptionListDescription>
         </DescriptionListGroup>
         <DescriptionListGroup>
           <DescriptionListTerm>{__('Organization')}</DescriptionListTerm>
           <DescriptionListDescription>
-            {organization}
+            <SkeletonLoader
+              status={status}
+              emptyState={<DefaultLoaderEmptyState />}
+            >
+              {organization}
+            </SkeletonLoader>
           </DescriptionListDescription>
         </DescriptionListGroup>
         <DescriptionListGroup>
           <DescriptionListTerm>{__('Location')}</DescriptionListTerm>
-          <DescriptionListDescription>{location}</DescriptionListDescription>
+          <DescriptionListDescription>
+            <SkeletonLoader
+              status={status}
+              emptyState={<DefaultLoaderEmptyState />}
+            >
+              {location}
+            </SkeletonLoader>
+          </DescriptionListDescription>
         </DescriptionListGroup>
         <Slot
           id="host-details-tab-properties-3"
@@ -159,14 +164,13 @@ const SystemPropertiesCard = ({ status, hostDetails }) => {
 SystemPropertiesCard.propTypes = {
   status: PropTypes.string,
   hostDetails: PropTypes.shape({
-    hostgroup_name: PropTypes.string,
+    hostgroup_title: PropTypes.string,
     model_name: PropTypes.string,
     organization_name: PropTypes.string,
     location_name: PropTypes.string,
     owner_name: PropTypes.string,
     owner_type: PropTypes.string,
     name: PropTypes.string,
-    uuid: PropTypes.string,
     domain_name: PropTypes.string,
     created_at: PropTypes.string,
     updated_at: PropTypes.string,
@@ -180,10 +184,9 @@ SystemPropertiesCard.defaultProps = {
     model_name: undefined,
     organization_name: undefined,
     location_name: undefined,
-    hostgroup_name: undefined,
+    hostgroup_title: undefined,
     owner_type: undefined,
     owner_name: undefined,
-    uuid: undefined,
     domain_name: undefined,
     created_at: undefined,
     updated_at: undefined,

@@ -142,22 +142,22 @@ model: ReportTemplate
           'content_source_id': content_facet.content_source_id,
           'content_source_name': content_facet.content_source_name,
           'content_view': {
-              'id': content_facet.content_view_id,
-              'name': content_facet.content_view_name,
+              'id': content_facet.single_content_view&.id,
+              'name': content_facet.single_content_view&.name,
           },
-          'content_view_id': content_facet.content_view_id,
-          'content_view_name': content_facet.content_view_name,
+          'content_view_id': content_facet.single_content_view&.id,
+          'content_view_name': content_facet.single_content_view&.name,
           'errata_counts': content_facet.errata_counts,
           'id': content_facet.id,
           'kickstart_repository': content_facet.kickstart_repository,
           'kickstart_repository_id': content_facet.kickstart_repository_id,
           'kickstart_repository_name': content_facet.kickstart_repository_name,
           'lifecycle_environment': {
-              'id': content_facet.lifecycle_environment_id,
-              'name': content_facet.lifecycle_environment_name,
+              'id': content_facet.single_lifecycle_environment&.id,
+              'name': content_facet.single_lifecycle_environment&.name,
           },
-          'lifecycle_environment_id': content_facet.lifecycle_environment_id,
-          'lifecycle_environment_name': content_facet.lifecycle_environment_name,
+          'lifecycle_environment_id': content_facet.single_lifecycle_environment&.id,
+          'lifecycle_environment_name': content_facet.single_lifecycle_environment&.name,
           'upgradable_module_stream_count': content_facet.upgradable_module_stream_count,
           'upgradable_package_count': content_facet.upgradable_rpm_count,
           'uuid': content_facet.uuid,
@@ -174,10 +174,19 @@ model: ReportTemplate
         inventory_data.update('host_collections': host_collections)
       end
       inventory_data.update('host_parameters': host.params) if input_hostparameters
-      inventory_data.update('ipv4': host.ip) if input_ipv4
-      inventory_data.update('ipv6': host.ip6) if input_ipv6
-      inventory_data.update('subnet': host.subnet) if input_subnet
-      inventory_data.update('subnet6': host.subnet6) if input_subnet6
+
+      net_sources = [host]
+      net_sources.unshift(host.execution_interface) if host.respond_to?(:execution_interface)
+      if input_ipv4 || input_subnet
+        ipv4_source = net_sources.find { |s| s&.ip }
+        inventory_data.update('ipv4': ipv4_source&.ip) if input_ipv4
+        inventory_data.update('subnet': ipv4_source&.subnet) if input_subnet
+      end
+      if input_ipv6 || input_subnet6
+        ipv6_source = net_sources.find { |s| s&.ip6 }
+        inventory_data.update('ipv6': ipv6_source&.ip6) if input_ipv6
+        inventory_data.update('subnet6': ipv6_source&.subnet6) if input_subnet6
+      end
       smart_proxies = host.smart_proxies.map { |p| p.name } if host.smart_proxies
       inventory_data.update('smart_proxies': smart_proxies) if input_smartproxies
       inventory_data.update('content_attributes': content_attribute_data) if content_attrs

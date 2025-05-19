@@ -23,7 +23,7 @@ class Hostgroup < ApplicationRecord
 
   validates_lengths_from_database :except => [:name]
   before_destroy EnsureNotUsedBy.new(:hosts)
-  validates :root_pass, :allow_blank => true, :length => {:minimum => 8, :message => _('should be 8 characters or more')}
+  validates :root_pass, :allow_blank => true, :length => {:minimum => 8, :message => N_('should be 8 characters or more')}
   has_many :group_parameters, :dependent => :destroy, :foreign_key => :reference_id, :inverse_of => :hostgroup
   accepts_nested_attributes_for :group_parameters, :allow_destroy => true
   include ParameterValidators
@@ -83,7 +83,7 @@ class Hostgroup < ApplicationRecord
     where(conditions)
   }
 
-  apipie :class, "A class representing #{model_name.human} object" do
+  apipie :class do
     prop_group :basic_model_props, ApplicationRecord, meta: { friendly_name: 'host group' }
     property :architecture, 'Architecture', desc: 'Returns architecture to be used on hosts within this host group'
     property :arch, 'Architecture', desc: 'Returns architecture to be used on hosts within this host group'
@@ -126,7 +126,7 @@ class Hostgroup < ApplicationRecord
   def disk_layout_source
     @disk_layout_source ||= if ptable.present?
                               Foreman::Renderer::Source::String.new(name: ptable.name,
-                                                                    content: ptable.layout.tr("\r", ''))
+                                content: ptable.layout.tr("\r", ''))
                             end
   end
 
@@ -273,7 +273,7 @@ class Hostgroup < ApplicationRecord
   end
 
   def password_base64_encrypted?
-    !root_pass_changed?
+    !(self[:root_pass].blank? && nested_root_pw.blank?) && !root_pass_changed?
   end
 
   def validate_subnet_types

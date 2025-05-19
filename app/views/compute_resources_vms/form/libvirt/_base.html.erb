@@ -3,11 +3,17 @@
 <div id="cpus_input">
   <%= counter_f(f, :cpus, label: _('CPUs'), disabled: !new_vm, recommended_max_value: compute_resource.max_cpu_count) %>
 </div>
-<%= select_f f, :cpu_mode, Foreman::Model::Libvirt::CPU_MODES, :to_s, :to_s, { }, :label => _("CPU mode"), :label_size => "col-md-2" %>
 <%= byte_size_f(f, :memory, disabled: !new_vm, label: _('Memory'), recommended_max_value: compute_resource.max_memory.to_i) %>
 <!--TODO # Move to a helper-->
 <% checked = params[:host] && params[:host][:compute_attributes] && params[:host][:compute_attributes][:start] || '1' %>
 <%= checkbox_f f, :start, { :checked => (checked == '1'), :help_inline => _("Power ON this machine"), :label => _('Start'), :label_size => "col-md-2"} if new_vm && controller_name != "compute_attributes" %>
+
+<% firmware_type = new_vm ? 'automatic' : compute_resource.firmware_type(f.object.firmware, f.object.secure_boot) %>
+<%= field(f, :firmware, :disabled => !new_vm, :label => _('Firmware'), :label_help => _("Choose 'Automatic' to set the firmware based on the host's PXE Loader. If no PXE Loader is selected, it defaults to BIOS."), :label_size => "col-md-2") do
+  compute_resource.firmware_types.collect do |type, name|
+    radio_button_f f, :firmware, {:checked => (firmware_type == type), :disabled => !new_vm, :value => type, :text => _(name) }
+  end.join(' ').html_safe
+end %>
 
 <%
    arch ||= nil ; os ||= nil
@@ -18,8 +24,6 @@
              { :disabled    => images.empty? || (params[:host] && params[:host][:provision_method] == 'build'),
                :'data-url'  => template_selected_compute_resource_path(compute_resource),
                :onchange    => 'tfm.computeResource.libvirt.imageSelected(this);',
-               :help_inline => :indicator,
-               :help_block  => _("Image to use"),
                :label => _('Image'), :label_size => "col-md-2"} %>
 </div>
 

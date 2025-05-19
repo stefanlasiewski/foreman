@@ -85,12 +85,13 @@ class SettingPresenter
       raise ::Foreman::Exception.new N_('Unsupported search operators :and / :or')
     end
 
-    if query =~ /name\s*=\s*(\S+)/
-      name == tokenized.last
-    elsif query =~ /name\s*~\s*(\S+)/
+    case query
+    when /name\s*=\s*(\S+)/
+      name == tokenized.last || full_name == tokenized.last
+    when /name\s*~\s*(\S+)/
       search_value = tokenized.last
       name.include?(search_value) || full_name&.include?(search_value)
-    elsif query =~ /description\s*~\s*(\S+)/
+    when /description\s*~\s*(\S+)/
       search_value = tokenized.last
       description.include? search_value
     else
@@ -101,11 +102,11 @@ class SettingPresenter
   # ----- UI helpers ------
 
   def category_label
-    Foreman::SettingManager.categories[category] || category.safe_constantize&.humanized_category || category_name
+    Foreman::SettingManager.categories[category] || category_name
   end
 
   def category_name
-    category.delete_prefix('Setting::')
+    category
   end
 
   def select_values

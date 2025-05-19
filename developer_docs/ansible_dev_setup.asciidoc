@@ -65,8 +65,14 @@ Enable feature
 # all configuration options
 ---
 :enabled: true
+:working_dir: '/path/to/empty/working/directory'
 ....
 
+Set path to `ansible-runner-environment`
+[source, console]
+....
+export SMART_PROXY_ANSIBLE_ENVIRONMENT_WRAPPER="/path/to/smart_proxy_ansible/bin/ansible-runner-environment.sh"
+....
 
 Run all services
 [source, bash]

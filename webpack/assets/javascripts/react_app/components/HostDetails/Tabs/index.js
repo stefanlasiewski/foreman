@@ -5,8 +5,9 @@ import { DEFAULT_TAB, TABS_SLOT_ID } from '../consts';
 import OverviewTab from './Overview';
 import DetailTab from './Details';
 import ReportsTab from './ReportsTab';
+import ParametersTab from './Parameters';
 
-export const registerCoreTabs = ({ except = [] }) => {
+export const registerCoreTabs = () => {
   addGlobalFill(
     TABS_SLOT_ID,
     DEFAULT_TAB,
@@ -19,10 +20,7 @@ export const registerCoreTabs = ({ except = [] }) => {
     'Details',
     <DetailTab key="host-details-detail-tab" />,
     4000,
-    {
-      title: __('Details'),
-      hideTab: () => except.includes('host-details-detail-tab'),
-    }
+    { title: __('Details') }
   );
   addGlobalFill(
     TABS_SLOT_ID,
@@ -31,6 +29,15 @@ export const registerCoreTabs = ({ except = [] }) => {
     477,
     {
       title: __('Reports'),
+    }
+  );
+  addGlobalFill(
+    TABS_SLOT_ID,
+    'Parameters',
+    <ParametersTab key="host-details-parameters-tab" />,
+    850,
+    {
+      title: __('Parameters'),
     }
   );
 };

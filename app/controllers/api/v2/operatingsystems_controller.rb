@@ -82,17 +82,17 @@ module Api
         process_response @operatingsystem.destroy
       end
 
-      api :GET, "/operatingsystems/:id/bootfiles/", N_("List boot files for an operating system")
+      api :GET, "/operatingsystems/:id/bootfiles/", N_("List boot files for an operating system"), deprecated: true
       param :id, String, :required => true
-      param :medium, String
-      param :architecture, String
+      param :medium, String, :required => true
+      param :architecture, String, :required => true
 
       def bootfiles
         Foreman::Deprecation.api_deprecation_warning("Bootfiles should be calculated per host")
 
         medium = Medium.authorized(:view_media).find(params[:medium])
         arch   = Architecture.authorized(:view_architectures).find(params[:architecture])
-        host_mock = Openstruct.new(operatingsystem: @operatingsystem, medium: medium, architecture: arch)
+        host_mock = OpenStruct.new(operatingsystem: @operatingsystem, medium: medium, architecture: arch)
         medium_provider = MediumProviders::Default.new(host_mock)
 
         render :json => @operatingsystem.pxe_files(medium_provider)

@@ -58,9 +58,34 @@ class UnattendedControllerTest < ActionController::TestCase
       assert_response :success
     end
 
+    test "should get a foreman CA refresh for a host" do
+      get :host_template, params: { kind: 'public', id: 'foreman_ca_refresh' }
+      assert_response :success
+    end
+
+    test "should get raw foreman CA certificate" do
+      get :host_template, params: { kind: 'public', id: 'foreman_raw_ca' }
+      assert_response :success
+    end
+
     test "should get a kickstart when IPv6 mapped IPv4 address is used" do
       @request.env["HTTP_X_FORWARDED_FOR"] = "::ffff:" + @rh_host.ip
       @request.env["REMOTE_ADDR"] = "127.0.0.1"
+      get :host_template, params: { :kind => 'provision' }
+      assert_response :success
+    end
+
+    test "should get a kickstart when pure IPv6 address is used" do
+      ptable = Ptable.find_by(name: 'default')
+      @ipv6_host = FactoryBot.create(:host, :managed, :with_ipv6, :build => true,
+                                     :operatingsystem => operatingsystems(:redhat),
+                                     :ptable => ptable,
+                                     :medium => media(:one),
+                                     :architecture => architectures(:x86_64),
+                                     :organization => @org,
+                                     :location => @loc)
+      @request.env["HTTP_X_FORWARDED_FOR"] = @ipv6_host.ip6
+      @request.env["REMOTE_ADDR"] = "::1"
       get :host_template, params: { :kind => 'provision' }
       assert_response :success
     end
@@ -144,7 +169,9 @@ class UnattendedControllerTest < ActionController::TestCase
         @host_param = FactoryBot.create(:host_parameter, :host => @rh_host, :name => 'my_param')
         @secret_param = FactoryBot.create(:host_parameter, :host => @rh_host, :name => 'secret_param')
         @rh_host.provisioning_template(:kind => :provision).update_attribute(:template, "params: <%= host_param('my_param') %>, <%= host_param('secret_param') %>")
-        setup_user 'view', 'hosts'
+        setup_user 'view', 'hosts' do |user|
+          user.roles.last.add_permissions! :view_provisioning_templates
+        end
         setup_user 'view', 'params', 'name = my_param'
         users(:one).organizations << @rh_host.organization
         users(:one).locations << @rh_host.location
@@ -189,12 +216,25 @@ class UnattendedControllerTest < ActionController::TestCase
       assert_response :redirect
     end
 
-    test "should not render a template to user w/o email" do
+    test "should not render a template to user w/o email if they have email enabled" do
       @rh_host.update(build: false)
 
-      user = FactoryBot.create(:user)
+      user = FactoryBot.create(:user, :mail_enabled => true)
       get :host_template, params: { :kind => 'PXELinux', :spoof => @rh_host.ip, :format => 'text' }, session: set_session_user(user)
       assert_response :unprocessable_entity
+    end
+
+    test "should not render a template to user w/o permission view_provisioning_templates" do
+      @rh_host.update(build: false)
+
+      user = FactoryBot.build(:user, :with_mail, :admin => false,
+                                :organizations => [@org], :locations => [@loc])
+      user_role = roles(:destroy_hosts)
+      user.roles << user_role
+      user.save
+
+      get :host_template, params: { :kind => 'PXELinux', :spoof => @rh_host.ip, :format => 'text' }, session: set_session_user(user)
+      assert_response :forbidden
     end
 
     test 'should render a template to user with valid filter' do
@@ -202,7 +242,8 @@ class UnattendedControllerTest < ActionController::TestCase
 
       user = FactoryBot.build(:user, :with_mail, :admin => false,
                                 :organizations => [@org], :locations => [@loc])
-      user_role = roles(:destroy_hosts)
+      user_role = FactoryBot.build(:role)
+      user_role.add_permissions!(:view_provisioning_templates)
       user.roles << user_role
       user.save
 
@@ -220,7 +261,8 @@ class UnattendedControllerTest < ActionController::TestCase
       @rh_host.update(build: false)
 
       user = FactoryBot.create(:user, :with_mail, :admin => false)
-      user_role = roles(:destroy_hosts)
+      user_role = FactoryBot.build(:role)
+      user_role.add_permissions!(:view_provisioning_templates)
       user.roles << user_role
       user.save
 
@@ -346,6 +388,16 @@ class UnattendedControllerTest < ActionController::TestCase
       refute nic.build
     end
 
+    test "should accept built notifications over ipv6 and store the address" do
+      nic6 = '2001:db8::1234'
+      Setting[:update_ip_from_built_request] = true
+      @request.env["REMOTE_ADDR"] = nic6
+      post :built, params: { mac: @ub_host.primary_interface.mac }
+      assert_response :created
+      @ub_host.reload
+      assert_equal nic6, @ub_host.primary_interface.ip6
+    end
+
     test "should accept failed notifications" do
       @request.env["REMOTE_ADDR"] = @ub_host.ip
       post :failed
@@ -377,7 +429,7 @@ class UnattendedControllerTest < ActionController::TestCase
       @request.env["REMOTE_ADDR"] = @ub_host.ip
       @ub_host.create_token(:value => "expired_token", :expires => Time.now.utc - 1.minute)
       get :host_template, params: { :kind => 'provision'}
-      assert_response :precondition_failed
+      assert_response :unauthorized
     end
 
     test "should not find host by ip if token is present" do

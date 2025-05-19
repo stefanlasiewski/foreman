@@ -20,18 +20,64 @@ Minitest::Retry.on_consistent_failure do |klass, test_name|
 end
 
 Selenium::WebDriver::Chrome::Service.driver_path = ENV['TESTDRIVER_PATH'] || Foreman::Util.which('chromedriver', Rails.root.join('node_modules', '.bin'))
-Capybara.register_driver :selenium_chrome do |app|
+
+javascript_driver = ENV.fetch("JS_TEST_DRIVER") { ENV['DEBUG_JS_TEST'] ? :selenium_chrome : :selenium_chrome_headless }.to_sym
+
+def chrome_options
   options = Selenium::WebDriver::Chrome::Options.new
-  options.args << '--disable-gpu'
-  options.args << '--no-sandbox'
+  options.add_option("goog:loggingPrefs", {browser: 'ALL'}) if ENV['SHOW_JS_LOG']
   options.args << '--window-size=1024,768'
-  options.args << '--headless' unless ENV['DEBUG_JS_TEST'] == '1'
-  Capybara::Selenium::Driver.new(app, browser: :chrome, options: options)
+  options.args += ENV.fetch('ADDITIONAL_CHROME_OPTIONS', '').split(';')
+  options
 end
+
+if javascript_driver == :selenium_chrome_remote
+  ShowMeTheCookies.register_adapter(:selenium_chrome_remote, ShowMeTheCookies::SeleniumChrome)
+
+  Capybara.register_driver :selenium_chrome_remote do |app|
+    selenium_remote_host = ENV.fetch('SELENIUM_REMOTE_HOST')
+    selenium_remote_port = ENV.fetch('SELENIUM_REMOTE_PORT', 4444)
+    Capybara::Selenium::Driver.new(
+      app,
+      browser: :remote,
+      url: "http://#{selenium_remote_host}:#{selenium_remote_port}/wd/hub",
+      options: chrome_options)
+  end
+elsif javascript_driver == :selenium_chrome_headless
+  options = chrome_options
+  options.args << '--headless'
+  Capybara.register_driver :selenium_chrome_headless do |app|
+    Capybara::Selenium::Driver.new(
+      app,
+      browser: :chrome,
+      options: options)
+  end
+else
+  Capybara.register_driver javascript_driver do |app|
+    Capybara::Selenium::Driver.new(
+      app,
+      browser: :chrome,
+      options: chrome_options)
+  end
+end
+
 Capybara.configure do |config|
-  config.javascript_driver      = ENV["JS_TEST_DRIVER"]&.to_sym || :selenium_chrome
-  config.default_max_wait_time  = 20
+  config.javascript_driver = javascript_driver
+  config.default_max_wait_time = 20
   config.enable_aria_label = true
+  if ENV.fetch("JS_TEST_DRIVER", nil) == 'selenium_chrome_remote'
+    app_host = ENV.fetch('APP_SERVER_HOST') do
+      Socket.ip_address_list
+        .find(&:ipv4_private?)
+        .ip_address
+    end
+    app_port = ENV.fetch('APP_SERVER_PORT', "8080")
+    config.server_port = app_port
+    # application server
+    config.server_host = "0.0.0.0"
+    # address used by selenium host to connect to application server
+    config.app_host = "http://#{app_host}:#{app_port}"
+  end
 end
 
 class ActionDispatch::IntegrationTest
@@ -47,20 +93,26 @@ class ActionDispatch::IntegrationTest
   # Stop ActiveRecord from wrapping tests in transactions
   self.use_transactional_tests = false
 
+  # see: https://stackoverflow.com/questions/70441796/selenium-webdriver-for-aws-device-farm-error-when-sending-period-keystroke-t
+
+  def work_around_selenium_file_detector_bug
+    page.driver.browser.file_detector = nil if page.driver.browser.respond_to?(:file_detector=)
+  end
+
   def assert_index_page(index_path, title_text, new_link_text = nil, has_search = true, has_pagination = true)
     visit index_path
     assert_breadcrumb_text(title_text)
     (assert first(:link, new_link_text).visible?, "#{new_link_text} is not visible") if new_link_text
-    (assert find_button('btn-search').visible?, "Search button is not visible") if has_search
+    (assert find('.autocomplete-search button').visible?, "Search button is not visible") if has_search
   end
 
   def assert_breadcrumb_text(text)
-    assert page.has_selector?(:xpath, "//div[@id='breadcrumb']//*[contains(.,'#{text}')]"), "#{text} was expected in the div[id='breadcrumb'] tag, but was not found"
+    assert page.has_selector?(:xpath, "//section//div[contains(@class, 'breadcrumb-bar') or contains(@id, 'breadcrumb')]  //*[contains(.,'#{text}')]"), "#{text} was expected in //section//div[contains(@class, 'breadcrumb-bar') or contains(@id, 'breadcrumb')], but was not found"
   end
 
   def assert_new_button(index_path, new_link_text, new_path)
     visit index_path
-    click_link(new_link_text)
+    click_link(new_link_text, :class => /^((?!pf-v5-c-nav__link).)*$/)
     assert_current_path new_path
   end
 
@@ -98,18 +150,31 @@ class ActionDispatch::IntegrationTest
     Organization.all_import_missing_ids
   end
 
+  def select2_selector(name)
+    "#select2-#{name}-container"
+  end
+
+  def select2_result_selector(name)
+    "#select2-#{name}-container .select2-results"
+  end
+
+  def select2_chosen_selector(name)
+    find(select2_selector(name), visible: false, wait: 10).ancestor('.select2-container')
+  end
+
   def select2(value, attrs)
-    find("#s2id_#{attrs[:from]}").click
-    wait_for { find('.select2-input').visible? rescue false }
-    wait_for { find(".select2-input").set(value) }
+    find(select2_selector(attrs[:from]), visible: false).ancestor('.select2-container').click
+    wait_for { find('.select2-search__field').visible? rescue false }
+    # set(value) errors on not interactable error even though the element is visible and not disabled
+    page.execute_script("arguments[0].value = arguments[1];", find('.select2-search__field').native, value)
     wait_for { find('.select2-results').visible? rescue false }
-    within ".select2-results" do
-      wait_for { find(".select2-results span", text: value).visible? rescue false }
-      find("span", text: value).click
+    within ".select2-results__options" do
+      wait_for { find(".select2-results__options li", text: value).visible? rescue false }
+      find("li", text: value).hover
+      find("li", text: value).click
     end
-    wait_for do
-      page.find("#s2id_#{attrs[:from]} .select2-chosen").has_text? value
-    end
+    sleep 0.15
+    select2_chosen_selector(attrs[:from]).has_text? value
   end
 
   def wait_for
@@ -207,8 +272,8 @@ class ActionDispatch::IntegrationTest
 
   def refute_available_organization_menu(organization)
     within('.location-menu') do
-      first('a:first-of-type').hover
-      within('.location-menu>div>ul', visible: :all) do
+      first('button').click
+      within('.location-menu section ul', visible: :all) do
         assert page.has_no_link?(organization)
       end
     end
@@ -216,11 +281,11 @@ class ActionDispatch::IntegrationTest
 
   def refute_available_organization_dropdown(organization)
     within('#location-dropdown') do
-      find('.pf-c-context-selector__toggle').click
-      within('.pf-c-context-selector__menu>div>ul', visible: :all) do
+      find('.pf-v5-c-context-selector__toggle').click
+      within('.pf-v5-c-context-selector__menu>div>ul', visible: :all) do
         assert page.has_no_link?(organization)
       end
-      find('.pf-c-context-selector__toggle').click
+      find('.pf-v5-c-context-selector__toggle').click
     end
   end
 
@@ -247,21 +312,21 @@ class ActionDispatch::IntegrationTest
 
   def select_organization_dropdown(organization)
     within('#organization-dropdown') do
-      find('.pf-c-context-selector__toggle').click
+      find('.pf-v5-c-context-selector__toggle').click
       find("button.organization_menuitem", text: organization).click
     end
   end
 
   def select_organization_menu(organization)
     within('.organization-menu') do
-      first('a:first-of-type').hover
-      find("span.list-group-item-value", text: organization).click
+      first('button').click
+      find("li.pf-v5-c-nav__item", text: organization).click
     end
   end
 
   def select_location_dropdown(location)
     within('#location-dropdown') do
-      find('.pf-c-context-selector__toggle').click
+      find('.pf-v5-c-context-selector__toggle').click
       find("button.location_menuitem", text: location).click
     end
   end
@@ -299,7 +364,7 @@ class ActionDispatch::IntegrationTest
   end
 
   def login_admin
-    visit('/users/login') if Capybara.current_driver == :selenium_chrome
+    visit('/users/login') if Capybara.current_driver.to_s.include? "selenium"
     SSO.register_method(TestSSO)
     set_request_user(:admin)
   end

@@ -1,4 +1,3 @@
-require 'fog_extensions/vsphere/mini_servers'
 require 'foreman/exception'
 
 begin
@@ -192,20 +191,13 @@ module Foreman::Model
       }
     end
 
-    def scsi_controller_types
+    def storage_controller_types
       {
         "VirtualBusLogicController" => "Bus Logic Parallel",
         "VirtualLsiLogicController" => "LSI Logic Parallel",
         "VirtualLsiLogicSASController" => "LSI Logic SAS",
         "ParaVirtualSCSIController" => "VMware Paravirtual",
-      }
-    end
-
-    def firmware_types
-      {
-        "automatic" => N_("Automatic"),
-        "bios" => N_("BIOS"),
-        "efi" => N_("EFI"),
+        "VirtualNVMEController" => "NVME Controller",
       }
     end
 
@@ -231,6 +223,9 @@ module Foreman::Model
     # https://code.vmware.com/apis/358/vsphere/doc/vim.vm.GuestOsDescriptor.GuestOsIdentifier.html
     def guest_types_descriptions
       {
+        "almalinux_64Guest" => "AlmaLinux (64-bit)",
+        "amazonlinux2_64Guest" => "Amazon Linux 2 (64 bit)",
+        "amazonlinux3_64Guest" => "Amazon Linux 3 (64 bit)",
         "asianux3_64Guest" => "Asianux Server 3 (64-bit)",
         "asianux3Guest" => "Asianux Server 3 (32-bit)",
         "asianux4_64Guest" => "Asianux Server 4 (64-bit)",
@@ -238,6 +233,7 @@ module Foreman::Model
         "asianux5_64Guest" => "Asianux Server 5 (64-bit)",
         "asianux7_64Guest" => "Asianux Server 7 (64-bit)",
         "asianux8_64Guest" => "Asianux Server 8 (64 bit)",
+        "asianux9_64Guest" => "Asianux Server 9 (64 bit)",
         "centos6_64Guest" => "CentOS 6 (64-bit)",
         "centos64Guest" => "CentOS 4/5 (64-bit)",
         "centos6Guest" => "CentOS 6 (32-bit)",
@@ -245,8 +241,10 @@ module Foreman::Model
         "centos7Guest" => "CentOS 7 (32-bit)",
         "centos8_64Guest" => "CentOS 8 (64-bit)",
         "centos9_64Guest" => "CentOS Stream 9 (64-bit)",
+        "centos10_64Guest" => "CentOS Stream 10 (64-bit)",
         "centosGuest" => "CentOS 4/5 (32-bit)",
         "coreos64Guest" => "CoreOS Linux (64-bit)",
+        "crxPod1Guest" => "CRX Pod 1",
         "darwin10_64Guest" => "Mac OS 10.6 (64-bit)",
         "darwin10Guest" => "Mac OS 10.6 (32-bit)",
         "darwin11_64Guest" => "Mac OS 10.7 (64-bit)",
@@ -258,10 +256,19 @@ module Foreman::Model
         "darwin16_64Guest" => "Mac OS 10.12 (64-bit)",
         "darwin17_64Guest" => "macOS 10.13 (64 bit)",
         "darwin18_64Guest" => "macOS 10.14 (64 bit)",
+        "darwin19_64Guest" => "macOS 10.15 (64 bit)",
+        "darwin20_64Guest" => "macOS 11 (64 bit)",
+        "darwin21_64Guest" => "macOS 12 (64 bit)",
+        "darwin22_64Guest" => "macOS 13 (64 bit)",
+        "darwin23_64Guest" => "macOS 14 (64 bit)",
         "darwin64Guest" => "Mac OS 10.5 (64-bit)",
         "darwinGuest" => "Mac OS 10.5 (32-bit)",
         "debian10_64Guest" => "Debian GNU/Linux 10 (64-bit)",
         "debian10Guest" => "Debian GNU/Linux 10 (32-bit)",
+        "debian11_64Guest" => "Debian GNU/Linux 11 (64-bit)",
+        "debian11Guest" => "Debian GNU/Linux 11 (32-bit)",
+        "debian12_64Guest" => "Debian GNU/Linux 12 (64-bit)",
+        "debian12Guest" => "Debian GNU/Linux 12 (32-bit)",
         "debian4_64Guest" => "Debian GNU/Linux 4 (64-bit)",
         "debian4Guest" => "Debian GNU/Linux 4 (32-bit)",
         "debian5_64Guest" => "Debian GNU/Linux 5 (64-bit)",
@@ -285,6 +292,10 @@ module Foreman::Model
         "freebsd11Guest" => "FreeBSD 11",
         "freebsd12_64Guest" => "FreeBSD 12 x64",
         "freebsd12Guest" => "FreeBSD 12",
+        "freebsd13_64Guest" => "FreeBSD 13 x64",
+        "freebsd13Guest" => "FreeBSD 13",
+        "freebsd14_64Guest" => "FreeBSD 14 x64",
+        "freebsd14Guest" => "FreeBSD 14",
         "genericLinuxGuest" => "Other Linux",
         "mandrakeGuest" => "Mandrake Linux",
         "mandriva64Guest" => "Mandriva Linux (64-bit)",
@@ -304,6 +315,7 @@ module Foreman::Model
         "oracleLinux7_64Guest" => "Oracle 7 (64-bit)",
         "oracleLinux7Guest" => "Oracle 7 (32-bit)",
         "oracleLinux8_64Guest" => "Oracle 8 (64-bit)",
+        "oracleLinux9_64Guest" => "Oracle 9 (64-bit)",
         "oracleLinuxGuest" => "Oracle Linux 4/5",
         "os2Guest" => "IBM OS/2",
         "other24xLinux64Guest" => "Linux 2.4x Kernel (64-bit)",
@@ -314,6 +326,10 @@ module Foreman::Model
         "other3xLinuxGuest" => "Linux 3.x Kernel (32-bit)",
         "other4xLinux64Guest" => "Linux 4.x Kernel (64 bit)",
         "other4xLinuxGuest" => " Linux 4.x Kernel",
+        "other5xLinux64Guest" => "Linux 5.x Kernel (64 bit)",
+        "other5xLinuxGuest" => " Linux 5.x Kernel",
+        "other6xLinux64Guest" => "Linux 6.x Kernel (64 bit)",
+        "other6xLinuxGuest" => " Linux 6.x Kernel",
         "otherGuest" => "Other Operating System (32-bit)",
         "otherGuest64" => "Other Operating System (64-bit)",
         "otherLinux64Guest" => "Linux (64-bit)",
@@ -332,6 +348,8 @@ module Foreman::Model
         "rhel7Guest" => "Red Hat Enterprise Linux 7 (32-bit)",
         "rhel8_64Guest" => "Red Hat Enterprise Linux 8 (64 bit)",
         "rhel9_64Guest" => "Red Hat Enterprise Linux 9 (64 bit)",
+        "rhel10_64Guest" => "Red Hat Enterprise Linux 10 (64 bit)",
+        "rockylinux_64Guest" => "Rocky Linux (64-bit)",
         "sjdsGuest" => "Sun Java Desktop System",
         "sles10_64Guest" => "Suse Linux Enterprise Server 10 (64-bit)",
         "sles10Guest" => "Suse Linux Enterprise Server 10 (32-bit)",
@@ -340,6 +358,7 @@ module Foreman::Model
         "sles12_64Guest" => "Suse Linux Enterprise Server 12 (64-bit)",
         "sles12Guest" => "Suse Linux Enterprise Server 12 (32-bit)",
         "sles15_64Guest" => "Suse Linux Enterprise Server 15 (64 bit)",
+        "sles16_64Guest" => "Suse Linux Enterprise Server 16 (64 bit)",
         "sles64Guest" => "Suse Linux Enterprise Server 9 (64-bit)",
         "slesGuest" => "Suse Linux Enterprise Server 9 (32-bit)",
         "solaris10_64Guest" => "Solaris 10 (64-bit)",
@@ -359,6 +378,8 @@ module Foreman::Model
         "vmkernel5Guest" => "VMware ESX 5",
         "vmkernel65Guest" => "VMware ESX 6.5",
         "vmkernel6Guest" => "VMware ESX 6",
+        "vmkernel7Guest" => "VMware ESX 7",
+        "vmkernel8Guest" => "VMware ESX 8",
         "vmkernelGuest" => "VMware ESX 4",
         "vmwarePhoton64Guest" => "VMware Photon (64-bit)",
         "win2000AdvServGuest" => "Microsoft Windows 2000 Advanced Server",
@@ -367,6 +388,11 @@ module Foreman::Model
         "win31Guest" => "Microsoft Windows 3.1",
         "win95Guest" => "Microsoft Windows 95",
         "win98Guest" => "Microsoft Windows 98",
+        "windows11_64Guest" => "Microsoft Windows 11",
+        "windows12_64Guest" => "Microsoft Windows 12",
+        "windows2019srv_64Guest" => "Microsoft Windows Server 2019 (64-bit)",
+        "windows2019srvNext_64Guest" => "Microsoft Windows Server 2022 (64-bit)",
+        "windows2022srvNext_64Guest" => "Microsoft Windows Server 2025 (64-bit)",
         "windows7_64Guest" => "Microsoft Windows 7 (64-bit)",
         "windows7Guest" => "Microsoft Windows 7 (32-bit)",
         "windows7Server64Guest" => "Microsoft Windows Server 2008 R2 (64-bit)",
@@ -414,6 +440,8 @@ module Foreman::Model
     def vm_hw_versions
       {
         'Default' => _("Default"),
+        'vmx-21' => '21 (ESXi 8.0 U2)',
+        'vmx-20' => '20 (ESXi 8.0)',
         'vmx-19' => '19 (ESXi 7.0 U2)',
         'vmx-18' => '18 (ESXi 7.0 U1)',
         'vmx-17' => '17 (ESXi 7.0)',
@@ -436,7 +464,7 @@ module Foreman::Model
         errors.delete(:datacenter)
       end
     rescue => e
-      errors[:base] << e.message
+      errors.add(:base, e.message)
     end
 
     def parse_args(args)
@@ -448,17 +476,14 @@ module Foreman::Model
         args[collection] = nested_attributes_for(collection, nested_attrs) if nested_attrs
       end
 
-      # see #26402 - consume scsi_controller_type from hammer as a default scsi type
-      scsi_type = args.delete(:scsi_controller_type)
-      args[:scsi_controllers] ||= [{ type: scsi_type }] if scsi_controller_types.key?(scsi_type)
-
       add_cdrom = args.delete(:add_cdrom)
       args[:cdroms] = [new_cdrom] if add_cdrom == '1'
 
       args.except!(:hardware_version) if args[:hardware_version] == 'Default'
 
-      firmware_type = args.delete(:firmware_type)
-      args[:firmware] = firmware_mapping(firmware_type) if args[:firmware] == 'automatic'
+      firmware_type = args.delete(:firmware_type).to_s
+      args.merge!(process_firmware_attributes(args[:firmware], firmware_type))
+      args[:virtual_tpm] = validate_tpm_compatibility(args[:virtual_tpm], args[:firmware])
 
       args.reject! { |k, v| v.nil? }
       args
@@ -491,7 +516,7 @@ module Foreman::Model
         clone_vm(args)
       else
         vm = new_vm(args)
-        vm.firmware = 'bios' if vm.firmware == 'automatic'
+        raise ArgumentError, errors.full_messages.join(';') if errors.any?
         vm.save
       end
     rescue Fog::Vsphere::Compute::NotFound => e
@@ -508,8 +533,15 @@ module Foreman::Model
       raise e
     end
 
+    def unassigned_volumes?(vols)
+      vols&.any? { |vol| !vol.key?(:controller_key) } || false
+    end
+
     def new_vm(args = {})
       args = parse_args args
+      args = args.deep_symbolize_keys
+      # we will pass empty scsi controllers if the volumes are assigned to nvme controllers to avoid creation of a default scsi controller.
+      args[:scsi_controllers] = [] if !args.key?(:scsi_controllers) && !args[:volumes].empty? && !unassigned_volumes?(args[:volumes])
       opts = vm_instance_defaults.symbolize_keys.merge(args.symbolize_keys).deep_symbolize_keys
       client.servers.new opts
     end
@@ -559,6 +591,9 @@ module Foreman::Model
         "resource_pool" => [args[:cluster], args[:resource_pool]],
         "boot_order" => [:disk],
         "annotation" => args[:annotation],
+        "virtual_tpm" => args[:virtual_tpm],
+        "firmware" => args[:firmware],
+        "secure_boot" => args[:secure_boot],
       }
 
       opts['transform'] = (args[:volumes].first[:thin] == 'true') ? 'sparse' : 'flat' unless args[:volumes].empty?
@@ -603,7 +638,7 @@ module Foreman::Model
       client.interfaces.new attr
     end
 
-    def new_volume(attr = { })
+    def new_volume(attr = {})
       client.volumes.new attr.merge(:size_gb => 10)
     end
 
@@ -653,11 +688,14 @@ module Foreman::Model
         interface_attrs = {}
         interface_attrs[:compute_attributes] = {}
         interface_attrs[:mac] = interface.mac
-        interface_attrs[:compute_attributes][:network] = network.name
+        interface_attrs[:compute_attributes][:network] = network.id
         interface_attrs[:compute_attributes][:type] = interface.type.to_s.split('::').last
         hsh[index.to_s] = interface_attrs
       end
       vm_attrs[:scsi_controllers] = vm.scsi_controllers.map do |controller|
+        controller.attributes
+      end
+      vm_attrs[:nvme_controllers] = vm.nvme_controllers.map do |controller|
         controller.attributes
       end
       vm_attrs
@@ -692,11 +730,15 @@ module Foreman::Model
       normalized['add_cdrom'] = to_bool(vm_attrs['add_cdrom'])
 
       normalized['image_name'] = images.find_by(:uuid => vm_attrs['image_id']).try(:name)
-
       scsi_controllers = vm_attrs['scsi_controllers'] || {}
-      normalized['scsi_controllers'] = scsi_controllers.map.with_index do |ctrl, idx|
+      normalized['scsi_controllers'] = scsi_controllers.each_with_index.to_h do |ctrl, idx|
         [idx.to_s, ctrl]
-      end.to_h
+      end
+
+      nvme_controllers = vm_attrs['nvme_controllers'] || {}
+      normalized['nvme_controllers'] = nvme_controllers.each_with_index.to_h do |ctrl, idx|
+        [idx.to_s, ctrl]
+      end
 
       stores = datastores
       volumes_attributes = vm_attrs['volumes_attributes'] || {}
@@ -749,10 +791,11 @@ module Foreman::Model
         :vsphere_expected_pubkey_hash => pubkey_hash
       )
     rescue => e
-      if e.message =~ /The remote system presented a public key with hash (\w+) but we're expecting a hash of/
+      case e.message
+      when /The remote system presented a public key with hash (\w+) but we're expecting a hash of/
         raise Foreman::FingerprintException.new(
           N_("The remote system presented a public key with hash %s but we're expecting a different hash. If you are sure the remote system is authentic, go to the compute resource edit page, press the 'Test Connection' or 'Load Datacenters' button and submit"), Regexp.last_match(1))
-      elsif e.message =~ /Cannot complete login due to an incorrect user name or password./
+      when /Cannot complete login due to an incorrect user name or password./
         raise Foreman::UsernameOrPasswordException.new(
           N_("Can not load datacenters due to an incorrect user name or password."))
       else
@@ -775,15 +818,11 @@ module Foreman::Model
         :interfaces => [new_interface],
         :volumes    => [new_volume],
         :scsi_controllers => [{ :type => scsi_controller_default_type }],
+        :nvme_controllers => [],
         :datacenter => datacenter,
         :firmware => 'automatic',
         :boot_order => ['network', 'disk']
       )
-    end
-
-    def firmware_mapping(firmware_type)
-      return 'efi' if firmware_type == :uefi
-      'bios'
     end
 
     def set_vm_volumes_attributes(vm, vm_attrs)
@@ -793,18 +832,18 @@ module Foreman::Model
     end
 
     def build_vmrc_uri(host, vmid, ticket)
-      uri = URI::Generic.build(:scheme   => 'vmrc',
-                               :userinfo => "clone:#{ticket}",
-                               :host     => host,
-                               :port     => 443,
-                               :path     => '/',
-                               :query    => "moid=#{vmid}").to_s
+      uri = URI::Generic.build(:scheme => 'vmrc',
+        :userinfo => "clone:#{ticket}",
+        :host     => host,
+        :port     => 443,
+        :path     => '/',
+        :query    => "moid=#{vmid}").to_s
       # VMRC doesn't like brackets around IPv6 addresses
       uri.sub(/(.*)\[/, '\1').sub(/(.*)\]/, '\1')
     end
 
     def valid_cloudinit_for_customspec?(cloudinit)
-      parsed = YAML.load(cloudinit)
+      parsed = YAML.safe_load(cloudinit)
       return false if parsed.nil?
       return true if parsed.is_a?(Hash)
       raise Foreman::Exception.new('The user-data template must be a hash in YAML format for VM customization to work.')
@@ -815,6 +854,31 @@ module Foreman::Model
 
     def cachekey_with_cluster(key, cluster_id = nil)
       cluster_id.nil? ? key.to_sym : "#{key}-#{cluster_id}".to_sym
+    end
+
+    # Generates Secure Boot settings for VMware, based on the provided firmware type.
+    #
+    # @param firmware [String] The firmware type.
+    # @return [Hash] A hash with secure boot settings if applicable.
+    def generate_secure_boot_settings(firmware)
+      firmware == 'uefi_secure_boot' ? { secure_boot: true } : {}
+    end
+
+    # Validates TPM compatibility based on the firmware type and virtual TPM setting.
+    # Adds an error if TPM is enabled with BIOS firmware, which is incompatible.
+    # This error is later raised as an `ArgumentError` in the `#create_vm` method.
+    #
+    # @param virtual_tpm [String] indicates if the virtual TPM is enabled ('1') or disabled ('0').
+    # @param firmware [String] the firmware type.
+    # @return [Boolean] the cast value of virtual_tpm after validation.
+    def validate_tpm_compatibility(virtual_tpm, firmware)
+      virtual_tpm = ActiveModel::Type::Boolean.new.cast(virtual_tpm)
+
+      if virtual_tpm && firmware == 'bios'
+        errors.add :base, _('TPM is not compatible with BIOS firmware. Please change Firmware or disable TPM.')
+      end
+
+      virtual_tpm
     end
   end
 end

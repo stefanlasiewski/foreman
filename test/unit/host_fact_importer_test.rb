@@ -124,7 +124,7 @@ class HostFactImporterTest < ActiveSupport::TestCase
 
   test 'should find a host by certname not fqdn when provided' do
     Host.new(:name => 'sinn1636.fail', :certname => 'sinn1636.lan.cert', :mac => 'e4:1f:13:cc:36:58').save(:validate => false)
-    assert Host.find_by_name('sinn1636.fail').ip.nil?
+    assert_nil Host.find_by_name('sinn1636.fail').ip
     # hostname in the json is sinn1636.lan, so if the facts have been updated for
     # this host, it's a successful identification by certname
     raw = read_json_fixture('facts/facts_with_certname.json')
@@ -347,6 +347,21 @@ class HostFactImporterTest < ActiveSupport::TestCase
       host = Host.import_host(hostname, certname)
       assert HostFactImporter.new(host).import_facts(raw_facts)
       assert_equal 'br_customer', host.primary_interface.identifier
+    end
+  end
+
+  describe 'events' do
+    let(:callback) { -> {} }
+
+    it 'fires a host_facts_updated event on success import' do
+      host = FactoryBot.create(:host, :managed)
+      ActiveSupport::Notifications.subscribed(callback, 'host_facts_updated.event.foreman') do
+        callback.expects(:call).with do |_name, _started, _finished, _unique_id, payload|
+          payload[:object].operatingsystem.name == 'CentOS'
+        end
+
+        HostFactImporter.new(host).import_facts(operatingsystemrelease: '6.7', operatingsystem: 'CentOS')
+      end
     end
   end
 end

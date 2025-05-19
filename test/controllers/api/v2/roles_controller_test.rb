@@ -138,8 +138,8 @@ class Api::V2::RolesControllerTest < ActionController::TestCase
     assert_response :success
     cloned_role = Role.find_by :name => new_name
     assert cloned_role
-    assert_equal [], cloned_role.organizations
-    assert_equal [], cloned_role.locations
+    assert_empty cloned_role.organizations
+    assert_empty cloned_role.locations
   end
 
   context "with organization and locations" do
@@ -160,7 +160,7 @@ class Api::V2::RolesControllerTest < ActionController::TestCase
 
     test "should create org admin role and its permissions" do
       new_name = "Org Admin"
-      # Note: org admin role has no default permissions in unit-tests, for real functionality we have to load them before.
+      # NOTE: org admin role has no default permissions in unit-tests, for real functionality we have to load them before.
       load File.join(Rails.root, '/db/seeds.d/030-permissions.rb')
       load File.join(Rails.root, '/db/seeds.d/040-roles.rb')
       default_org_admin_role = roles(:organization_admin)
@@ -223,14 +223,14 @@ class Api::V2::RolesControllerTest < ActionController::TestCase
       assert @org, updated_role.organizations.first
       assert @loc, updated_role.locations.first
       updated_filter = Filter.find_by :id => filter.id
-      assert_equal [], updated_filter.organizations
-      assert_equal [], updated_filter.locations
+      assert_empty updated_filter.organizations
+      assert_empty updated_filter.locations
     end
   end
 
   test "org admin should not create roles by default" do
     org = taxonomies(:organization1)
-    # Note: org admin role has no default permissions in unit-tests, for real functionality we have to load them before.
+    # NOTE: org admin role has no default permissions in unit-tests, for real functionality we have to load them before.
     load File.join(Rails.root, '/db/seeds.d/030-permissions.rb')
     load File.join(Rails.root, '/db/seeds.d/040-roles.rb')
     default_org_admin_role = Role.find_by_name('Organization admin')

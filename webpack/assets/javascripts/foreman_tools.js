@@ -6,6 +6,7 @@
 /* eslint-disable jquery/no-class */
 
 import $ from 'jquery';
+import { importRemote } from '@module-federation/utilities';
 import { sprintf, translate as __ } from './react_app/common/I18n';
 
 import { showLoading, hideLoading } from './foreman_navigation';
@@ -65,6 +66,7 @@ export function activateDatatables() {
   $('[data-table=inline]')
     .not('.dataTable')
     .DataTable({
+      pagingType: 'simple_numbers',
       language,
       dom: "<'row'<'col-md-6'f>r>t<'row'<'col-md-6'i><'col-md-6'p>>",
     });
@@ -75,6 +77,7 @@ export function activateDatatables() {
       const url = el.getAttribute('data-source');
 
       $(el).DataTable({
+        pagingType: 'simple_numbers',
         language,
         processing: true,
         serverSide: true,
@@ -102,39 +105,6 @@ export function activateTooltips(elParam = 'body') {
   });
 }
 
-export function initTypeAheadSelect(input) {
-  input.select2({
-    formatNoMatches: __('No matches found'),
-    ajax: {
-      url: input.data('url'),
-      dataType: 'json',
-      quietMillis: 250,
-      data: (term, page) => ({
-        q: term,
-        scope: input.data('scope'),
-      }),
-      results: data => ({
-        results: data.map(({ id, name }) => ({ id, text: name })),
-      }),
-      cache: true,
-    },
-    initSelection(element, callback) {
-      $.ajax(input.data('url'), {
-        data: {
-          scope: input.data('scope'),
-        },
-        dataType: 'json',
-      }).done(data => {
-        if (data.length > 0) {
-          // eslint-disable-next-line standard/no-callback-literal
-          callback({ id: data[0].id, text: data[0].name });
-        }
-      });
-    },
-    width: '400px',
-  });
-}
-
 // generates an absolute, needed in case of running Foreman from a subpath
 export { foremanUrl } from './react_app/common/helpers';
 
@@ -155,14 +125,35 @@ export function highlightTabErrors() {
   errorFields.parents('.tab-pane').each(function fn() {
     $(`a[href="#${this.id}"]`).addClass('tab-error');
   });
-  $('.tab-error')
-    .first()
-    .click();
-  $('.nav-pills .tab-error')
-    .first()
-    .click();
+  const firstTabError = document.querySelector('.tab-error');
+  if (firstTabError) {
+    $(firstTabError).tab('show');
+  }
+  const firstNestedTabError = document.querySelector('.nav-pills .tab-error');
+  if (firstNestedTabError) {
+    $(firstNestedTabError).tab('show');
+  }
+
   errorFields
     .first()
     .find('.form-control')
-    .focus();
+    .trigger('focus');
 }
+
+export const loadPluginModule = async (url, scope, module, plugin = true) => {
+  if (!window.allPluginsLoaded) {
+    window.allPluginsLoaded = {};
+  }
+  const name = `${scope}${module}`;
+  window.allPluginsLoaded[name] = false;
+  await importRemote({
+    url,
+    scope,
+    module,
+    remoteEntryFileName: plugin ? `${scope}_remoteEntry.js` : 'remoteEntry.js',
+  });
+  // tag the plugin as loaded
+  window.allPluginsLoaded[name] = true;
+  const loadPlugin = new Event('loadPlugin');
+  document.dispatchEvent(loadPlugin);
+};

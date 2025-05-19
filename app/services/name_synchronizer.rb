@@ -1,9 +1,10 @@
 class NameSynchronizer
   def initialize(object)
-    if object.is_a?(Host::Base)
+    case object
+    when Host::Base
       @host = object
       @interface = @host.primary_interface
-    elsif object.is_a?(Nic::Base)
+    when Nic::Base
       @interface = object
       @host = @interface.host
     else
@@ -25,6 +26,6 @@ class NameSynchronizer
   private
 
   def interface_name
-    Setting[:append_domain_name_for_hosts] ? @interface.name : @interface.shortname
+    @interface.name
   end
 end

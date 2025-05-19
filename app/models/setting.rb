@@ -1,13 +1,12 @@
 require 'resolv'
 
 class Setting < ApplicationRecord
-  audited :except => [:name, :category]
+  audited :except => [:name]
   extend FriendlyId
   friendly_id :name
   include ActiveModel::Validations
   include EncryptValue
   include PermissionName
-  self.inheritance_column = 'category'
 
   TYPES = %w{integer boolean hash array string}
   NONZERO_ATTRS = %w{puppet_interval idle_timeout entries_per_page outofsync_interval}
@@ -47,13 +46,11 @@ class Setting < ApplicationRecord
   validates :value, :email => true, :if => proc { |s| EMAIL_ATTRS.include? s.name }
   before_save :clear_value_when_default
   validate :validate_frozen_attributes
+  before_validation :remove_whitespaces, :if => proc { |s| s.settings_type == "array" }
   # Custom validations are added from SettingManager class
   after_find :readonly_when_overridden
   after_save :refresh_registry_value
   default_scope -> { order(:name) }
-
-  # Filer out settings from disabled plugins
-  scope :disabled_plugins, -> { where(:category => %w[Setting].concat(descendants.map(&:to_s))) unless Rails.env.development? }
 
   scope :order_by, ->(attr) { except(:order).order(attr) }
 
@@ -67,17 +64,13 @@ class Setting < ApplicationRecord
     'settings.yaml'
   end
 
-  def self.live_descendants
-    disabled_plugins.order_by(:name)
-  end
-
   # can't use our own settings
   def self.per_page
     20
   end
 
-  def self.humanized_category
-    nil
+  def self.complete_for(search_query, opts = {})
+    SettingRegistry::SettingCompleter.auto_complete(Foreman.settings, scoped_search_definition, search_query, opts)
   end
 
   def self.[](name)
@@ -116,7 +109,7 @@ class Setting < ApplicationRecord
   def value
     v = self[:value]
     v = decrypt_field(v)
-    v.nil? ? default : YAML.load(v)
+    v.nil? ? default : YAML.safe_load(v, permitted_classes: [Symbol, Pathname])
   end
   alias_method :value_before_type_cast, :value
 
@@ -141,7 +134,7 @@ class Setting < ApplicationRecord
     when "array"
       if val =~ /\A\[.*\]\Z/
         begin
-          self.value = YAML.load(val.gsub(/(\,)(\S)/, "\\1 \\2"))
+          self.value = YAML.safe_load(val.gsub(/(,)(\S)/, "\\1 \\2"))
         rescue => e
           invalid_value_error e.to_s
         end
@@ -151,7 +144,11 @@ class Setting < ApplicationRecord
 
     when "string", "text", nil
       # string is taken as default setting type for parsing
-      self.value = NOT_STRIPPED.include?(name) ? val : val.to_s.strip
+      intermediate = val
+      intermediate = intermediate.to_s.strip unless NOT_STRIPPED.include?(name)
+      intermediate = nil if intermediate.blank? && default.nil?
+
+      self.value = intermediate
 
     when "hash"
       raise Foreman::SettingValueException, N_("Parsing a hash from a string is not supported")
@@ -206,7 +203,7 @@ class Setting < ApplicationRecord
                                                     'see https://github.com/theforeman/foreman/blob/develop/developer_docs/how_to_create_a_plugin.asciidoc#settings for details')
     default_settings.each do |s|
       t = Setting.setting_type_from_value(s[:default]) || 'string'
-      kwargs = s.except(:name).merge(type: t.to_sym, category: name, context: :deprecated)
+      kwargs = s.except(:name).merge(type: t.to_sym, category: name.delete_prefix('Setting::'), context: :deprecated)
       Foreman.settings._add(s[:name], **kwargs)
     end
     true
@@ -239,8 +236,10 @@ class Setting < ApplicationRecord
   def validate_host_owner
     owner_type_and_id = value
     return if owner_type_and_id.blank?
-    owner = OwnerClassifier.new(owner_type_and_id).user_or_usergroup
-    errors.add(:value, _("Host owner is invalid")) if owner.nil?
+
+    OwnerClassifier.classify_owner(owner_type_and_id)
+  rescue ArgumentError, ActiveRecord::RecordNotFound => e
+    errors.add(:value, e.message)
   end
 
   def invalid_value_error(error)
@@ -279,5 +278,9 @@ class Setting < ApplicationRecord
       definition.updated_at = updated_at
       definition.value_from_db = value
     end
+  end
+
+  def remove_whitespaces
+    self[:value] = value.each { |a| a.strip! if a.respond_to? :strip! }
   end
 end

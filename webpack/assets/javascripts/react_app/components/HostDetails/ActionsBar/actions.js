@@ -12,10 +12,10 @@ import { POWER_REQURST_KEY } from '../DetailsCard/PowerStatus/constants';
 export const deleteHost = (
   hostName,
   compute,
-  destroyVmOnHostDelete
+  destroyVmOnHostDelete,
+  hostsIndexUrl
 ) => dispatch => {
-  const successToast = () =>
-    sprintf(__('Host %s has been removed successfully'), hostName);
+  const successToast = () => sprintf(__('Host %s deleted'), hostName);
   const errorToast = ({ message }) => message;
   const url = foremanUrl(`/api/hosts/${hostName}`);
 
@@ -37,7 +37,7 @@ export const deleteHost = (
     openConfirmModal({
       isWarning: true,
       title: __('Delete host?'),
-      confirmButtonText: __('Delete host'),
+      confirmButtonText: __('Delete'),
       onConfirm: () =>
         dispatch(
           APIActions.delete({
@@ -45,7 +45,7 @@ export const deleteHost = (
             key: `${hostName}-DELETE`,
             successToast,
             errorToast,
-            handleSuccess: () => visit(foremanUrl('/hosts')),
+            handleSuccess: () => visit(foremanUrl(hostsIndexUrl)),
           })
         ),
       message: (
@@ -65,7 +65,7 @@ export const deleteHost = (
 };
 
 export const updateHost = hostId => dispatch => {
-  const url = foremanUrl(`/api/hosts/${hostId}`);
+  const url = foremanUrl(`/api/hosts/${hostId}?show_hidden_parameters=true`);
   dispatch(
     APIActions.get({
       url,
@@ -90,9 +90,9 @@ export const buildHost = hostId => dispatch => {
   );
 };
 
-export const cancelBuild = hostId => dispatch => {
+export const cancelBuild = (hostId, hostName) => dispatch => {
   const successToast = () =>
-    sprintf(__('Canceled pending build for %s'), hostId);
+    sprintf(__('Canceled pending build for %s'), hostName);
   const errorToast = ({ message }) => message;
   const url = foremanUrl(`/hosts/${hostId}/cancelBuild`);
   dispatch(

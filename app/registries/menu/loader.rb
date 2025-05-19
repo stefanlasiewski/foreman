@@ -1,9 +1,3 @@
-require_dependency 'menu/node'
-require_dependency 'menu/item'
-require_dependency 'menu/divider'
-require_dependency 'menu/toggle'
-require_dependency 'menu/manager'
-
 module Menu
   class Loader
     def self.load
@@ -30,6 +24,9 @@ module Menu
           menu.item :usergroups,         :caption => N_('User Groups')
           menu.item :roles,              :caption => N_('Roles')
           menu.item :bookmarks,          :caption => N_('Bookmarks')
+          menu.item :upgrade,
+            caption: N_('Foreman Upgrade'),
+            url: '/upgrade'
           menu.item :settings,           :caption => N_('Settings')
           menu.item :about_index,        :caption => N_('About')
         end
@@ -52,7 +49,13 @@ module Menu
         end
 
         menu.sub_menu :hosts_menu,      :caption => N_('Hosts'), :icon => 'fa fa-server' do
-          menu.item :hosts,             :caption => N_('All Hosts')
+          menu.item :hosts, :caption => N_('All Hosts'),
+                :if => proc { !Setting[:new_hosts_page] }
+          menu.item :newhosts, :caption => N_('All Hosts'),
+                :if => proc { Setting[:new_hosts_page] },
+                :url => '/new/hosts',
+                :url_hash => { :controller => 'api/v2/hosts', :action => 'index' }
+
           menu.item :newhost,           :caption => N_('Create Host'),
                     :url_hash => {:controller => '/hosts', :action => 'new'}
           menu.item :register_hosts,    :caption => N_('Register Host'),

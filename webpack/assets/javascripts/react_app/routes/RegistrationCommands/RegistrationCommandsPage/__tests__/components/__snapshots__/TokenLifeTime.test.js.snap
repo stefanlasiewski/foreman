@@ -3,27 +3,29 @@
 exports[`RegistrationCommandsPage fields - TokenLifeTime renders 1`] = `
 <FormGroup
   fieldId="reg_token_life_time_input"
-  helperTextInvalid="Token life time value must be between 1 and 999999 hours."
-  isRequired={true}
   label="Token life time"
   labelIcon={
     <LabelIcon
       text="Expiration of the authorization token."
     />
   }
-  validated="default"
 >
   <InputGroup>
-    <TextInput
-      id="reg_token_life_time_input"
-      isDisabled={false}
-      max={999999}
-      min={1}
-      onChange={[Function]}
-      type="number"
-      validated="default"
-      value={4}
-    />
+    <InputGroupItem
+      isFill={true}
+    >
+      <TextInput
+        id="reg_token_life_time_input"
+        isDisabled={false}
+        max={999999}
+        min={1}
+        onChange={[Function]}
+        ouiaId="reg_token_life_time_input"
+        type="number"
+        validated="default"
+        value={4}
+      />
+    </InputGroupItem>
     <InputGroupText>
       hours
     </InputGroupText>
@@ -33,9 +35,12 @@ exports[`RegistrationCommandsPage fields - TokenLifeTime renders 1`] = `
         id="reg_unlimited_token_life_time"
         isChecked={false}
         isDisabled={false}
+        isLabelWrapped={false}
+        isRequired={false}
         isValid={true}
         label="unlimited"
         onChange={[Function]}
+        ouiaId="reg_unlimited_token_life_time"
         ouiaSafe={true}
       />
     </InputGroupText>

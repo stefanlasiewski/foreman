@@ -15,21 +15,22 @@ module Hostext
       scoped_search :on => :last_report,   :complete_value => true, :only_explicit => true
       scoped_search :on => :created_at,    :complete_value => true, :only_explicit => true
       scoped_search :on => :comment,       :complete_value => true
-      scoped_search :on => :enabled,       :complete_value => {:true => true, :false => false}, :rename => :'status.enabled'
+      scoped_search :on => :enabled,       :complete_value => {:true => true, :false => false}, :rename => :'status.enabled', :aliases => [:'configuration_status.enabled']
       scoped_search :on => :managed,       :complete_value => {:true => true, :false => false}
       scoped_search :on => :owner_type,    :complete_value => true, :only_explicit => true
       scoped_search :on => :owner_id,      :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
       scoped_search :on => :id,            :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
+      scoped_search :on => :pxe_loader, :complete_value => Operatingsystem.all_loaders_map.to_h { |k, _v| [k.tr(' ', '_').to_sym, k] }.except(:None), :only_explicit => true, :operators => ['=']
 
       scoped_search :relation => :last_report_object, :on => :origin, :only_explicit => true
 
-      scoped_search :relation => :configuration_status_object, :on => :status, :offset => 0, :word_size => ConfigReport::BIT_NUM * 4, :rename => :'status.interesting', :complete_value => {:true => true, :false => false}, :only_explicit => true
-      scoped_search_status "applied",         :relation => :configuration_status_object, :on => :status, :rename => :'status.applied'
-      scoped_search_status "restarted",       :relation => :configuration_status_object, :on => :status, :rename => :'status.restarted'
-      scoped_search_status "failed",          :relation => :configuration_status_object, :on => :status, :rename => :'status.failed'
-      scoped_search_status "failed_restarts", :relation => :configuration_status_object, :on => :status, :rename => :'status.failed_restarts'
-      scoped_search_status "skipped",         :relation => :configuration_status_object, :on => :status, :rename => :'status.skipped'
-      scoped_search_status "pending",         :relation => :configuration_status_object, :on => :status, :rename => :'status.pending'
+      scoped_search :relation => :configuration_status_object, :on => :status, :offset => 0, :word_size => ConfigReport::BIT_NUM * 4, :rename => :'status.interesting', :complete_value => {:true => true, :false => false}, :only_explicit => true, :aliases => [:'configuration_status.interesting']
+      scoped_search_status "applied",         :relation => :configuration_status_object, :on => :status, :rename => :'status.applied', :aliases => ['configuration_status.applied']
+      scoped_search_status "restarted",       :relation => :configuration_status_object, :on => :status, :rename => :'status.restarted', :aliases => ['configuration_status.restarted']
+      scoped_search_status "failed",          :relation => :configuration_status_object, :on => :status, :rename => :'status.failed', :aliases => ['configuration_status.failed']
+      scoped_search_status "failed_restarts", :relation => :configuration_status_object, :on => :status, :rename => :'status.failed_restarts', :aliases => ['configuration_status.failed_restarts']
+      scoped_search_status "skipped",         :relation => :configuration_status_object, :on => :status, :rename => :'status.skipped', :aliases => ['configuration_status.skipped']
+      scoped_search_status "pending",         :relation => :configuration_status_object, :on => :status, :rename => :'status.pending', :aliases => ['configuration_status.pending']
 
       scoped_search :relation => :build_status_object, :on => :status, :rename => :build_status, :only_explicit => true, :operators => ['=', '!=', '<>'], :complete_value => {
         built: HostStatus::BuildStatus::BUILT,
@@ -68,6 +69,8 @@ module Hostext
 
       scoped_search :relation => :primary_interface, :on => :ip, :complete_value => true
       scoped_search :relation => :interfaces, :on => :ip, :complete_value => true, :rename => :has_ip, :only_explicit => true
+      scoped_search :relation => :primary_interface, :on => :ip6, :complete_value => true
+      scoped_search :relation => :interfaces, :on => :ip6, :complete_value => true, :rename => :has_ip6, :only_explicit => true
       scoped_search :relation => :interfaces, :on => :mac, :complete_value => true, :rename => :has_mac, :only_explicit => true
 
       scoped_search :relation => :fact_values, :on => :value, :in_key => :fact_names, :on_key => :name, :rename => :facts, :complete_value => true, :only_explicit => true, :ext_method => :search_cast_facts
@@ -82,6 +85,9 @@ module Hostext
       scoped_search :relation => :reported_data, :on => :cores, :rename => 'reported.cores', :only_explicit => true
       scoped_search :relation => :reported_data, :on => :disks_total, :rename => 'reported.disks_total', :only_explicit => true
       scoped_search :relation => :reported_data, :on => :kernel_version, :rename => 'reported.kernel_version', :only_explicit => true
+      scoped_search :relation => :reported_data, :on => :bios_vendor, :rename => 'reported.bios_vendor'
+      scoped_search :relation => :reported_data, :on => :bios_release_date, :rename => 'reported.bios_release_date'
+      scoped_search :relation => :reported_data, :on => :bios_version, :rename => 'reported.bios_version'
 
       scoped_search :relation => :location, :on => :title, :rename => :location, :complete_value => true, :only_explicit => true
       scoped_search :on => :location_id, :complete_enabled => false, :only_explicit => true, :validator => ScopedSearch::Validators::INTEGER
@@ -104,8 +110,8 @@ module Hostext
       scoped_search :relation => :search_users, :on => :mail,      :complete_value => true, :only_explicit => true, :rename => :'user.mail',     :operators => ['= ', '~ '], :ext_method => :search_by_user
       scoped_search :relation => :usergroups,   :on => :name,      :complete_value => true, :only_explicit => true, :rename => :'usergroup.name', :aliases => [:usergroup]
 
-      scoped_search :relation => :infrastructure_facet, :on => :foreman_instance, :rename => 'infrastructure_facet.foreman', :only_explicit => true, :operators => ['= ', '!= ']
-      scoped_search :relation => :infrastructure_facet, :on => :smart_proxy_id, :rename => 'infrastructure_facet.smart_proxy_id', :only_explicit => true
+      scoped_search :relation => :infrastructure_facet, :on => :foreman_instance, :rename => 'infrastructure_facet.foreman', :only_explicit => true, :operators => ['= ', '!= '], :complete_value => { :true => true, :false => false }
+      scoped_search :relation => :infrastructure_facet, :on => :smart_proxy_id, :rename => 'infrastructure_facet.smart_proxy_id', :only_explicit => true, :validator => ScopedSearch::Validators::NUMERIC
     end
 
     module ClassMethods
@@ -165,6 +171,12 @@ module Hostext
 
       def search_by_params(key, operator, value)
         key_name = key.sub(/^.*\./, '')
+
+        if Parameter.find_by(name: key_name)&.key_type == 'boolean'
+          # boolean value is saved as 't'/'f' in searchable_value column
+          value = value.chr
+        end
+
         condition = sanitize_sql_for_conditions(["name = ? and searchable_value #{operator} ?", key_name, value_to_sql(operator, value)])
         p = Parameter.where(condition).reorder(:priority)
         return {:conditions => '1 = 0'} if p.blank?

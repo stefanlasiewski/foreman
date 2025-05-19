@@ -26,7 +26,7 @@ By default, Smart Proxy does not listen on any port and SSL is not configured, s
 
 [source, bash]
 ....
-# config/settings.yaml
+# config/settings.yml
 :http_port: 8080
 :foreman_url: http://localhost:3000
 :bind_host: ['*']
@@ -36,7 +36,7 @@ To elevate authorization for Foreman, either the remote IP address or DNS hostna
 
 [source, bash]
 ....
-grep -A10 trusted_hosts config/settings.yaml
+grep -A10 trusted_hosts config/settings.yml
 :trusted_hosts:
 - localhost
 - localhost4

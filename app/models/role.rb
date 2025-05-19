@@ -44,6 +44,7 @@ class Role < ApplicationRecord
   before_destroy :check_deletable
 
   attr_accessor :modify_locked
+
   validate :not_locked
   before_destroy :not_locked
 
@@ -221,7 +222,7 @@ class Role < ApplicationRecord
 
   def clone(role_params = {})
     new_role = deep_clone(:except => [:name, :builtin, :origin],
-                               :include => [:locations, :organizations, { :filters => :permissions }])
+      :include => [:locations, :organizations, { :filters => :permissions }])
     new_role.attributes = role_params
     new_role.cloned_from_id = id
     new_role.filters = new_role.filters.select { |f| f.filterings.present? }

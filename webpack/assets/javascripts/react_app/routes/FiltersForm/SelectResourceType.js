@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { FormGroup } from '@patternfly/react-core';
 import {
   Select,
   SelectOption,
   SelectVariant,
-  FormGroup,
-} from '@patternfly/react-core';
+} from '@patternfly/react-core/deprecated';
 import { useAPI } from '../../common/hooks/API/APIHooks';
 import { EMPTY_RESOURCE_TYPE } from './FiltersFormConstants';
 import { translate as __ } from '../../common/I18n';
@@ -15,6 +15,7 @@ export const SelectResourceType = ({
   setType,
   setIsGranular,
   defaultType,
+  setAutocompleteQuery,
 }) => {
   const apiOption = useMemo(
     () => {
@@ -45,11 +46,12 @@ export const SelectResourceType = ({
   return (
     <FormGroup label={__('Resource Type')} isRequired>
       <Select
+        ouiaId="resource-type-select"
         className="without_select2"
         maxHeight="45vh"
         variant={SelectVariant.typeahead}
         typeAheadAriaLabel="Select a resource type"
-        onToggle={setIsOpen}
+        onToggle={(_event, val) => setIsOpen(val)}
         selections={type.translation}
         isOpen={isOpen}
         aria-labelledby="resource type"
@@ -63,6 +65,7 @@ export const SelectResourceType = ({
             onClick={() => {
               setType(EMPTY_RESOURCE_TYPE);
               setIsGranular(false);
+              setAutocompleteQuery('');
             }}
             key={EMPTY_RESOURCE_TYPE.name}
             value={EMPTY_RESOURCE_TYPE.translation}
@@ -72,6 +75,7 @@ export const SelectResourceType = ({
               onClick={() => {
                 setType(option);
                 setIsGranular(option.granular);
+                setAutocompleteQuery('');
               }}
               key={option.name}
               value={option.translation}
@@ -93,6 +97,7 @@ SelectResourceType.propTypes = {
   setType: PropTypes.func.isRequired,
   setIsGranular: PropTypes.func.isRequired,
   defaultType: PropTypes.string,
+  setAutocompleteQuery: PropTypes.func.isRequired,
 };
 
 SelectResourceType.defaultProps = {

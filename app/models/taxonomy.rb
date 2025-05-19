@@ -37,7 +37,7 @@ class Taxonomy < ApplicationRecord
       scoped_search :on => :description, :complete_enabled => :false, :only_explicit => true
       scoped_search :on => :id, :validator => ScopedSearch::Validators::INTEGER
 
-      apipie :class, desc: "A class representing #{model_name.human} object" do
+      apipie :class do
         sections only: %w[all additional]
         name_exl, title_exl = class_scope.model_name.human == 'Location' ? ['Europe', 'Europe/Prague'] : ['Red Hat', 'Red Hat/Engineering']
         prop_group :basic_model_props, ApplicationRecord, meta: { example: name_exl }
@@ -61,9 +61,10 @@ class Taxonomy < ApplicationRecord
   default_scope -> { order(:title) }
 
   scope :completer_scope, lambda { |opts|
-    if opts[:controller] == 'organizations'
+    case opts[:controller]
+    when 'organizations'
       Organization.completer_scope opts
-    elsif opts[:controller] == 'locations'
+    when 'locations'
       Location.completer_scope opts
     end
   }
@@ -139,7 +140,6 @@ class Taxonomy < ApplicationRecord
     new.media             = media
     new.domains           = domains
     new.realms            = realms
-    new.media             = media
     new.hostgroups        = hostgroups
     new.auth_sources      = auth_sources
     new
@@ -211,7 +211,7 @@ class Taxonomy < ApplicationRecord
     subtree.flat_map(&:users).map(&:id).uniq
   end
 
-  # note - this method used by before_destroy callbacks in extension files from plugins
+  # NOTE: this method used by before_destroy callbacks in extension files from plugins
   # audits for 'destroy' action on resources lead to taxable_taxonomies records.
   # This will check if any taxable_taxonomies records present and apply destroy_all
   # so that it nullifies all associated audit records

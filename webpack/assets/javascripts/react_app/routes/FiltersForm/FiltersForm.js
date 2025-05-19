@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   Form,
   FormGroup,
@@ -9,15 +9,11 @@ import {
   Popover,
   ActionGroup,
   Button,
+  Icon,
 } from '@patternfly/react-core';
 import { HelpIcon } from '@patternfly/react-icons';
 import { translate as __ } from '../../common/I18n';
 import SearchBar from '../../components/SearchBar';
-import {
-  setAutocompleteSearchQuery,
-  updateDisability,
-  updateController,
-} from '../../components/AutoComplete/AutoCompleteActions';
 import './FilterForm.scss';
 import { SelectPermissions } from './SelectPermissions';
 import { SelectResourceType } from './SelectResourceType';
@@ -25,7 +21,6 @@ import { SelectRole } from './SelectRole';
 import { EMPTY_RESOURCE_TYPE, SEARCH_ID } from './FiltersFormConstants';
 import { Taxonomies } from './Taxonomies';
 import { APIActions } from '../../redux/API';
-import { selectAutocompleteSearchQuery } from '../../components/AutoComplete/AutoCompleteSelectors';
 import { addToast } from '../../components/ToastsList';
 
 export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
@@ -46,20 +41,7 @@ export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
     show_locations: showLocations = false,
   } = type;
   const dispatch = useDispatch();
-
-  useEffect(() => {
-    if (isUnlimited) dispatch(updateDisability(true, SEARCH_ID));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (data.search)
-      dispatch(setAutocompleteSearchQuery(data.search, SEARCH_ID));
-    // workaround a bug - initial search query is ignored
-  }, [data.search, dispatch]);
-
-  const autocompleteQuery = useSelector(state =>
-    selectAutocompleteSearchQuery(state, SEARCH_ID)
-  );
+  const [autocompleteQuery, setAutocompleteQuery] = useState(data.search || '');
   const submit = async () => {
     const params = {
       filter: {
@@ -120,7 +102,6 @@ export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
         type={type}
         setType={newType => {
           setType(newType);
-          dispatch(updateController(newType, newType.search_path, SEARCH_ID));
         }}
         setIsGranular={val => {
           setIsGranular(val);
@@ -129,6 +110,7 @@ export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
           }
         }}
         defaultType={data.resource_type}
+        setAutocompleteQuery={setAutocompleteQuery}
       />
 
       <SelectPermissions
@@ -153,16 +135,19 @@ export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
                 type="button"
                 aria-label="More info for override field"
                 onClick={e => e.preventDefault()}
-                className="pf-c-form__group-label-help"
+                className="pf-v5-c-form__group-label-help"
               >
-                <HelpIcon noVerticalAlign />
+                <Icon isInline>
+                  <HelpIcon />
+                </Icon>
               </button>
             </Popover>
           }
         >
           <Checkbox
+            ouiaId="override-checkbox"
             isChecked={isOverride}
-            onChange={checked => {
+            onChange={(_event, checked) => {
               setIsOverride(checked);
             }}
             aria-label="is override"
@@ -199,18 +184,21 @@ export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
                   type="button"
                   aria-label="More info for unlimited field"
                   onClick={e => e.preventDefault()}
-                  className="pf-c-form__group-label-help"
+                  className="pf-v5-c-form__group-label-help"
                 >
-                  <HelpIcon noVerticalAlign />
+                  <Icon isInline>
+                    <HelpIcon />
+                  </Icon>
                 </button>
               </Popover>
             }
           >
             <Checkbox
+              ouiaId="unlimited-checkbox"
               isChecked={isUnlimited}
-              onChange={checked => {
+              onChange={(_event, checked) => {
+                setAutocompleteQuery('');
                 setIsUnlimited(checked);
-                dispatch(updateDisability(checked, SEARCH_ID));
               }}
               aria-label="is unlimited"
               id="unlimited-check"
@@ -223,15 +211,20 @@ export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
               data={{
                 controller: type.name,
                 autocomplete: {
+                  searchQuery: autocompleteQuery,
                   id: SEARCH_ID,
                   url: type.search_path,
                 },
+                disabled: isUnlimited,
               }}
+              onSearch={null}
+              onSearchChange={setAutocompleteQuery}
             />
           </FormGroup>
         </>
       ) : (
         <Alert
+          ouiaId="granular-filtering-alert"
           variant="info"
           title={__(
             "Selected resource type does not support granular filtering, therefore you can't configure granularity"
@@ -241,13 +234,18 @@ export const FiltersForm = ({ roleName, roleId, isNew, data, history }) => {
 
       <ActionGroup>
         <Button
+          ouiaId="filters-submit-button"
           variant="primary"
           isDisabled={!chosenPermissions.length}
           onClick={submit}
         >
           {__('Submit')}
         </Button>
-        <Button onClick={() => history.goBack()} variant="link">
+        <Button
+          ouiaId="filters-cancel-button"
+          onClick={() => history.goBack()}
+          variant="link"
+        >
           {__('Cancel')}
         </Button>
       </ActionGroup>

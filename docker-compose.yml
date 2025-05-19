@@ -7,9 +7,9 @@ services:
       - POSTGRES_DATABASE=foreman
       - PGDATA=/var/lib/postgresql/data/pgdata
     hostname: db.example.com
-    image: postgres:10
+    image: postgres:12
     ports:
-      - 5432
+      - '5432'
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 5432 || exit 1"]
@@ -31,7 +31,7 @@ services:
       - FOREMAN_FQDN=foreman.example.com
       - FOREMAN_DOMAIN=example.com
       - FOREMAN_RAILS_CACHE_STORE_TYPE=redis
-      - FOREMAN_RAILS_CACHE_STORE_URLS=redis://redis:6379/0
+      - FOREMAN_RAILS_CACHE_STORE_URLS=redis://redis-cache:6379/0
       - DYNFLOW_REDIS_URL=redis://redis-tasks:6379/0
       - REDIS_PROVIDER=DYNFLOW_REDIS_URL
     hostname: foreman.example.com
@@ -56,7 +56,7 @@ services:
 
   worker:
     <<: *app_base
-    command: bundle exec sidekiq -r ./extras/dynflow-sidekiq.rb -c 15 -q default,remote_execution
+    command: bundle exec sidekiq -r ./extras/dynflow-sidekiq.rb -c 15 -q default,1 -q remote_execution,1
     ports: []
 
   redis-cache:

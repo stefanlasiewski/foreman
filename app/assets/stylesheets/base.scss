@@ -2,13 +2,60 @@ html {
   height: 100%;
   width: 100%;
   display: table;
+}
+
+#rails-app-content {
+  --header-height: 70px;
+  position: absolute;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow: auto;
+  height: calc(100% - var(--header-height));
+  margin-left: 250px;
+  &.user-banner-present {
+    --banner-height: calc(
+      2 * var(--pf-v5-global--spacer--xs) +
+        (var(--pf-v5-global--LineHeight--md) * var(--pf-v5-global--FontSize--sm))
+    ); // banner height is line height and a small padding
+    top: calc(
+      var(--header-height) + var(--banner-height)
+    );
+
+    height: calc(100% - var(--header-height) - var(--banner-height));
+  }
+  .rails-table-toolbar {
+    padding-bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  &.pf-v5-c-page {
+    display: block;
+    grid-template-columns: unset;
+    grid-template-areas: unset;
+  }
 }
 
 body {
+  position: absolute; // needed for firefox 100% height bug
+  overflow: auto;
   height: 100%;
   width: 100%;
-  display: table-cell;
+}
+
+#react-app-root {
+  height: 100%;
+  width: 100%;
+  .pf-v5-c-page {
+    // pf grid rule stops at @media (min-width: 1200px)
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    grid-template-areas:
+      'header header'
+      'nav main';
+  }
 }
 
 .base li {
@@ -107,10 +154,6 @@ select {
   cursor: auto;
 }
 
-#main > #content {
-  display: none;
-}
-
 .used_by_hosts {
   color: #000 !important;
   cursor: auto;
@@ -144,10 +187,13 @@ select {
 }
 
 .title_filter {
-  padding-right: 8px;
+  flex-grow: 1;
+  padding-left: 0;
 }
 
 #title_action {
+  flex-grow: 1;
+  display: flex;
   padding-left: 8px;
   padding-bottom: 12px;
 }
@@ -274,6 +320,11 @@ table {
 .fact-col {
   max-width: 500px;
   white-space: normal;
+  font-family: monospace;
+}
+
+.parameter-value {
+  font-family: monospace;
 }
 
 .fact-origin {
@@ -531,11 +582,6 @@ table {
   float: left;
 }
 
-.ui-autocomplete {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
 .modal-big {
   width: 80%;
 }
@@ -621,6 +667,11 @@ code.transparent {
   max-width: 175px;
 }
 
-td .dropdown-menu > li > a.disabled:hover, td .dropdown-menu > li > a.disabled:focus {
+td .dropdown-menu > li > a.disabled:hover,
+td .dropdown-menu > li > a.disabled:focus {
   cursor: pointer;
+}
+
+span.btn a.disabled {
+ color: #8b8d8f;
 }

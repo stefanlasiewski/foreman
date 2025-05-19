@@ -7,7 +7,7 @@ module AuditsHelper
     return _("N/A") if change.nil?
     case name
       when "ancestry"
-        label = change.blank? ? "" : change.split('/').map { |i| Hostgroup.find(i).name rescue _("NA") }.join('/')
+        label = change.blank? ? "" : change.split('/').map { |i| Hostgroup.find(i).name rescue _("N/A") }.join('/')
       when 'last_login_on'
         label = change.to_s(:short)
       when /.*_id$/
@@ -65,13 +65,14 @@ module AuditsHelper
       return [] unless audit.audited_changes.present?
       audit.audited_changes.map do |name, change|
         next if change.nil? || change.to_s.empty?
-        if name == 'template'
+        case name
+        when 'template'
           (_("Template content changed %s") % (link_to 'view diff', path)).html_safe if audit_template? audit
-        elsif name == "password_changed"
+        when "password_changed"
           _("Password has been changed")
-        elsif name == "owner_id" || name == "owner_type"
+        when "owner_id", "owner_type"
           _("Owner changed to %s") % (audit.revision.owner rescue _('N/A'))
-        elsif name == 'global_status'
+        when 'global_status'
           base = audit.audited_changes.values[0]
           from = HostStatus::Global.new(base[0]).to_label
           to = HostStatus::Global.new(base[1]).to_label
@@ -90,7 +91,7 @@ module AuditsHelper
       when AUDIT_ADD
         [_("Added %{from} to %{to}") % {:from => from, :to => to}]
       when AUDIT_REMOVE
-        [_("Removed %{from} to %{to}") % {:from => from, :to => to}]
+        [_("Removed %{from} from %{to}") % {:from => from, :to => to}]
       end
     else
       []
@@ -199,7 +200,7 @@ module AuditsHelper
       items: [
         {
           caption: _("Hosts"),
-          url: (hosts_path if authorized_for(hash_for_hosts_path)),
+          url: (current_hosts_path if authorized_for(hash_for_hosts_path)),
         },
         {
           caption: @host.name,
@@ -257,14 +258,38 @@ module AuditsHelper
     reflection_obj ? reflection_obj&.klass : nil
   end
 
+  def find_owner_class(key, change, audit)
+    type = nil
+    if audit.audited_changes.has_key?('owner_type')
+      type = audit.audited_changes['owner_type']
+      if audit.action == 'update'
+        idx = audit.audited_changes['owner_id'].index(change)
+        type = audit.audited_changes['owner_type'][idx]
+      end
+    else
+      previous = Audit.where(auditable_type: audit.auditable_type, auditable_id: audit.auditable_id)
+                   .where("id < ?", audit.id)
+                   .where("audited_changes LIKE '%owner_type:%'")
+                   .first
+      type = previous.audited_changes['owner_type']
+      type = type.last if previous.action == 'update'
+    end
+    type.constantize
+  end
+
   def find_associated_records_using_key(key, change, audit)
     auditable_class = find_auditable_type_class(audit)
-    association_class = key_to_association_class(key, auditable_class)
+    association_class = if key == 'owner_id'
+                          find_owner_class(key, change, audit)
+                        else
+                          key_to_association_class(key, auditable_class)
+                        end
 
     if association_class
-      if key =~ /_ids$/
+      case key
+      when /_ids$/
         association_class&.where(id: change)&.index_by(&:id)
-      elsif key =~ /_id$/
+      when /_id$/
         association_class&.find(change)
       end
     elsif auditable_class.respond_to?('audit_hook_to_find_records')

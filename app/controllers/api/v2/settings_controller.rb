@@ -1,6 +1,8 @@
 module Api
   module V2
     class SettingsController < V2::BaseController
+      hide_taxonomy_options
+
       before_action :find_resource, :only => %w{show update}
 
       def_param_group :setting_params do
@@ -57,7 +59,7 @@ module Api
         render_error :custom_error, :locals => { :message => e.bare_message }, :status => :unprocessable_entity
       end
 
-      def resource_scope(_options = {})
+      def resource_scope(...)
         Foreman.settings
       end
     end

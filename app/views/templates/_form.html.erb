@@ -1,4 +1,5 @@
 <%= javascript_tag("$(document).on('ContentLoad', tfm.templateInputs.initTypeChanges)"); %>
+<%= javascript 'templates' %>
 
 <% url = if @template.persisted?
            public_send("#{@type_name_singular}_path", :id => @template)
@@ -12,6 +13,8 @@
     <li class="active"><a id="primary_tab" href="#primary" data-toggle="tab"><%= _("Template") %></a></li>
     <li><a href="#template_inputs" data-toggle="tab"><%= _("Inputs") %></a></li>
     <%= render "#{@type_name_plural}/custom_tab_headers" unless type == 'ptable'%>
+    <%= render_pagelets_for(:tab_headers, :subject => @template) %>
+
     <li><a id='history_tab' href="#history" data-toggle="tab"><%= _("History") %></a></li>
     <% if show_location_tab? %>
       <li><a href="#locations" data-toggle="tab"><%= _("Locations") %></a></li>
@@ -63,6 +66,17 @@
           }}) %>
         </div>
       </div>
+
+      <% if @template.cloned_from %>
+      <div class="clearfix">
+        <div class="form-group ">
+          <%= label_tag :cloned_from, _('Cloned from'), class: 'col-md-2 control-label' %>
+          <div class="col-md-10">
+            <%= link_to @template.cloned_from.name, url_for(template_hash_for_member(@template.cloned_from, 'edit')), target: '_blank' %>
+          </div>
+        </div>
+      </div>
+      <% end %>
 
       <%= textarea_f f, :description, :size => 'col-md-10', :rows => 3, :label => _('Description'), :disabled => @template.locked? %>
 
@@ -191,8 +205,10 @@
     </div>
 
     <%= render "custom_tabs", :f => f unless type == 'ptable'%>
+    <%= render_pagelets_for(:tab_content, :subject => @template, :f => f) %>
     <%= render 'taxonomies/loc_org_tabs', :f => f, :obj => @template %>
 
     <%= submit_or_cancel f, false, :cancel_path => template_path_for(@template.class) %>
   </div>
+  <%= f.hidden_field :cloned_from_id %>
 <% end %>

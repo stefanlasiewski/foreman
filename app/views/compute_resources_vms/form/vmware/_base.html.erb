@@ -6,9 +6,11 @@
   <%= counter_f(f, :corespersocket, label: _('Cores per socket'), recommended_max_value: compute_resource.max_cpu_count, value: f.object.corespersocket || 1) %>
 </div>
 <%= text_f f, :memory_mb, :class => "col-md-2", :label => _("Memory (MB)") %>
-<%= field(f, :firmware, :label => _('Firmware'), :label_size => "col-md-2") do
+
+<% firmware_type = new_vm ? 'automatic' : compute_resource.firmware_type(f.object.firmware, f.object.secure_boot) %>
+<%= field(f, :firmware, :label => _('Firmware'), :label_help => _("Choose 'Automatic' to set the firmware based on the PXE Loader. If no PXE Loader is selected, it defaults to BIOS."), :label_size => "col-md-2") do
   compute_resource.firmware_types.collect do |type, name|
-    radio_button_f f, :firmware, {:disabled => !new_vm, :value => type, :text => _(name)}
+    radio_button_f f, :firmware, { :checked => (firmware_type == type), :disabled => !new_vm, :value => type, :text => _(name) }
   end.join(' ').html_safe
 end %>
 <%= selectable_f f, :cluster, compute_resource.clusters, { :include_blank => _('Please select a cluster') },
@@ -49,18 +51,24 @@ end %>
                { :disabled => images.empty?, :label => _('Image'), :label_size => "col-md-2" } %>
 </div>
 
+<%= checkbox_f f, :virtual_tpm, { :help_inline => _("Add Virtual TPM module to the VM."),
+                                  :label => _('Virtual TPM'),
+                                  :label_help => _("Only compatible with UEFI firmware."),
+                                  :label_size => "col-md-2",
+                                  :disabled => !new_vm } %>
+
 <%= compute_specific_js(compute_resource, "nic_info") %>
 
 <%= react_component('StorageContainer', { data: {
   config: {
     vmExists: !new_vm,
-    controllerTypes: compute_resource.scsi_controller_types,
+    controllerTypes: compute_resource.storage_controller_types,
     diskModeTypes: compute_resource.disk_mode_types,
-    paramsScope: "#{f.object_name}[scsi_controllers]",
+    paramsScope: "#{f.object_name}[controllers]",
     datastoresUrl: available_storage_domains_api_compute_resource_path(compute_resource),
     storagePodsUrl: available_storage_pods_api_compute_resource_path(compute_resource)
   },
   volumes: f.object.volumes.map { |volume| volume.attributes.merge(:size_gb => volume.size_gb).deep_transform_keys { |key| key.to_s.camelize(:lower).to_sym }.reject { |k,v| k == :size } },
-  controllers: f.object.scsi_controllers,
+  controllers: f.object.scsi_controllers + f.object.nvme_controllers,
   cluster: f.object.cluster
 }}) %>

@@ -2,6 +2,7 @@ module Api
   module V2
     class HostsController < V2::BaseController
       include Api::Version2
+      include Api::V2::BulkHostsExtension
       include ScopesPerAction
       include Foreman::Controller::SmartProxyAuth
       include Foreman::Controller::Parameters::Host
@@ -113,7 +114,7 @@ module Api
           end
           param :compute_attributes, Hash, :desc => N_("Additional compute resource specific attributes.")
 
-          Facets.registered_facets.values.each do |facet_config|
+          Facets.registered_facets.each_value do |facet_config|
             next unless facet_config.host_configuration.api_param_group && facet_config.host_configuration.api_controller
             param "#{facet_config.name}_attributes".to_sym, Hash, :desc => facet_config.api_param_group_description || (N_("Parameters for host's %s facet") % facet_config.name) do
               facet_config.host_configuration.load_api_controller
@@ -158,7 +159,6 @@ module Api
         @all_parameters = true
 
         @host.attributes = host_attributes(host_params, @host)
-        apply_compute_profile(@host) if (params[:host] && params[:host][:compute_attributes].present?) || @host.compute_profile_id_changed?
 
         process_response @host.save
       rescue InterfaceTypeMapper::UnknownTypeException => e
@@ -181,14 +181,7 @@ module Api
 
       api :GET, "/hosts/:id/status/:type", N_("Get status of host")
       param :id, :identifier_dottable, :required => true
-      param :type, [HostStatus::Global] + HostStatus.status_registry.to_a.map { |s| s.humanized_name }, :required => true, :desc => N_(
-        <<~EOS
-          status type, can be one of
-          * global
-          * configuration
-          * build
-        EOS
-      )
+      param :type, :callable_enum, of: -> { [HostStatus::Global.status_name.underscore] + HostStatus.status_registry.to_a.map { |s| s.humanized_name } }, required: true
 
       description N_('Returns string representing a host status of a given type')
       def get_status
@@ -203,11 +196,7 @@ module Api
 
       api :DELETE, "/hosts/:id/status/:type", N_("Clear sub-status of host")
       param :id, :identifier_dottable, :required => true
-      param :type, HostStatus.status_registry.to_a.map { |s| s.humanized_name }, :required => true, :desc => N_(
-        <<~EOS
-          status type
-        EOS
-      )
+      param :type, :callable_enum, of: -> { HostStatus.status_registry.to_a.map { |s| s.humanized_name } }, required: true
 
       description N_('Clears a host sub-status of a given type')
       def forget_status
@@ -273,16 +262,7 @@ module Api
       param :timeout, String, required: false, desc: N_("Timeout to retrieve the power status of the host in seconds. Default is 3 seconds.")
 
       def power_status
-        render json: PowerManager::PowerStatus.new(host: @host).power_state(params[:timeout])
-      rescue => e
-        Foreman::Logging.exception("Failed to fetch power status", e)
-
-        resp = {
-          id: @host.id,
-          statusText: _("Failed to fetch power status: %s") % e,
-        }
-
-        render json: resp.merge(PowerManager::PowerStatus::HOST_POWER[:na])
+        render json: PowerManager::PowerStatus.safe_power_state(@host, timeout: params[:timeout])
       end
 
       api :PUT, "/hosts/:id/boot", N_("Boot host from specified device")
@@ -342,6 +322,7 @@ module Api
       api :GET, "/hosts/:id/templates", N_("Get provisioning templates for the host")
       param :id, :identifier_dottable, :required => true
       def templates
+        view_provisioning_templates = authorized_for(:controller => 'provisioning_templates', :action => 'show')
         edit_provisioning_templates = authorized_for(:controller => 'provisioning_templates', :action => 'edit')
         templates = TemplateKind.order(:name).map do |kind|
           @host.provisioning_template(:kind => kind.name)&.as_json&.merge(:kind => kind.name)
@@ -349,8 +330,18 @@ module Api
         if templates.empty?
           not_found(_("No templates found for %{host}") % {:host => @host.to_label})
         else
-          render :json => { :templates => templates, :edit_provisioning_templates => edit_provisioning_templates }, :status => :ok
+          render :json => {
+            :templates => templates,
+            :view_provisioning_templates => view_provisioning_templates,
+            :edit_provisioning_templates => edit_provisioning_templates,
+          }, :status => :ok
         end
+      end
+
+      api :GET, "/hosts/:id/inherited_parameters", N_("Get all inherited parameters for a host")
+      param :id, :identifier_dottable, :required => true
+      def inherited_parameters
+        render :json => {params: @host.host_inherited_params_objects}, :status => :ok
       end
 
       private
@@ -395,7 +386,7 @@ module Api
             :console
           when 'disassociate', 'forget_status'
             :edit
-          when 'vm_compute_attributes', 'get_status', 'template', 'enc', 'templates'
+          when 'vm_compute_attributes', 'get_status', 'template', 'enc', 'templates', 'inherited_parameters'
             :view
           when 'rebuild_config'
             :build
@@ -406,7 +397,7 @@ module Api
 
       def parent_permission(child_permission)
         case child_permission.to_s
-          when 'power', 'boot', 'console', 'vm_compute_attributes', 'get_status', 'template', 'enc', 'rebuild_config'
+          when 'power', 'boot', 'console', 'vm_compute_attributes', 'get_status', 'template', 'enc', 'rebuild_config', 'inherited_parameters'
             'view'
           when 'disassociate'
             'edit'

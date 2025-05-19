@@ -13,17 +13,6 @@ class SettingRegistryTest < ActiveSupport::TestCase
     registry.load_values
   end
 
-  describe '#load' do
-    it 'loads initial value from the inventory, tho deprecates it' do
-      uuid = Foreman.uuid
-      registry.stubs(:load_definitions)
-      Foreman::Deprecation.expects(:deprecation_warning)
-      registry._add('test_uuid', type: :string, category: 'general', default: 'uuid', value: uuid, full_name: 'test uuid', description: 'test uuid', context: :test)
-      registry.load
-      assert_equal uuid, Setting['test_uuid'], 'The initial value was not set'
-    end
-  end
-
   describe '#load_values' do
     it "doesn't update definitions for unchanged settings" do
       registry.expects(:find).never
@@ -32,15 +21,23 @@ class SettingRegistryTest < ActiveSupport::TestCase
     end
 
     it "updates definitions for changed settings" do
-      skip 'the update_at is not precise enough'
       setting.update(value: 100)
       registry.expects(:find).once
 
       registry.load_values
     end
 
+    it "updates definitions for settings which were changed to their default values" do
+      setting.update(value: 100)
+      registry.load_values
+
+      setting.update(value: nil)
+      registry.expects(:find).once
+      assert registry.load_values
+    end
+
     it "can be forced to load all values" do
-      registry.expects(:find).times(Setting.where.not(value: nil).count)
+      registry.expects(:find).times(Setting.count)
 
       registry.load_values(ignore_cache: true)
     end
@@ -126,6 +123,29 @@ class SettingRegistryTest < ActiveSupport::TestCase
         model = Setting.create(name: 'test')
         registry.set_user_value('test', '10').save
         assert_equal 10, model.reload.value
+      end
+    end
+
+    context 'string setting' do
+      setup do
+        registry._add('test',
+          category: 'Setting',
+          default: nil,
+          type: :string,
+          full_name: 'test Foo',
+          description: 'test update',
+          encrypted: false,
+          context: :test)
+      end
+
+      it 'does not distinguish between nil default and an empty string' do
+        Setting.any_instance.stubs(:setting_definition).returns(registry.find('test'))
+        registry.set_user_value('test', 'foobar').save!
+        s = registry.set_user_value('test', '')
+
+        assert s.save
+        assert_nil s.value
+        assert_nil s.read_attribute(:value)
       end
     end
 

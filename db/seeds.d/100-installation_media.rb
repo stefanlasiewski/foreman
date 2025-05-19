@@ -11,11 +11,6 @@ Medium.without_auditing do
       :path => "http://mirror.centos.org/centos/$major/os/$arch",
     },
     {
-      :name => "CentOS 8 mirror",
-      :os_family => "Redhat",
-      :path => "http://mirror.centos.org/centos/$major/BaseOS/$arch/kickstart",
-    },
-    {
       :name => "CentOS Stream",
       :os_family => "Redhat",
       :path => "http://mirror.centos.org/centos/$major-stream/BaseOS/$arch/os",
@@ -34,11 +29,6 @@ Medium.without_auditing do
       :name => "Fedora mirror",
       :os_family => "Redhat",
       :path => "http://dl.fedoraproject.org/pub/fedora/linux/releases/$major/Server/$arch/os/",
-    },
-    {
-      :name => "Fedora Atomic mirror",
-      :os_family => "Redhat",
-      :path => "http://dl.fedoraproject.org/pub/alt/atomic/stable/Cloud_Atomic/$arch/os/",
     },
     {
       :name => "FreeBSD mirror",
@@ -64,6 +54,11 @@ Medium.without_auditing do
       :name => "Rocky Linux",
       :os_family => "Redhat",
       :path => "https://download.rockylinux.org/pub/rocky/$version/BaseOS/$arch/os",
+    },
+    {
+      :name => "AlmaLinux",
+      :os_family => "Redhat",
+      :path => "https://repo.almalinux.org/almalinux/$version/BaseOS/$arch/os/",
     },
     {
       :name => "CoreOS mirror",

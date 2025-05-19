@@ -9,6 +9,7 @@ class UnattendedController < ApplicationController
   # Allow HTTP POST methods without CSRF
   skip_before_action :verify_authenticity_token
 
+  before_action :permissions_check, if: -> { preview? }, only: [:host_template, :hostgroup_template]
   before_action :set_admin_user, unless: -> { preview? }
   before_action :load_host_details, only: [:host_template, :built, :failed]
 
@@ -17,6 +18,8 @@ class UnattendedController < ApplicationController
 
   # Maximum size of built/failed request body accepted to prevent DoS (in bytes)
   MAX_BUILT_BODY = 65535
+
+  PUBLIC_TEMPLATE_KIND_NAME = 'public'
 
   def built
     return unless verify_found_host
@@ -59,6 +62,7 @@ class UnattendedController < ApplicationController
     return head(:not_found) unless kind.present?
 
     return if render_ipxe_template
+    return if render_public_template(kind, params[:id])
 
     return unless verify_found_host
     return head(:method_not_allowed) unless allowed_to_install?
@@ -73,12 +77,24 @@ class UnattendedController < ApplicationController
     params.key?(:spoof) || params.key?(:hostname)
   end
 
+  def permissions_check
+    deny_access unless User.current.allowed_to?(:view_provisioning_templates)
+  end
+
   def render_error(message, options)
     if ipxe_request?
       render_ipxe_message(message: message, status: options[:status] || :not_found)
     else
       super
     end
+  end
+
+  def render_public_template(kind, name)
+    return false unless kind == PUBLIC_TEMPLATE_KIND_NAME
+
+    template = ProvisioningTemplate.joins(:template_kind).find_by(name: name, template_kinds: { name: kind })
+
+    render_template(template: template, type: kind)
   end
 
   def render_intermediate_template
@@ -154,7 +170,7 @@ class UnattendedController < ApplicationController
     @host = Foreman::UnattendedInstallation::HostFinder.new(query_params: query_params).search
   end
 
-  def verify_found_host
+  def verify_found_host(needs_token = true)
     host_verifier = Foreman::UnattendedInstallation::HostVerifier.new(@host, request_ip: request.remote_ip,
                                                                              for_host_template: (action_name == 'host_template'))
 
@@ -198,11 +214,26 @@ class UnattendedController < ApplicationController
   # the form save)
   def update_ip
     ip = request.remote_ip
-    logger.debug "Built notice from #{ip}, current host ip is #{@host.ip}, updating" if @host.ip != ip
+    address = IPAddr.new(ip)
 
     # @host has been changed even if the save fails, so we have to change it back
+    if address.ipv4?
+      update_ip4(ip)
+    elsif address.ipv6? && !address.link_local?
+      update_ip6(ip)
+    end
+  end
+
+  def update_ip4(ip)
+    logger.debug "Built notice from #{ip}, current host ip is #{@host.ip}, updating" if @host.ip != ip
     old_ip = @host.ip
     @host.ip = old_ip unless @host.update({'ip' => ip})
+  end
+
+  def update_ip6(ip)
+    logger.debug "Built notice from #{ip}, current host ip is #{@host.ip6}, updating" if @host.ip6 != ip
+    old_ip = @host.ip6
+    @host.ip6 = old_ip unless @host.update({'ip6' => ip})
   end
 
   def ipxe_request?

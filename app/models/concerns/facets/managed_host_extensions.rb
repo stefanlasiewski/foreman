@@ -1,9 +1,8 @@
-require_dependency 'facets'
-
 module Facets
   module ManagedHostExtensions
     extend ActiveSupport::Concern
     include Facets::BaseHostExtensions
+    include SelectiveClone
 
     included do
       configure_facet(:host, :host, :host_id) do |facet_config|

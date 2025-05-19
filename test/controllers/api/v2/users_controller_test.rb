@@ -206,7 +206,7 @@ class Api::V2::UsersControllerTest < ActionController::TestCase
   test "#index should not show hidden users" do
     get :index, params: { :search => "login == #{users(:anonymous).login}" }
     results = ActiveSupport::JSON.decode(@response.body)
-    assert results['results'].empty?, results.inspect
+    assert_empty results['results']
   end
 
   test "#find_resource should not return hidden users" do
@@ -415,8 +415,8 @@ class Api::V2::UsersControllerTest < ActionController::TestCase
                                      :location_ids => [loc.id]
     as_user system_admin do
       post :create, params: { :user => min_valid_attrs.clone.update(:role_ids => roles.map { |role| role.id },
-                                                                    :organization_ids => [org.id],
-                                                                    :location_ids => [loc.id]) }
+        :organization_ids => [org.id],
+        :location_ids => [loc.id]) }
       assert_response :success
     end
   end

@@ -197,7 +197,7 @@ class HostTest < ActiveSupport::TestCase
 
   test 'should not update with multiple invalid macs' do
     host = FactoryBot.create(:host)
-    RFauxFactory.gen_strings(256).values.each do |mac|
+    RFauxFactory.gen_strings(256).each_value do |mac|
       host.interfaces.first.mac = mac
       refute host.valid?, "Can update host with invalid mac #{mac}"
       assert_includes host.errors.attribute_names, :'interfaces.mac'
@@ -256,11 +256,11 @@ class HostTest < ActiveSupport::TestCase
       User.current.roles << [roles(:manager)]
       assert_difference(-> { LookupValue.unscoped.count }, 1) do
         assert Host.create! :name => "abc.mydomain.net", :mac => "aabbecddeeff", :ip => "3.3.4.3",
-        :domain => domains(:mydomain), :operatingsystem => operatingsystems(:redhat),
-        :subnet => subnets(:two), :architecture => architectures(:x86_64), :medium => media(:one),
-        :organization => users(:one).organizations.first, :location => users(:one).locations.first,
-        :disk => "empty partition",
-        :lookup_values_attributes => {"new_123456" => {"lookup_key_id" => lookup_key.id, "value" => "some_value"}}
+          :domain => domains(:mydomain), :operatingsystem => operatingsystems(:redhat),
+          :subnet => subnets(:two), :architecture => architectures(:x86_64), :medium => media(:one),
+          :organization => users(:one).organizations.first, :location => users(:one).locations.first,
+          :disk => "empty partition",
+          :lookup_values_attributes => {"new_123456" => {"lookup_key_id" => lookup_key.id, "value" => "some_value"}}
       end
     end
 
@@ -357,12 +357,12 @@ class HostTest < ActiveSupport::TestCase
     host.interfaces = []
     host.populate_fields_from_facts(
       mock_parser(:domain => 'example.com',
-                  :operatingsystem => 'RedHat',
-                  :operatingsystemrelease => '6.2',
-                  :macaddress_eth0 => '00:00:11:22:11:22',
-                  :ipaddress_eth0 => '192.168.0.1',
-                  :ipaddress6_eth0 => '2001:db8::1',
-                  :interfaces => 'eth0'),
+        :operatingsystem => 'RedHat',
+        :operatingsystemrelease => '6.2',
+        :macaddress_eth0 => '00:00:11:22:11:22',
+        :ipaddress_eth0 => '192.168.0.1',
+        :ipaddress6_eth0 => '2001:db8::1',
+        :interfaces => 'eth0'),
       'puppet',
       nil)
     assert_equal 'example.com', host.domain.name
@@ -474,6 +474,25 @@ class HostTest < ActiveSupport::TestCase
     assert_equal status, new_status
   end
 
+  test 'host #get_status(HostStatus::BuildStatus).to_status matches in DB stored "status' do
+    host = FactoryBot.build(:host)
+    host.build = false
+    status = host.get_status(HostStatus::BuildStatus)
+    original_status = status.to_status
+    status.save!
+    host.save!
+
+    assert_equal status.status, status.to_status
+
+    host.build = true
+    host.valid?
+
+    assert host.build?
+    status = host.get_status(HostStatus::BuildStatus)
+    assert_equal status.status, status.to_status
+    assert_not_equal original_status, status.to_status
+  end
+
   test 'host #get_status(type) only builds a new status once' do
     host = FactoryBot.build_stubbed(:host)
     status1 = host.get_status(HostStatus::BuildStatus)
@@ -518,7 +537,7 @@ class HostTest < ActiveSupport::TestCase
   end
 
   test 'build status is updated on host validation' do
-    host = FactoryBot.build_stubbed(:host)
+    host = FactoryBot.build(:host)
     host.build = false
     host.valid?
     original_status = host.get_status(HostStatus::BuildStatus).to_status
@@ -808,7 +827,7 @@ class HostTest < ActiveSupport::TestCase
   end
 
   test "should allow build mode for unmanaged hosts" do
-    h = FactoryBot.build_stubbed(:host)
+    h = FactoryBot.build(:host)
     assert h.valid?
     h.build = true
     assert h.valid?
@@ -1080,6 +1099,24 @@ class HostTest < ActiveSupport::TestCase
     assert_valid h
     assert h.root_pass.present?
     assert_equal Setting[:root_pass], h.root_pass
+    assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host unmodified'
+  end
+
+  test "should use settings root password for windows when hostgroup has empty root password" do
+    password = "HelloWorld"
+    Setting[:root_pass] = password.dup
+    g = FactoryBot.create(:hostgroup, :with_domain, :with_os, :root_pass => "")
+    h = FactoryBot.create(:host, :managed, :hostgroup => g)
+
+    g.operatingsystem.update_attribute(:password_hash, 'Base64-Windows')
+    g.save
+    h.root_pass = ""
+    h.save
+
+    assert_valid h
+    assert h.root_pass.present?
+    assert_equal Setting[:root_pass], password, 'should not modify Setting[:root_pass]'
+    assert_equal h.root_pass, 'SABlAGwAbABvAFcAbwByAGwAZABBAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAFAAYQBzAHMAdwBvAHIAZAA='
     assert_nil h.read_attribute(:root_pass), 'should not copy root_pass to host unmodified'
   end
 
@@ -1666,16 +1703,64 @@ class HostTest < ActiveSupport::TestCase
     assert_equal hosts.count, 0
   end
 
+  test "can build a hash of all host facts" do
+    host = FactoryBot.create(:host, :with_facts, :fact_count => 22)
+    assert_equal host.facts.keys.length, 22
+  end
+
+  test "can build a hash of specific host facts" do
+    host = FactoryBot.create(:host, :with_facts, :fact_count => 5)
+    assert_equal host.facts(host.fact_names.map(&:name).first(3)).keys.length, 3
+  end
+
+  test "makes only one SQL query when you pass specific fact names" do
+    host = FactoryBot.create(:host, :with_facts, :fact_count => 5)
+    fact_names = host.fact_names.map(&:name).first(3)
+    assert_sql_queries(1) do
+      host.facts_hash(fact_names)
+    end
+  end
+
+  test "makes one SQL query per host.facts_hash" do
+    host = FactoryBot.create(:host, :with_facts, :fact_count => 5)
+    fact_names = host.fact_names.map(&:name).first(2)
+    assert_sql_queries(2) do
+      host.facts_hash[fact_names[0]]
+      host.facts_hash[fact_names[1]]
+    end
+  end
+
+  test "facts caches facts_hash" do
+    host = FactoryBot.create(:host, :with_facts, :fact_count => 5)
+    fact_names = host.fact_names.map(&:name).first(2)
+    assert_sql_queries(1) do
+      host.facts[fact_names[0]]
+      host.facts[fact_names[1]]
+      host.facts[fact_names[0]]
+      host.facts[fact_names[1]]
+    end
+  end
+
+  test "facts does not cache if you pass fact names" do
+    host = FactoryBot.create(:host, :with_facts, :fact_count => 5)
+    fact_names = host.fact_names.map(&:name).first(2)
+    assert_sql_queries(3) do
+      host.facts(fact_names)
+      host.facts(fact_names)
+      host.facts(fact_names)
+    end
+  end
+
   test "can search hosts by numeric and string facts" do
     host = FactoryBot.create(:host, :hostname => 'num001.example.com')
     HostFactImporter.new(host).import_facts({
-                                              :architecture => "x86_64",
+      :architecture => "x86_64",
                                               :interfaces => 'eth0',
                                               :operatingsystem => 'RedHat-test',
                                               :operatingsystemrelease => '6.2',
                                               :memory_mb => "64498",
                                               :custom_fact => "find_me",
-                                            })
+    })
 
     hosts = Host::Managed.search_for("facts.memory_mb > 112889")
     assert_equal hosts.count, 0
@@ -1879,6 +1964,30 @@ class HostTest < ActiveSupport::TestCase
       parameter = location.location_parameters.first
       results = Host.search_for(%{params.#{parameter.name} = "#{parameter.searchable_value}"})
       assert results.include?(host)
+    end
+
+    test "can search hosts by boolean parameter" do
+      host = FactoryBot.create(:host, :managed)
+      parameter = CommonParameter.create(:name => "test_param", :value => "true", :parameter_type => 'boolean')
+      results = Host.search_for("params.#{parameter.name} = true")
+      assert results.include?(host)
+      results = Host.search_for("params.#{parameter.name} = t")
+      assert results.include?(host)
+      results = Host.search_for("params.#{parameter.name} = false")
+      assert_empty results
+      results = Host.search_for("params.#{parameter.name} = f")
+      assert_empty results
+
+      host2 = FactoryBot.create(:host, :managed)
+      HostParameter.create(:name => "test_param", :value => "false", :parameter_type => 'boolean', :reference_id => host2.id)
+      results = Host.search_for("params.#{parameter.name} = true")
+      assert_same_elements results, [host]
+      results = Host.search_for("params.#{parameter.name} = t")
+      assert_same_elements results, [host]
+      results = Host.search_for("params.#{parameter.name} = false")
+      assert_same_elements results, [host2]
+      results = Host.search_for("params.#{parameter.name} = f")
+      assert_same_elements results, [host2]
     end
   end
 
@@ -2259,6 +2368,38 @@ class HostTest < ActiveSupport::TestCase
     assert enc['parameters']['foreman_interfaces'].any? { |s| s['ip6'] == host.ip6 }
   end
 
+  test "#info ENC YAML exposes CA certificates" do
+    cert_path = Rails.root.join('test/static_fixtures/certificates/example.com.crt')
+    cert_2_path = Rails.root.join('test/static_fixtures/certificates/example2.com.crt')
+    cert_file_content = File.read(cert_path)
+    cert_2_file_content = File.read(cert_2_path)
+
+    Setting[:server_ca_file] = cert_path
+    Setting[:ssl_ca_file] = cert_2_path
+
+    host = FactoryBot.build(:host, :managed)
+
+    enc = host.info
+    assert_kind_of Hash, enc
+    assert_equal cert_file_content, enc['parameters']['server_ca']
+    assert_equal cert_2_file_content, enc['parameters']['ssl_ca']
+  end
+
+  test "#info ENC YAML works with wrong ca file paths" do
+    cert_path = Rails.root.join('test/static_fixtures/certificates/example.com.crt')
+    cert_2_path = Rails.root.join('test/static_fixtures/certificates/example2.com.crt')
+
+    Setting[:server_ca_file] = cert_path + 'zzz'
+    Setting[:ssl_ca_file] = cert_2_path + 'zzz'
+
+    host = FactoryBot.build(:host, :managed)
+
+    enc = host.info
+    assert_kind_of Hash, enc
+    assert_nil enc['parameters']['server_ca']
+    assert_nil enc['parameters']['ssl_ca']
+  end
+
   describe 'cloning' do
     test 'relationships are copied' do
       host = FactoryBot.create(:host, :with_parameter)
@@ -2351,7 +2492,7 @@ class HostTest < ActiveSupport::TestCase
     host = FactoryBot.create(:host)
     ComputeResource.any_instance.stubs(:vm_compute_attributes_for).returns({:foo => 'bar'})
     copy = host.clone
-    assert copy.compute_attributes.nil?
+    assert_nil copy.compute_attributes
   end
 
   test 'facts are deleted when build set to true' do
@@ -2524,14 +2665,14 @@ class HostTest < ActiveSupport::TestCase
 
   test '#initialize respects primary interface attributes and sets provision to the same if missing' do
     h = Host.new(:interfaces_attributes => {
-                   '0' => {'_destroy' => '0',
-                           :type => 'Nic::Managed',
-                           :mac => 'ff:ff:ff:aa:aa:aa',
-                           :managed => '1',
-                           :primary => '1',
-                           :provision => '0',
-                           :virtual => '0'},
-                 })
+      '0' => {'_destroy' => '0',
+              :type => 'Nic::Managed',
+              :mac => 'ff:ff:ff:aa:aa:aa',
+              :managed => '1',
+              :primary => '1',
+              :provision => '0',
+              :virtual => '0'},
+    })
     refute_nil h.primary_interface
     refute_nil h.provision_interface
     assert_equal 'ff:ff:ff:aa:aa:aa', h.primary_interface.mac
@@ -2540,13 +2681,13 @@ class HostTest < ActiveSupport::TestCase
 
   test '#initialize respects primary and provision interface attributes' do
     h = Host.new(:interfaces_attributes => {
-                   '0' => {'_destroy' => '0',
-                           :type => 'Nic::Managed',
-                           :mac => 'ff:ff:ff:aa:aa:aa',
-                           :managed => '1',
-                           :primary => '1',
-                           :provision => '0',
-                           :virtual => '0'},
+      '0' => {'_destroy' => '0',
+              :type => 'Nic::Managed',
+              :mac => 'ff:ff:ff:aa:aa:aa',
+              :managed => '1',
+              :primary => '1',
+              :provision => '0',
+              :virtual => '0'},
               '1' => {'_destroy' => '0',
                       :type => 'Nic::Managed',
                       :mac => 'aa:aa:aa:ff:ff:ff',
@@ -2554,7 +2695,7 @@ class HostTest < ActiveSupport::TestCase
                       :primary => '0',
                       :provision => '1',
                       :virtual => '0'},
-                 })
+    })
     refute_nil h.primary_interface
     refute_nil h.provision_interface
     assert_equal 'ff:ff:ff:aa:aa:aa', h.primary_interface.mac
@@ -3176,7 +3317,7 @@ class HostTest < ActiveSupport::TestCase
       bmc_proxy_stub = stub('bmc_proxy')
       @host.expects(:bmc_available?).returns(true)
       @host.expects(:bmc_proxy).returns(bmc_proxy_stub)
-      bmc_proxy_stub.expects(:boot).with(:function => 'bootdevice', :device => 'bios').returns(true)
+      bmc_proxy_stub.expects(:boot).with({ :function => 'bootdevice', :device => 'bios' }).returns(true)
       assert @host.ipmi_boot('bios')
     end
   end
@@ -3195,6 +3336,11 @@ class HostTest < ActiveSupport::TestCase
     test 'should be :uefi for host with uefi loader' do
       host = FactoryBot.build_stubbed(:host, :managed, :pxe_loader => "Grub2 UEFI")
       assert_equal :uefi, host.firmware_type
+    end
+
+    test 'should be :uefi_secure_boot for host with uefi_secure_boot loader' do
+      host = FactoryBot.build_stubbed(:host, :managed, :pxe_loader => "Grub2 UEFI SecureBoot")
+      assert_equal :uefi_secure_boot, host.firmware_type
     end
   end
 

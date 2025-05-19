@@ -65,18 +65,27 @@ description: |
 <% if dhcp -%>
       <interface>
         <bootproto>dhcp</bootproto>
+<% if os_major >= 15 and os_minor >= 5 -%>
+        <name><%= interface.primary ? primary_interface_identifier : interface.identifier -%></name>
+<% else -%>
         <device><%= interface.primary ? primary_interface_identifier : interface.identifier -%></device>
-        <startmode>auto</startmode>
         <usercontrol>no</usercontrol>
+<% end -%>
+        <startmode>auto</startmode>
       </interface>
 <% else -%>
       <interface>
         <bootproto>static</bootproto>
+<% if os_major >= 15 and os_minor >= 5 -%>
+        <name><%= interface.primary ? primary_interface_identifier : interface.identifier -%></name>
+        <ipaddr><%= interface.ip -%>/<%= interface.subnet.cidr -%></ipaddr>
+<% else -%>
         <device><%= interface.primary ? primary_interface_identifier : interface.identifier -%></device>
         <ipaddr><%= interface.ip -%></ipaddr>
         <netmask><%= interface.subnet.mask -%></netmask>
-        <startmode>onboot</startmode>
         <usercontrol>no</usercontrol>
+<% end -%>
+        <startmode>auto</startmode>
       </interface>
 <% end -%>
 <% end -%>
@@ -170,6 +179,9 @@ description: |
 <% if spacewalk_enabled -%>
       <package>rhn-setup</package>
 <% end -%>
+<% if host_param('additional-packages').present? -%>
+      <%= host_param('additional-packages').split(" ").collect{|x| "<package>#{x}</package>" }.join("\n") %>
+<% end -%>
     </packages>
   </software>
   <users config:type="list">
@@ -217,6 +229,8 @@ cp /etc/resolv.conf /mnt/etc
         <source><![CDATA[
 /bin/hostname <%= @host.name %>
 
+<%= snippet_if_exists(template_name + " custom pre") -%>
+
 <%= snippet('remote_execution_ssh_keys') %>
 
 <%= snippet "blacklist_kernel_modules" %>
@@ -232,6 +246,8 @@ cp /etc/resolv.conf /mnt/etc
 <% if salt_enabled %>
 <%= snippet 'saltstack_setup' %>
 <% end -%>
+
+<%= snippet_if_exists(template_name + " custom post") -%>
 
 <%= snippet 'eject_cdrom' -%>
 <%= snippet 'built' -%>
@@ -282,10 +298,12 @@ rm /etc/resolv.conf
   <% end -%>
 <% end -%>
 <% if puppet_enabled -%>
-<% if host_param_true?('enable-official-puppet7-repo') || host_param_true?('enable-puppetlabs-puppet6-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
+<% if host_param_true?('enable-official-puppet8-repo') || host_param_true?('enable-official-puppet7-repo') || host_param_true?('enable-puppetlabs-puppet6-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
 <%
   puppet_repo_url_base = 'http://yum.puppet.com'
-  if host_param_true?('enable-official-puppet7-repo')
+  if host_param_true?('enable-official-puppet8-repo')
+    puppet_repo_url = "#{puppet_repo_url_base}/puppet7/sles/#{os_major}/#{@host.architecture}/"
+  elsif host_param_true?('enable-official-puppet7-repo')
     puppet_repo_url = "#{puppet_repo_url_base}/puppet7/sles/#{os_major}/#{@host.architecture}/"
   elsif host_param_true?('enable-puppetlabs-puppet6-repo')
     puppet_repo_url = "#{puppet_repo_url_base}/puppet6/sles/#{os_major}/#{@host.architecture}/"

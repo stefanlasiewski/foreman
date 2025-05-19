@@ -1,21 +1,18 @@
 import PropTypes from 'prop-types';
-import React, { useState } from 'react';
+import React, { useState, createContext } from 'react';
 import { useSelector, shallowEqual, useDispatch } from 'react-redux';
+import { Button, Split, SplitItem } from '@patternfly/react-core';
 import {
-  Button,
   DropdownItem,
   Dropdown,
   DropdownSeparator,
   KebabToggle,
-  Split,
-  SplitItem,
-} from '@patternfly/react-core';
+} from '@patternfly/react-core/deprecated';
 import {
   DatabaseIcon,
   TrashIcon,
   CloneIcon,
   UndoIcon,
-  FileInvoiceIcon,
   BuildIcon,
   TerminalIcon,
 } from '@patternfly/react-icons';
@@ -24,9 +21,19 @@ import { translate as __ } from '../../../common/I18n';
 import { selectKebabItems } from './Selectors';
 import { foremanUrl } from '../../../common/helpers';
 import { cancelBuild, deleteHost, isHostTurnOn } from './actions';
-import { useForemanSettings } from '../../../Root/Context/ForemanContext';
+import {
+  useForemanSettings,
+  useForemanHostsPageUrl,
+} from '../../../Root/Context/ForemanContext';
 import BuildModal from './BuildModal';
 import Slot from '../../common/Slot';
+
+import forceSingleton from '../../../common/forceSingleton';
+
+export const ForemanActionsBarContext = forceSingleton(
+  'ActionsBarContext',
+  () => createContext()
+);
 
 const ActionsBar = ({
   hostId,
@@ -34,7 +41,6 @@ const ActionsBar = ({
   hostName,
   computeId,
   isBuild,
-  hasReports,
   permissions: {
     destroy_hosts: canDestroy,
     create_hosts: canCreate,
@@ -46,16 +52,29 @@ const ActionsBar = ({
   const [isBuildModalOpen, setBuildModal] = useState(false);
   const onKebabToggle = isOpen => setKebab(isOpen);
   const { destroyVmOnHostDelete } = useForemanSettings();
+  const hostsIndexUrl = useForemanHostsPageUrl();
   const registeredItems = useSelector(selectKebabItems, shallowEqual);
   const isHostActive = useSelector(isHostTurnOn);
 
   const dispatch = useDispatch();
   const deleteHostHandler = () =>
-    dispatch(deleteHost(hostName, computeId, destroyVmOnHostDelete));
+    dispatch(
+      deleteHost(hostName, computeId, destroyVmOnHostDelete, hostsIndexUrl)
+    );
 
+  const isConsoleDisabled = !(computeId && isHostActive);
+  const determineTooltip = () => {
+    if (isConsoleDisabled) {
+      if (computeId) {
+        return __('Console disabled as the host is powered off.');
+      }
+      return __('Compute resource does not support the console function.');
+    }
+    return undefined;
+  };
   const buildHandler = () => {
     if (isBuild) {
-      dispatch(cancelBuild(hostId));
+      dispatch(cancelBuild(hostId, hostName));
       setKebab(false);
     } else {
       setBuildModal(true);
@@ -97,7 +116,8 @@ const ActionsBar = ({
       ouiaId="console-dropdown-item"
       onClick={() => visit(foremanUrl(`/hosts/${hostFriendlyId}/console`))}
       key="console"
-      isDisabled={!isHostActive}
+      isAriaDisabled={isConsoleDisabled}
+      tooltip={determineTooltip()}
       component="button"
       icon={<TerminalIcon />}
     >
@@ -111,18 +131,6 @@ const ActionsBar = ({
       icon={<DatabaseIcon />}
     >
       {__('Facts')}
-    </DropdownItem>,
-    <DropdownItem
-      ouiaId="report-dropdown-item"
-      isDisabled={!hasReports}
-      onClick={() =>
-        visit(foremanUrl(`/hosts/${hostFriendlyId}/config_reports`))
-      }
-      key="report"
-      component="button"
-      icon={<FileInvoiceIcon />}
-    >
-      {__('Reports')}
     </DropdownItem>,
     <DropdownSeparator key="sp-2" ouiaId="dropdown-separator-2" />,
     <DropdownItem
@@ -150,16 +158,21 @@ const ActionsBar = ({
           >
             {__('Edit')}
           </Button>
-          <Dropdown
-            ouiaId="kebab-dropdown"
-            alignments={{ default: 'right' }}
-            toggle={
-              <KebabToggle id="hostdetails-kebab" onToggle={onKebabToggle} />
-            }
-            isOpen={kebabIsOpen}
-            isPlain
-            dropdownItems={dropdownItems.concat(registeredItems)}
-          />
+          <ForemanActionsBarContext.Provider value={{ onKebabToggle }}>
+            <Dropdown
+              ouiaId="kebab-dropdown"
+              alignments={{ default: 'right' }}
+              toggle={
+                <KebabToggle
+                  id="hostdetails-kebab"
+                  onToggle={(_event, isOpen) => onKebabToggle(isOpen)}
+                />
+              }
+              isOpen={kebabIsOpen}
+              isPlain
+              dropdownItems={dropdownItems.concat(registeredItems)}
+            />
+          </ForemanActionsBarContext.Provider>
         </SplitItem>
       </Split>
       {isBuildModalOpen && (
@@ -180,7 +193,6 @@ ActionsBar.propTypes = {
   hostName: PropTypes.string,
   computeId: PropTypes.number,
   permissions: PropTypes.object,
-  hasReports: PropTypes.bool,
   isBuild: PropTypes.bool,
 };
 ActionsBar.defaultProps = {
@@ -194,7 +206,6 @@ ActionsBar.defaultProps = {
     edit_hosts: false,
     build_hosts: false,
   },
-  hasReports: false,
   isBuild: false,
 };
 

@@ -23,9 +23,9 @@ module Api
 
     rescue_from NoMethodError do |error|
       Foreman::Logging.exception("Action failed", error)
-      message = _("Internal Server Error: the server was unable to finish the request. ")
-      message << _("This may be caused by unavailability of some required service, incorrect API call or a server-side bug. ")
-      message << _("There may be more information in the server's logs.")
+      message = _("Internal Server Error: the server was unable to finish the request. " \
+        "This may be caused by unavailability of some required service, incorrect API call or a server-side bug. " \
+        "There may be more information in the server's logs.")
       render_error 'custom_error', :status => :internal_server_error, :locals => { :message => message }
     end
 
@@ -70,8 +70,8 @@ module Api
     end
 
     # overwrites resource_scope in FindCommon to consider nested objects
-    def resource_scope(options = {})
-      super(options).merge(parent_scope).readonly(false)
+    def resource_scope(...)
+      super(...).merge(parent_scope).readonly(false)
     end
 
     def parent_scope
@@ -110,8 +110,8 @@ module Api
       resource_class.joins(association.name).merge(scope)
     end
 
-    def resource_scope_for_index(options = {})
-      scope = resource_scope(options).search_for(*search_options)
+    def resource_scope_for_index(...)
+      scope = resource_scope(...).search_for(*search_options)
       return scope if paginate_options[:per_page] == 'all'
       scope.paginate(**paginate_options)
     end
@@ -199,7 +199,8 @@ module Api
 
       unless authenticate
         count_login_failure
-        render_error('unauthorized', :status => :unauthorized, :locals => { :user_login => @available_sso.try(:user) })
+        message = @available_sso.try(:failed_auth_message)
+        render_error('unauthorized', status: :unauthorized, locals: { user_login: @available_sso.try(:user), message: message ? _(message) : ''})
         return false
       end
 
@@ -301,12 +302,10 @@ module Api
     # e.g. /hosts/fqdn/reports # would add host = fqdn to the search bar
     def setup_search_options
       params[:search] ||= ""
-      params.keys.each do |param|
-        if param =~ /(\w+)_id$/
-          if params[param].present?
-            query = " #{Regexp.last_match(1)} = #{params[param]}"
-            params[:search] += query unless params[:search].include? query
-          end
+      params.each do |param, value|
+        if param =~ /(\w+)_id$/ && value.present?
+          query = " #{Regexp.last_match(1)} = #{value}"
+          params[:search] += query unless params[:search].include? query
         end
       end
     end
@@ -387,7 +386,7 @@ module Api
         'create'
       when 'edit', 'update'
         'edit'
-      when 'destroy'
+      when 'destroy', 'bulk_destroy'
         'destroy'
       when 'index', 'show', 'status'
         'view'

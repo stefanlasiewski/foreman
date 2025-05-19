@@ -37,6 +37,7 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
         hostgroupId: hostgroups(:common).id,
         operatingsystemId: operatingsystems(:redhat).id,
         update_packages: true,
+        download_utility: 'wget',
       }
       post :create, params: params, session: set_session_user
       command = JSON.parse(@response.body)['command']
@@ -46,6 +47,7 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
       assert_includes command, 'hostgroupId='
       assert_includes command, 'operatingsystemId='
       assert_includes command, 'update_packages=true'
+      assert_includes command, 'download_utility=wget'
     end
 
     test 'with params ignored in URL' do
@@ -61,7 +63,7 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
       post :create, params: params, session: set_session_user
       command = JSON.parse(@response.body)['command']
 
-      assert_includes command, "curl -sS --insecure '#{proxy.url}/register"
+      assert_includes command, "curl --silent --show-error  --insecure '#{proxy.url}/register"
       refute command.include?('smart_proxy_id')
       refute command.include?('insecure=true')
       refute command.include?('jwt_expiration')
@@ -101,23 +103,48 @@ class RegistrationCommandsControllerTest < ActionController::TestCase
       test 'with default expiration' do
         post :create, session: set_session_user
         command = JSON.parse(@response.body)['command']
-        parsed_token = command.scan(/(?<=Bearer )(.*)(?=.*)(?=\')/).flatten[0]
+        parsed_token = command.scan(/(?<=Bearer )(.*)(?=.*)(?=')/).flatten[0]
         assert JwtToken.new(parsed_token).decode['exp']
       end
 
       test 'with expiration' do
         post :create, params: { jwt_expiration: 23 }, session: set_session_user
         command = JSON.parse(@response.body)['command']
-        parsed_token = command.scan(/(?<=Bearer )(.*)(?=.*)(?=\')/).flatten[0]
+        parsed_token = command.scan(/(?<=Bearer )(.*)(?=.*)(?=')/).flatten[0]
         assert JwtToken.new(parsed_token).decode['exp']
       end
 
       test 'unlimited' do
         post :create, params: { jwt_expiration: 'unlimited' }, session: set_session_user
         command = JSON.parse(@response.body)['command']
-        parsed_token = command.scan(/(?<=Bearer )(.*)(?=.*)(?=\')/).flatten[0]
+        parsed_token = command.scan(/(?<=Bearer )(.*)(?=.*)(?=')/).flatten[0]
 
         refute JwtToken.new(parsed_token).decode['exp']
+      end
+
+      test '0' do
+        post :create, params: { jwt_expiration: 0 }, session: set_session_user
+        command = JSON.parse(@response.body)['command']
+        parsed_token = command.scan(/(?<=Bearer )(.*)(?=.*)(?=')/).flatten[0]
+        refute JwtToken.new(parsed_token).decode['exp']
+      end
+
+      test 'value greater than 999999' do
+        assert_raise Foreman::Exception do
+          post :create, params: { jwt_expiration: 1000000 }, session: set_session_user
+        end
+      end
+
+      test 'value less than 0' do
+        assert_raise Foreman::Exception do
+          post :create, params: { jwt_expiration: -1 }, session: set_session_user
+        end
+      end
+
+      test 'strings except unlimited' do
+        assert_raise Foreman::Exception do
+          post :create, params: { jwt_expiration: 'unlimiteded' }, session: set_session_user
+        end
       end
     end
   end

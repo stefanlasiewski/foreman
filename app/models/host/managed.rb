@@ -16,12 +16,11 @@ class Host::Managed < Host::Base
   include Hostext::SmartProxy
   include Hostext::Token
   include Hostext::OperatingSystem
-  include Hostext::Puppetca
+  include Hostext::PuppetCA
   include SelectiveClone
   include HostInfoExtensions
   include HostParams
   include Facets::ManagedHostExtensions
-  include Foreman::ObservableModel
   include ::ForemanRegister::HostExtensions
 
   has_many :reports, :foreign_key => :host_id, :class_name => 'ConfigReport'
@@ -30,6 +29,7 @@ class Host::Managed < Host::Base
 
   belongs_to :image
   has_many :host_statuses, -> { where.not(type: nil) }, :class_name => 'HostStatus::Status', :foreign_key => 'host_id', :inverse_of => :host, :dependent => :destroy
+  has_many :host_null_statuses, -> { where(type: nil) }, :class_name => 'HostStatus::Status', :foreign_key => 'host_id', :inverse_of => :host, :dependent => :destroy
   has_one :configuration_status_object, :class_name => 'HostStatus::ConfigurationStatus', :foreign_key => 'host_id'
   has_one :build_status_object, :class_name => 'HostStatus::BuildStatus', :foreign_key => 'host_id'
   before_destroy :remove_reports
@@ -45,7 +45,9 @@ class Host::Managed < Host::Base
     output
   end
 
-  set_crud_hooks :host
+  set_hook :host_created, on: :create
+  set_hook :host_destroyed, on: :destroy
+  set_hook :host_updated, on: :update, unless: -> { anonymous_admin_context? }
 
   set_hook :build_entered, if: -> { saved_change_to_build? && build? } do |h|
     { id: h.id, hostname: h.hostname }
@@ -72,9 +74,8 @@ class Host::Managed < Host::Base
 
   include PxeLoaderValidator
 
-  def initialize(*args)
-    args.unshift(apply_inherited_attributes(args.shift, false))
-    super(*args)
+  def initialize(attributes = nil, &block)
+    super(apply_inherited_attributes(attributes, false), &block)
   end
 
   def build_hooks
@@ -99,6 +100,7 @@ class Host::Managed < Host::Base
   smart_proxy_reference :domain => [:dns_id]
   smart_proxy_reference :realm => [:realm_proxy_id]
   smart_proxy_reference :self => [:puppet_proxy_id, :puppet_ca_proxy_id]
+  smart_proxy_reference :infrastructure_facet => [:smart_proxy_id]
 
   graphql_type '::Types::Host'
 
@@ -149,7 +151,7 @@ class Host::Managed < Host::Base
     property :global_status, Integer, desc: 'Returns numerical representation of the host status'
     property :multiboot, String, desc: 'Returns path to multiboot loader'
     property :miniroot, String, desc: 'Returns path to the initial RAM disk for this host'
-    property :puppetca_token, 'Token::Puppetca', desc: 'Returns Puppet CA token for this host'
+    property :puppetca_token, 'Token::PuppetCA', desc: 'Returns Puppet CA token for this host'
     property :last_report, 'ActiveSupport::TimeWithZone', desc: 'Returns date object representing time when the last report was made by this host'
     property :smart_proxies, array_of: ['SmartProxy'], desc: 'Returns Smart Proxies attached to the host'
     property :virtual, one_of: [true, false], desc: 'Returns true if the host is virtual, false otherwise'
@@ -169,7 +171,7 @@ class Host::Managed < Host::Base
       :provision_interface, :interfaces, :bond_interfaces, :bridge_interfaces, :interfaces_with_identifier,
       :managed_interfaces, :facts, :facts_hash, :root_pass, :sp_name, :sp_ip, :sp_mac, :sp_subnet, :use_image,
       :multiboot, :jumpstart_path, :install_path, :miniroot, :medium, :bmc_nic, :templates_used, :owner, :owner_type,
-      :ssh_authorized_keys, :pxe_loader, :global_status, :get_status, :puppetca_token, :last_report, :build?, :smart_proxies, :host_param,
+      :ssh_authorized_keys, :pxe_loader, :global_status, :global_status_label, :get_status, :puppetca_token, :last_report, :build?, :smart_proxies, :host_param,
       :virtual, :ram, :sockets, :cores, :params, :pxe_loader_efi?, :comment
   end
 
@@ -182,7 +184,7 @@ class Host::Managed < Host::Base
   }
 
   scope :out_of_sync_for, lambda { |report_origin|
-    interval = Setting[:"#{report_origin.downcase}_interval"] || Setting[:outofsync_interval]
+    interval = SettingRegistry.instance.find(:"#{report_origin.downcase}_interval")&.value || Setting[:outofsync_interval]
     with_last_report_exceeded(interval.to_i.minutes)
       .not_disabled
       .with_last_report_origin(report_origin)
@@ -305,14 +307,14 @@ class Host::Managed < Host::Base
   include Rails.application.routes.url_helpers
   # TFTP orchestration delegation
   delegate :tftp?, :tftp6?, :tftp, :tftp6, :generate_pxe_template, :to => :provision_interface
-  include Orchestration::Puppetca
-  include Orchestration::SSHProvision
+  include Orchestration::PuppetCA
+  include Orchestration::SshProvision
   include Orchestration::Realm
   include HostTemplateHelpers
   delegate :require_ip4_validation?, :require_ip6_validation?, :to => :provision_interface
 
   validates :architecture_id, :presence => true, :if => proc { |host| host.managed }
-  validates :root_pass, :length => {:minimum => 8, :message => _('should be 8 characters or more')},
+  validates :root_pass, :length => {:minimum => 8, :message => N_('should be 8 characters or more')},
                         :presence => {:message => N_('should not be blank - consider setting a global or host group default')},
                         :if => proc { |host| host.managed && !host.image_build? && build? }
   validates :ptable_id, :presence => {:message => N_("can't be blank unless a custom partition has been defined")},
@@ -407,7 +409,7 @@ class Host::Managed < Host::Base
   def disk_layout_source
     @disk_layout_source ||= if disk.present?
                               Foreman::Renderer::Source::String.new(name: 'Custom disk layout',
-                                                                    content: disk.tr("\r", ''))
+                                content: disk.tr("\r", ''))
                             elsif ptable.present?
                               Foreman::Renderer::Source::Database.new(ptable)
                             end
@@ -440,7 +442,7 @@ autopart"', desc: 'to render the content of host partition table'
   end
 
   def origin_interval
-    Setting[:"#{last_report.origin.downcase}_interval"] || 0
+    SettingRegistry.instance.find(:"#{last_report.origin.downcase}_interval")&.value || 0
   end
 
   def disabled?
@@ -534,8 +536,7 @@ autopart"', desc: 'to render the content of host partition table'
       attributes[attribute] = value
     end
 
-    attributes = apply_facet_attributes(new_hostgroup, attributes)
-    attributes
+    apply_facet_attributes(new_hostgroup, attributes)
   end
 
   def hash_clone(value)
@@ -778,11 +779,8 @@ autopart"', desc: 'to render the content of host partition table'
   end
   def get_status(type)
     status = host_statuses.detect { |s| s.type == type.to_s }
-    if status.nil?
-      host_statuses.new(:host => self, :type => type.to_s)
-    else
-      status
-    end
+    return status unless status.nil?
+    host_statuses.new(:host => self, :type => type.to_s)
   end
 
   def build_global_status(options = {})
@@ -951,7 +949,12 @@ autopart"', desc: 'to render the content of host partition table'
   end
 
   def refresh_build_status
-    get_status(HostStatus::BuildStatus).refresh
+    refresh_method = if new_record?
+                       'refresh'
+                     else
+                       'refresh!'
+                     end
+    get_status(HostStatus::BuildStatus).send(refresh_method)
   end
 
   def extract_params_from_object_ancestors(object)

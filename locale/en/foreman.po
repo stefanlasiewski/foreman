@@ -83,6 +83,14 @@ msgstr ""
 msgid "%s has been disassociated from VM"
 msgstr ""
 
+msgid "%s host set to build and rebooting."
+msgid_plural "%s hosts set to build and rebooting."
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "%s hosts deleted"
+msgstr ""
+
 msgid "%s is an unknown attribute"
 msgstr ""
 
@@ -102,6 +110,9 @@ msgid_plural "%s months ago"
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "%s saved"
+msgstr ""
+
 msgid "%s selected hosts"
 msgstr ""
 
@@ -109,6 +120,9 @@ msgid "%s warning message"
 msgid_plural "%s warning messages"
 msgstr[0] ""
 msgstr[1] ""
+
+msgid "%s was successfully deleted"
+msgstr ""
 
 msgid "%s week ago"
 msgid_plural "%s weeks ago"
@@ -128,6 +142,9 @@ msgid "%{action} %{vm}"
 msgstr ""
 
 msgid "%{app_name} API documentation homepage"
+msgstr ""
+
+msgid "%{capacity}"
 msgstr ""
 
 msgid "%{config_type} rebuild failed for host: %{host_names}."
@@ -262,11 +279,6 @@ msgstr ""
 msgid "'%{loader}' is not one of %{loaders}"
 msgstr ""
 
-msgid "(%s host)"
-msgid_plural "(%s hosts)"
-msgstr[0] ""
-msgstr[1] ""
-
 msgid "(Miscellaneous)"
 msgstr ""
 
@@ -360,6 +372,9 @@ msgstr ""
 msgid "A Smart Proxy with an External IPAM feature enabled must be selected in the Proxies tab."
 msgstr ""
 
+msgid "A class representing %s object"
+msgstr ""
+
 msgid "A compute profile is a way of expressing a set of defaults for VMs created on a specific compute resource that can be mapped to an operator-defined label. This means an administrator can express, for example, what 'Small', 'Medium' or 'Large' means on all of the individual compute resources present for a given installation."
 msgstr ""
 
@@ -383,7 +398,7 @@ msgstr ""
 msgid "A problem occurred when detecting host type: %s"
 msgstr ""
 
-msgid "A repository to be added before the registration is performed. It can be useful to e.g. make the subscription-manager packages available for the purpose of the registration. For Red Hat and SUSE family distributions, this should be the URL of the repository, e.g. 'http://rpm.example.com/'. For Debian OS families, it's the whole list file content, e.g. 'deb http://deb.example.com/ buster 1.0'."
+msgid "A repository to be added before the registration is performed. For Red Hat and SUSE family distributions, this should be the URL of the repository, e.g. 'http://rpm.example.com/'. For Debian OS families, it's the whole list file content, e.g. 'deb http://deb.example.com/ buster 1.0'."
 msgstr ""
 
 msgid "A summary of audit changes report <br> Filtered by a query if needed"
@@ -476,6 +491,9 @@ msgstr ""
 msgid "Add SSH key"
 msgstr ""
 
+msgid "Add Virtual TPM module to the VM."
+msgstr ""
+
 msgid "Add Volume"
 msgstr ""
 
@@ -495,6 +513,15 @@ msgid "Add external user group"
 msgstr ""
 
 msgid "Add filter"
+msgstr ""
+
+msgid "Add parameter"
+msgstr ""
+
+msgid "Add repositories for registration (%s set)"
+msgstr ""
+
+msgid "Add repository"
 msgstr ""
 
 msgid "Add tag"
@@ -719,9 +746,6 @@ msgstr ""
 msgid "Any organization"
 msgstr ""
 
-msgid "Append domain names to the host"
-msgstr ""
-
 msgid "Applicable Operating Systems"
 msgstr ""
 
@@ -803,6 +827,9 @@ msgstr ""
 msgid "Array of template combinations (hostgroup_id, environment_id)"
 msgstr ""
 
+msgid "Array with repository URL and corresponding GPG key URL"
+msgstr ""
+
 msgid "As mentioned above, different template types support different template inputs. See the table below for available combinations."
 msgstr ""
 
@@ -859,16 +886,22 @@ msgstr ""
 msgid "Associate VMs to Hosts"
 msgstr ""
 
-msgid "Associated %{resource} IDs"
+msgid "Associated Host"
 msgstr ""
 
-msgid "Associated Host"
+msgid "Associated location IDs"
+msgstr ""
+
+msgid "Associated organization IDs"
 msgstr ""
 
 msgid "Associating VMs is not supported for this compute resource"
 msgstr ""
 
 msgid "Association"
+msgstr ""
+
+msgid "At"
 msgstr ""
 
 msgid "At least one command must be specified"
@@ -1116,7 +1149,13 @@ msgstr ""
 msgid "BIOS"
 msgstr ""
 
-msgid "BIOS UUID"
+msgid "BIOS release date"
+msgstr ""
+
+msgid "BIOS vendor"
+msgstr ""
+
+msgid "BIOS version"
 msgstr ""
 
 msgid "BMC"
@@ -1281,6 +1320,14 @@ msgstr ""
 msgid "Build in progress"
 msgstr ""
 
+msgid "Build management"
+msgstr ""
+
+msgid "Built %s host"
+msgid_plural "Built %s hosts"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "Built-in variables"
 msgstr ""
 
@@ -1291,6 +1338,9 @@ msgid "By default we map user groups to standard LDAP Group objects. FreeIPA and
 msgstr ""
 
 msgid "By default, a newline character is inserted after a Ruby block if it is closed at the end of a line:"
+msgstr ""
+
+msgid "By invalidating your JSON Web Tokens (JWTs), you will no longer be able to register hosts by using your existing JWTs."
 msgstr ""
 
 msgid "CA Certificate Expiry Date"
@@ -1309,9 +1359,6 @@ msgid "CPU hot add"
 msgstr ""
 
 msgid "CPU hot add lets you add CPU resources for a virtual machine while the machine is powered on."
-msgstr ""
-
-msgid "CPU mode"
 msgstr ""
 
 msgid "CPUs"
@@ -1416,15 +1463,6 @@ msgstr ""
 msgid "Certificate Name"
 msgstr ""
 
-msgid "Certificate Path"
-msgstr ""
-
-msgid "Certificate key is not a valid JSON"
-msgstr ""
-
-msgid "Certificate path for GCE only"
-msgstr ""
-
 msgid "Certificate path that Foreman will use to encrypt websockets"
 msgstr ""
 
@@ -1443,6 +1481,12 @@ msgstr ""
 msgid "Change Puppet CA"
 msgstr ""
 
+msgid "Change host group"
+msgstr ""
+
+msgid "Change the host group of {hosts}. Some hosts may already be in your chosen host group."
+msgstr ""
+
 msgid "Change the password"
 msgstr ""
 
@@ -1458,6 +1502,12 @@ msgstr ""
 msgid "Check again"
 msgstr ""
 
+msgid "Choose 'Automatic' to set the firmware based on the PXE Loader. If no PXE Loader is selected, it defaults to BIOS."
+msgstr ""
+
+msgid "Choose 'Automatic' to set the firmware based on the host's PXE Loader. If no PXE Loader is selected, it defaults to BIOS."
+msgstr ""
+
 msgid "Choose a family"
 msgstr ""
 
@@ -1468,6 +1518,9 @@ msgid "Choose a provider"
 msgstr ""
 
 msgid "Choose a server type"
+msgstr ""
+
+msgid "Choose an action that will be performed on {hosts}."
 msgstr ""
 
 msgid "Chosen options"
@@ -1503,9 +1556,6 @@ msgstr ""
 msgid "Click to log in again"
 msgstr ""
 
-msgid "Client Email"
-msgstr ""
-
 msgid "Clone"
 msgstr ""
 
@@ -1528,6 +1578,9 @@ msgid "Clone a template"
 msgstr ""
 
 msgid "Clone this host"
+msgstr ""
+
+msgid "Cloned from"
 msgstr ""
 
 msgid "Close"
@@ -1612,6 +1665,9 @@ msgid "Compute resource IDs"
 msgstr ""
 
 msgid "Compute resource destination unreachable"
+msgstr ""
+
+msgid "Compute resource does not support the console function."
 msgstr ""
 
 msgid "Compute resource update for %s"
@@ -1707,7 +1763,7 @@ msgstr ""
 msgid "Confirm Action"
 msgstr ""
 
-msgid "Confirm Hardware Model Deletion"
+msgid "Confirm Deletion"
 msgstr ""
 
 msgid "Conflict - %s"
@@ -1725,6 +1781,9 @@ msgstr ""
 msgid "Connecting (unencrypted) to: %s"
 msgstr ""
 
+msgid "Connection state"
+msgstr ""
+
 msgid "Connection to compute resource refused"
 msgstr ""
 
@@ -1735,6 +1794,9 @@ msgid "Console"
 msgstr ""
 
 msgid "Console Passwords"
+msgstr ""
+
+msgid "Console disabled as the host is powered off."
 msgstr ""
 
 msgid "Console output may be out of date"
@@ -1764,6 +1826,9 @@ msgstr ""
 msgid "Copied!"
 msgstr ""
 
+msgid "Copy"
+msgstr ""
+
 msgid "Copy to clipboard"
 msgstr ""
 
@@ -1771,6 +1836,15 @@ msgid "Core and proxy versions do not match. foreman: %{foreman_version}, forema
 msgstr ""
 
 msgid "CoreOS Transpiler Command"
+msgstr ""
+
+msgid "CoreOS Transpiler Command Arguments"
+msgstr ""
+
+msgid "CoreOS transpiler (ct) arguments as an comma-separated array"
+msgstr ""
+
+msgid "Cores"
 msgstr ""
 
 msgid "Cores per socket"
@@ -1825,6 +1899,9 @@ msgid "Could not generate the report, check the form for error messages"
 msgstr ""
 
 msgid "Could not locate CA certificate."
+msgstr ""
+
+msgid "Could not parse timestamp '%{timestamp}'"
 msgstr ""
 
 msgid "Could not recreate a new SSH key"
@@ -1930,9 +2007,6 @@ msgid "Create Report Template"
 msgstr ""
 
 msgid "Create Role"
-msgstr ""
-
-msgid "Create SCSI controller"
 msgstr ""
 
 msgid "Create Smart Proxy"
@@ -2070,6 +2144,9 @@ msgstr ""
 msgid "Create autosign entry"
 msgstr ""
 
+msgid "Create controller"
+msgstr ""
+
 msgid "Create image"
 msgstr ""
 
@@ -2091,7 +2168,13 @@ msgstr ""
 msgid "Created"
 msgstr ""
 
-msgid "Created %(date)s by %(owner)s"
+msgid "Created %s"
+msgstr ""
+
+msgid "Created at"
+msgstr ""
+
+msgid "Created parameter %s"
 msgstr ""
 
 msgid "Created role successfully"
@@ -2125,6 +2208,9 @@ msgid "Custom instance type"
 msgstr ""
 
 msgid "DB pending seed"
+msgstr ""
+
+msgid "DEPRECATED, use the `repo_data` param instead."
 msgstr ""
 
 msgid "DHCP"
@@ -2176,6 +2262,9 @@ msgid "DNS Proxy ID to use within this subnet"
 msgstr ""
 
 msgid "DNS Proxy to use within this subnet for managing PTR records, note that A and AAAA records are managed via Domain DNS proxy"
+msgstr ""
+
+msgid "DNS name"
 msgstr ""
 
 msgid "DNS proxy ID to use within this domain"
@@ -2305,6 +2394,9 @@ msgid "Delay network activity during install for X seconds"
 msgstr ""
 
 msgid "Delete"
+msgstr ""
+
+msgid "Delete %s"
 msgstr ""
 
 msgid "Delete %s?"
@@ -2472,10 +2564,10 @@ msgstr ""
 msgid "Delete filter?"
 msgstr ""
 
-msgid "Delete host"
+msgid "Delete host?"
 msgstr ""
 
-msgid "Delete host?"
+msgid "Delete multiple hosts"
 msgstr ""
 
 msgid "Delete realm entry for %s"
@@ -2530,6 +2622,9 @@ msgid "Destroy associated VM on host delete. When enabled, VMs linked to Hosts w
 msgstr ""
 
 msgid "Destroyed selected hosts"
+msgstr ""
+
+msgid "Detailed instructions to guide you through each stage of the upgrade process."
 msgstr ""
 
 msgid "Details"
@@ -2589,16 +2684,40 @@ msgstr ""
 msgid "Disk"
 msgstr ""
 
+msgid "Disk '%s'"
+msgstr ""
+
 msgid "Disk Mode"
+msgstr ""
+
+msgid "Disk allocation"
+msgstr ""
+
+msgid "Disk capacity"
 msgstr ""
 
 msgid "Disk interface"
 msgstr ""
 
+msgid "Disk label"
+msgstr ""
+
 msgid "Disk name"
 msgstr ""
 
+msgid "Disk path"
+msgstr ""
+
+msgid "Disks space"
+msgstr ""
+
+msgid "Disks total space"
+msgstr ""
+
 msgid "Display"
+msgstr ""
+
+msgid "Display FQDN for hosts"
 msgstr ""
 
 msgid "Display Type"
@@ -2611,6 +2730,9 @@ msgid "Display hidden parameter values"
 msgstr ""
 
 msgid "Display hidden values"
+msgstr ""
+
+msgid "Display names of hosts as FQDNs. If disabled, only display names of hosts as hostnames."
 msgstr ""
 
 msgid "Display the templates that will be used to provision this host"
@@ -2669,6 +2791,9 @@ msgstr ""
 msgid "Download generated report"
 msgstr ""
 
+msgid "Download utility"
+msgstr ""
+
 msgid "Downloads a generated report"
 msgstr ""
 
@@ -2679,12 +2804,6 @@ msgid "Duration in days to preserve audits for. Leave empty to disable the audit
 msgstr ""
 
 msgid "Duration in minutes after servers are classed as out of sync. This setting is overridden by specific settings from config management tools (e.g. puppet_inteval, ansible_interval)."
-msgstr ""
-
-msgid "EC2"
-msgstr ""
-
-msgid "EFI"
 msgstr ""
 
 msgid "ERROR or FATAL"
@@ -2729,7 +2848,13 @@ msgstr ""
 msgid "Edit Properties"
 msgstr ""
 
+msgid "Edit interfaces"
+msgstr ""
+
 msgid "Edit this host"
+msgstr ""
+
+msgid "Edited parameter %s"
 msgstr ""
 
 msgid "Edited role successfully"
@@ -2745,9 +2870,6 @@ msgid "Email Preferences"
 msgstr ""
 
 msgid "Email address is missing"
-msgstr ""
-
-msgid "Email for GCE only"
 msgstr ""
 
 msgid "Email reply address"
@@ -2783,7 +2905,7 @@ msgstr ""
 msgid "Enable if this is an alias or VLAN interface, note that alias can be used only with static boot mode subnet"
 msgstr ""
 
-msgid "Enable insecure argument for the initial curl"
+msgid "Enable insecure argument for the initial curl/wget"
 msgstr ""
 
 msgid "Enable rebuild on next host boot"
@@ -2814,6 +2936,12 @@ msgid "Encloses a comment that is ignored during template rendering:"
 msgstr ""
 
 msgid "Ending IP Address for IP auto suggestion"
+msgstr ""
+
+msgid "Enter valid date: YYYY-MM-DD"
+msgstr ""
+
+msgid "Enter valid time: HH:MM:SS"
 msgstr ""
 
 msgid "Entries per page"
@@ -2897,6 +3025,9 @@ msgstr ""
 msgid "Error! "
 msgstr ""
 
+msgid "Error:"
+msgstr ""
+
 msgid "Errors"
 msgstr ""
 
@@ -2909,28 +3040,10 @@ msgstr ""
 msgid "Errors: %s"
 msgstr ""
 
-msgid "Example value is <code>CN=Users,DC=example,DC=COM</code>"
-msgstr ""
-
-msgid "Example value is <code>CN=Users,DC=example,DC=com</code>"
-msgstr ""
-
-msgid "Example value is <code>DOMAIN\\foreman</code>"
+msgid "Example value is <code>%s</code>"
 msgstr ""
 
 msgid "Example value is <code>cn=groups,cn=accounts,dc=example,dc=com</code> or <code>cn=ng,cn=compat,dc=example,dc=com</code> if you use netgroups"
-msgstr ""
-
-msgid "Example value is <code>cn=users,cn=accounts,dc=example,dc=com</code>"
-msgstr ""
-
-msgid "Example value is <code>dc=example,dc=com</code>"
-msgstr ""
-
-msgid "Example value is <code>uid=foreman,cn=users,cn=accounts,dc=example,dc=com</code>"
-msgstr ""
-
-msgid "Example value is <code>uid=foreman,dc=example,dc=com</code>"
 msgstr ""
 
 msgid "Examples"
@@ -2951,7 +3064,7 @@ msgstr ""
 msgid "Expand nested items"
 msgstr ""
 
-msgid "Expiration of the authorization token (in hours)"
+msgid "Expiration of the authorization token (in hours), 0 means 'unlimited'."
 msgstr ""
 
 msgid "Expiration of the authorization token."
@@ -3040,9 +3153,6 @@ msgstr ""
 msgid "Fact Values"
 msgstr ""
 
-msgid "Fact distribution chart - %s "
-msgstr ""
-
 #. TRANSLATORS: "Table name" or "Table name|Column name" for error messages
 msgid "Fact name"
 msgstr ""
@@ -3104,6 +3214,9 @@ msgid_plural "Failed features: %s"
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "Failed hosts"
+msgstr ""
+
 msgid "Failed login attempts limit"
 msgstr ""
 
@@ -3115,6 +3228,16 @@ msgstr ""
 
 msgid "Failed to acquire IP addresses from compute resource for %s"
 msgstr ""
+
+msgid "Failed to build %s host"
+msgid_plural "Failed to build %s hosts"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Failed to build and reboot %s host"
+msgid_plural "Failed to build and reboot %s hosts"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Failed to cancel pending build for %{hostname} with the following errors: %{errors}"
 msgstr ""
@@ -3187,8 +3310,10 @@ msgstr ""
 msgid "Failed to reboot %s."
 msgstr ""
 
-msgid "Failed to redeploy %s."
-msgstr ""
+msgid "Failed to rebuild configuration for %s host"
+msgid_plural "Failed to rebuild configuration for %s hosts"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Failed to refresh the cache."
 msgstr ""
@@ -3267,6 +3392,12 @@ msgstr "Name"
 msgid "Fedora CoreOS Transpiler Command"
 msgstr ""
 
+msgid "Fedora CoreOS Transpiler Command Arguments"
+msgstr ""
+
+msgid "Fedora CoreOS transpiler (fcct) arguments as an comma-separated array"
+msgstr ""
+
 msgid "Fetch TFTP boot files for %s"
 msgstr ""
 
@@ -3274,6 +3405,12 @@ msgid "Fetch the status of whether the host is powered on or not. Supported host
 msgstr ""
 
 msgid "Field name"
+msgstr ""
+
+msgid "Fill out the date and time"
+msgstr ""
+
+msgid "Fill out the name"
 msgstr ""
 
 #. TRANSLATORS: "Table name" or "Table name|Column name" for error messages
@@ -3331,6 +3468,9 @@ msgstr ""
 msgid "Filter|Unlimited"
 msgstr ""
 
+msgid "Find by name"
+msgstr ""
+
 msgid "Find or create a host and render the 'Host initial configuration' template"
 msgstr ""
 
@@ -3355,6 +3495,9 @@ msgstr ""
 msgid "Fix Mismatches"
 msgstr ""
 
+msgid "Fixed IP"
+msgstr ""
+
 msgid "Flag to indicate whether to include status or not"
 msgstr ""
 
@@ -3362,6 +3505,12 @@ msgid "Flag to indicate whether to include version or not"
 msgstr ""
 
 msgid "Flavor"
+msgstr ""
+
+msgid "Flavor ID"
+msgstr ""
+
+msgid "Floating IP"
 msgstr ""
 
 msgid "Floating IP network"
@@ -3383,6 +3532,12 @@ msgid ""
 msgstr ""
 
 msgid "For example, this can be useful to configure all the Host NICs."
+msgstr ""
+
+msgid "For hosts with compute resources, VMs and their disks will not be deleted."
+msgstr ""
+
+msgid "For hosts with compute resources, this will delete the VM and its disks."
 msgstr ""
 
 msgid "For image based provisioning using finish template, this interface's IP will be used as the SSH target."
@@ -3413,6 +3568,9 @@ msgid "Foreman URL"
 msgstr ""
 
 msgid "Foreman UUID"
+msgstr ""
+
+msgid "Foreman Upgrade"
 msgstr ""
 
 msgid "Foreman allows to define a hierarchy of parameter inheritance, where global parameters accessible from any manifest."
@@ -3471,7 +3629,7 @@ msgstr ""
 msgid "Foreman subnet ID of IPv6 interface"
 msgstr ""
 
-msgid "Foreman supports automatically creating realm entries for new hosts. When a realm is selected for a host, Foreman contacts the relevant realm smart proxy to create an entry for the host and retrieve it's one-time registration password."
+msgid "Foreman supports automatically creating realm entries for new hosts. When a realm is selected for a host, Foreman contacts the relevant realm smart proxy to create an entry for the host and retrieve its one-time registration password."
 msgstr ""
 
 msgid "Foreman supports creating and managing hosts on a number of virtualization and cloud services - referred to as “compute resources” - as well as bare metal hosts."
@@ -3483,7 +3641,7 @@ msgstr ""
 msgid "Foreman ticketing system"
 msgstr ""
 
-msgid "Foreman will append domain names when new hosts are provisioned"
+msgid "Foreman upgrade"
 msgstr ""
 
 msgid "Foreman will automate certificate signing upon provision of new host"
@@ -3555,6 +3713,9 @@ msgstr ""
 msgid "Found %{count} reports from the last %{days} days"
 msgstr ""
 
+msgid "FreeIPA"
+msgstr ""
+
 msgid "Full"
 msgstr ""
 
@@ -3564,10 +3725,10 @@ msgstr ""
 msgid "Full name describing the domain"
 msgstr ""
 
-msgid "Full path to CoreOS transpiler (ct) with arguments as an comma-separated array"
+msgid "Full path to CoreOS transpiler (ct)"
 msgstr ""
 
-msgid "Full path to Fedora CoreOS transpiler (fcct) with arguments as an comma-separated array"
+msgid "Full path to Fedora CoreOS transpiler (fcct)"
 msgstr ""
 
 msgid "Full path to backing image used to create new volumes."
@@ -3642,6 +3803,9 @@ msgstr ""
 msgid "Get ENC values of host"
 msgstr ""
 
+msgid "Get all inherited parameters for a host"
+msgstr ""
+
 msgid "Get dashboard details"
 msgstr ""
 
@@ -3714,9 +3878,6 @@ msgstr ""
 msgid "Good host with reports"
 msgstr ""
 
-msgid "Google Project ID"
-msgstr ""
-
 msgid "Group not found in the configured External IPAM instance"
 msgstr ""
 
@@ -3727,6 +3888,9 @@ msgid "Guest OS"
 msgstr ""
 
 msgid "HELO/EHLO domain"
+msgstr ""
+
+msgid "HH:MM:SS"
 msgstr ""
 
 msgid "HTTP Proxies"
@@ -3783,9 +3947,6 @@ msgstr ""
 msgid "Hardware Model"
 msgstr ""
 
-msgid "Hardware Model %s was successfully deleted"
-msgstr ""
-
 msgid "Hardware Models"
 msgstr ""
 
@@ -3813,6 +3974,9 @@ msgstr ""
 msgid "Help"
 msgstr ""
 
+msgid "Hex value for color for the instance title banner. It will only be used if an instance title is defined. If no valid value is given, the default value is: #000000. (requires a page reload)"
+msgstr ""
+
 msgid "Hidden Value"
 msgstr ""
 
@@ -3828,6 +3992,9 @@ msgstr ""
 msgid "Hide this value"
 msgstr ""
 
+msgid "Hide value"
+msgstr ""
+
 msgid "Highly Available"
 msgstr ""
 
@@ -3840,7 +4007,7 @@ msgstr ""
 msgid "Host"
 msgstr ""
 
-msgid "Host %s has been removed successfully"
+msgid "Host %s deleted"
 msgstr ""
 
 msgid "Host %s is built"
@@ -3935,9 +4102,6 @@ msgid "Host is not associated with an operating system"
 msgstr ""
 
 msgid "Host owner"
-msgstr ""
-
-msgid "Host owner is invalid"
 msgstr ""
 
 msgid "Host reported time is <em>%s</em>"
@@ -4162,16 +4326,16 @@ msgstr ""
 msgid "Hosts"
 msgstr ""
 
-msgid "Hosts created after a puppet run that did not send a location fact will be placed in this location"
+msgid "Hosts created from facts will be placed in the location this fact dictates. The content of this fact should be the full label of the location."
 msgstr ""
 
-msgid "Hosts created after a puppet run that did not send a organization fact will be placed in this organization"
+msgid "Hosts created from facts will be placed in the organization this fact dictates. The content of this fact should be the full label of the organization."
 msgstr ""
 
-msgid "Hosts created after a puppet run will be placed in the location this fact dictates. The content of this fact should be the full label of the location."
+msgid "Hosts created from facts will be placed in this location if no location fact was sent"
 msgstr ""
 
-msgid "Hosts created after a puppet run will be placed in the organization this fact dictates. The content of this fact should be the full label of the organization."
+msgid "Hosts created from facts will be placed in this organization if no organization fact was sent"
 msgstr ""
 
 msgid "Hosts in Build mode or with Build errors"
@@ -4199,6 +4363,12 @@ msgid "Hosts that had pending changes with alerts enabled"
 msgstr ""
 
 msgid "Hosts that had performed modifications without error"
+msgstr ""
+
+msgid "Hosts to explicitly exclude in the action. All other hosts will be included in the action, unless an included parameter is passed as well."
+msgstr ""
+
+msgid "Hosts to include in the action"
 msgstr ""
 
 msgid "Hosts which Foreman reporting is disabled"
@@ -4290,6 +4460,9 @@ msgstr ""
 msgid "Hypervisor"
 msgstr ""
 
+msgid "I understand that this action cannot be undone."
+msgstr ""
+
 msgid "ID assigned to generating job by the schedule command"
 msgstr ""
 
@@ -4359,19 +4532,34 @@ msgstr ""
 msgid "ID of the Host group to register the host in"
 msgstr ""
 
+msgid "ID of the Host group to register the host in. Takes precedence over the `hostgroup` parameter"
+msgstr ""
+
 msgid "ID of the Location to register the host in"
 msgstr ""
 
-msgid "ID of the Operating System to register the host in"
+msgid "ID of the Location to register the host in. Takes precedence over the `location` parameter"
 msgstr ""
 
 msgid "ID of the Operating System to register the host in. Operating system must have a `host_init_config` template assigned"
 msgstr ""
 
+msgid "ID of the Operating System to register the host in. Takes precedence over the `operatingsystem` parameter"
+msgstr ""
+
 msgid "ID of the Organization to register the host in"
 msgstr ""
 
+msgid "ID of the Organization to register the host in. Takes precedence over the `organization` parameter"
+msgstr ""
+
 msgid "ID of the Smart Proxy. This Proxy must have enabled both the 'Templates' and 'Registration' features"
+msgstr ""
+
+msgid "ID of the hostgroup to reassign the hosts to"
+msgstr ""
+
+msgid "ID of the organization"
 msgstr ""
 
 msgid "ID of the user"
@@ -4434,9 +4622,6 @@ msgstr ""
 msgid "IP addresses that should be excluded from suggestion"
 msgstr ""
 
-msgid "IP:"
-msgstr ""
-
 msgid "IPAM"
 msgstr ""
 
@@ -4466,6 +4651,9 @@ msgstr ""
 msgid "IPv4 address, not required if using a subnet with DHCP proxy"
 msgstr ""
 
+msgid "IPv4:"
+msgstr ""
+
 msgid "IPv6"
 msgstr ""
 
@@ -4489,7 +4677,10 @@ msgstr ""
 msgid "IPv6 address, not required if using a subnet with DHCP proxy"
 msgstr ""
 
-msgid "IRC"
+msgid "IPv6 subnet"
+msgstr ""
+
+msgid "IPv6:"
 msgstr ""
 
 msgid "Identifier"
@@ -4586,6 +4777,9 @@ msgstr ""
 msgid "Image ID as provided by the compute resource, e.g. ami-.."
 msgstr ""
 
+msgid "Image not found"
+msgstr ""
+
 msgid "Image path"
 msgstr ""
 
@@ -4632,6 +4826,9 @@ msgid "Import IPv4 subnets"
 msgstr ""
 
 msgid "Import VM %s"
+msgstr ""
+
+msgid "Import a partition table"
 msgstr ""
 
 msgid "Import a provisioning template"
@@ -4775,6 +4972,9 @@ msgstr ""
 msgid "Instance %{uuid}"
 msgstr ""
 
+msgid "Instance color"
+msgstr ""
+
 msgid "Instance title"
 msgstr ""
 
@@ -4811,7 +5011,7 @@ msgstr ""
 msgid "Internal DB"
 msgstr ""
 
-msgid "Internal Server Error: the server was unable to finish the request. "
+msgid "Internal Server Error: the server was unable to finish the request. This may be caused by unavailability of some required service, incorrect API call or a server-side bug. There may be more information in the server's logs."
 msgstr ""
 
 msgid "Internal network"
@@ -4832,13 +5032,13 @@ msgstr ""
 msgid "Invalid %{assoc} selection, you must select at least one of yours and have '%{perm}' permission."
 msgstr ""
 
-msgid "Invalid Google JSON key. Please verify client email & private key options are present"
-msgstr ""
-
 msgid "Invalid HTTP(S) URL"
 msgstr ""
 
 msgid "Invalid architecture '%{arch}' for '%{os}'"
+msgstr ""
+
+msgid "Invalid input format. Please use the format '${id}-[Users|Usergroups]'."
 msgstr ""
 
 msgid "Invalid log level: %s"
@@ -4874,7 +5074,31 @@ msgstr ""
 msgid "Invalid type for host creation via facts: %s"
 msgstr ""
 
+msgid "Invalid value '%{value}' for jwt_expiration. The value must be between %{minimum} and %{maximum}. 0 means 'unlimited'."
+msgstr ""
+
 msgid "Invalid version format, please enter in x.y (only major version)."
+msgstr ""
+
+msgid "Invalidate JWTs"
+msgstr ""
+
+msgid "Invalidate JWTs for all users"
+msgstr ""
+
+msgid "Invalidate all JSON Web Tokens for %s?"
+msgstr ""
+
+msgid "Invalidate all JSON Web Tokens for all users?"
+msgstr ""
+
+msgid "Invalidate all registration tokens for a specific user"
+msgstr ""
+
+msgid "Invalidate all registration tokens for multiple users"
+msgstr ""
+
+msgid "Invalidate tokens for self?"
 msgstr ""
 
 msgid "Is this setting encrypted?"
@@ -4916,6 +5140,15 @@ msgstr ""
 msgid "JSON object of the scheduler hint"
 msgstr ""
 
+msgid "JWT SSO: Expired JWT token."
+msgstr ""
+
+msgid "JWT SSO: Failed to decode JWT."
+msgstr ""
+
+msgid "JWT Tokens"
+msgstr ""
+
 #. TRANSLATORS: "Table name" or "Table name|Column name" for error messages
 msgid "Jwt secret"
 msgstr ""
@@ -4924,7 +5157,13 @@ msgstr ""
 msgid "JwtSecret|Token"
 msgstr ""
 
+msgid "Kernel ID"
+msgstr ""
+
 msgid "Kernel release"
+msgstr ""
+
+msgid "Kernel version"
 msgstr ""
 
 msgid "Key"
@@ -4992,6 +5231,9 @@ msgid "Last Report"
 msgstr ""
 
 msgid "Last Used"
+msgstr ""
+
+msgid "Last configuration report"
 msgstr ""
 
 msgid "Last report"
@@ -5204,6 +5446,9 @@ msgstr ""
 msgid "List all permissions"
 msgstr ""
 
+msgid "List all permissions for current user"
+msgstr ""
+
 msgid "List all report templates"
 msgstr ""
 
@@ -5360,6 +5605,12 @@ msgstr ""
 msgid "List of email notifications"
 msgstr ""
 
+msgid "List of host ids to exclude and not perform the action on"
+msgstr ""
+
+msgid "List of host ids to perform the action on"
+msgstr ""
+
 msgid "List of host statuses"
 msgstr ""
 
@@ -5433,9 +5684,6 @@ msgid "Load Datacenters"
 msgstr ""
 
 msgid "Load Regions"
-msgstr ""
-
-msgid "Load Zones"
 msgstr ""
 
 msgid "Loading"
@@ -5710,6 +5958,9 @@ msgstr ""
 msgid "MailNotification|Subscription type"
 msgstr ""
 
+msgid "Major version of the operating system must be greater than or equal to 0"
+msgstr ""
+
 msgid "Make sure to copy your new personal access token now. You won’t be able to see it again!"
 msgstr ""
 
@@ -5764,7 +6015,13 @@ msgstr ""
 msgid "Matchers inheritance"
 msgstr ""
 
+msgid "Matrix"
+msgstr ""
+
 msgid "Maximize"
+msgstr ""
+
+msgid "Maximum"
 msgstr ""
 
 msgid "Maximum amount of keys in structured subtree, statistics stored in foreman::dropped_subtree_facts"
@@ -5937,10 +6194,10 @@ msgstr ""
 msgid "N/A statuses"
 msgstr ""
 
-msgid "NA"
+msgid "NIC"
 msgstr ""
 
-msgid "NIC"
+msgid "NIC name"
 msgstr ""
 
 msgid "NIC type"
@@ -5950,6 +6207,12 @@ msgid "NICs"
 msgstr ""
 
 msgid "Name"
+msgstr ""
+
+msgid "Name can't contain spaces"
+msgstr ""
+
+msgid "Name has already been taken"
 msgstr ""
 
 msgid "Name of media"
@@ -5971,6 +6234,12 @@ msgid "Name of the table"
 msgstr ""
 
 msgid "Name of the template being rendered, \"Unnamed\" when the template does not have a name, e.g. preview on unsaved template."
+msgstr ""
+
+msgid "Need help with Foreman? Got a different type of question? Ask them all on our community forum!"
+msgstr ""
+
+msgid "Need help?"
 msgstr ""
 
 msgid "Nest"
@@ -6007,6 +6276,9 @@ msgid "Network prefix in CIDR notation"
 msgstr ""
 
 msgid "Network type"
+msgstr ""
+
+msgid "Networking interfaces"
 msgstr ""
 
 msgid "Never"
@@ -6251,6 +6523,12 @@ msgstr ""
 msgid "No hosts available."
 msgstr ""
 
+msgid "No hosts have been specified"
+msgstr ""
+
+msgid "No hosts matched search, or action unauthorized for selected hosts."
+msgstr ""
+
 msgid "No hosts selected"
 msgstr ""
 
@@ -6270,6 +6548,12 @@ msgid "No matching records found"
 msgstr ""
 
 msgid "No matching server groups found"
+msgstr ""
+
+msgid "No name"
+msgstr ""
+
+msgid "No network interfaces"
 msgstr ""
 
 msgid "No networks"
@@ -6306,6 +6590,9 @@ msgid "No proxy selected!"
 msgstr ""
 
 msgid "No puppet activity for this host in the last %s days"
+msgstr ""
+
+msgid "No record found for search '%s'"
 msgstr ""
 
 msgid "No report"
@@ -6348,6 +6635,9 @@ msgid "No templates found!"
 msgstr ""
 
 msgid "No user mail notification to update. Use the create action"
+msgstr ""
+
+msgid "No value"
 msgstr ""
 
 msgid "None"
@@ -6590,6 +6880,9 @@ msgstr ""
 msgid "One or more of the associated filters are invalid which prevented the role to be saved"
 msgstr ""
 
+msgid "Only compatible with UEFI firmware."
+msgstr ""
+
 msgid "Only for BMC interfaces."
 msgstr ""
 
@@ -6644,9 +6937,6 @@ msgid "Operating System Family"
 msgstr ""
 
 msgid "Operating System has no family, can't load PXE files"
-msgstr ""
-
-msgid "Operating System version is required"
 msgstr ""
 
 msgid "Operating Systems"
@@ -6787,6 +7077,12 @@ msgstr ""
 msgid "Output format"
 msgstr ""
 
+msgid "Overall status"
+msgstr ""
+
+msgid "Overridden"
+msgstr ""
+
 msgid "Override"
 msgstr ""
 
@@ -6881,6 +7177,9 @@ msgstr ""
 msgid "Parameter"
 msgstr ""
 
+msgid "Parameter %s deleted"
+msgstr ""
+
 msgid "Parameter %{name} is not set for host %{host}"
 msgstr ""
 
@@ -6956,10 +7255,22 @@ msgstr ""
 msgid "Parsing settings type '%s' from a string is not defined"
 msgstr ""
 
+msgid "Partition '%s'"
+msgstr ""
+
 msgid "Partition Table"
 msgstr ""
 
 msgid "Partition Tables"
+msgstr ""
+
+msgid "Partition allocation"
+msgstr ""
+
+msgid "Partition capacity"
+msgstr ""
+
+msgid "Partition path"
 msgstr ""
 
 msgid "Partition table ID"
@@ -7042,6 +7353,9 @@ msgstr ""
 msgid "Permission"
 msgstr ""
 
+msgid "Permission Denied"
+msgstr ""
+
 msgid "Permission denied"
 msgstr ""
 
@@ -7104,9 +7418,6 @@ msgstr ""
 msgid "Please Confirm"
 msgstr ""
 
-msgid "Please Select an Image"
-msgstr ""
-
 msgid "Please check the proxy is configured and running on the host."
 msgstr ""
 
@@ -7137,6 +7448,9 @@ msgid ""
 msgstr ""
 
 msgid "Please provide a medium provider. It can be found as @medium_provider in templates, or Foreman::Plugin.medium_providers_registry.find_provider(host)"
+msgstr ""
+
+msgid "Please provide search parameter"
 msgstr ""
 
 msgid "Please request one of the required permissions listed below from a Foreman administrator:"
@@ -7193,7 +7507,7 @@ msgstr ""
 msgid "Power a Virtual Machine"
 msgstr ""
 
-msgid "Power has been set to \"%s\" successfully"
+msgid "Power has been set to \\\"%s\\\" successfully"
 msgstr ""
 
 msgid "Power operations are not enabled on this host."
@@ -7221,9 +7535,6 @@ msgid "Prefix to add to all outgoing email"
 msgstr ""
 
 msgid "Prepare post installation script for %s"
-msgstr ""
-
-msgid "Press ' / ' to focus on search"
 msgstr ""
 
 msgid "Preview"
@@ -7259,6 +7570,12 @@ msgstr ""
 msgid "Private"
 msgstr ""
 
+msgid "Private DNS name"
+msgstr ""
+
+msgid "Private IP address"
+msgstr ""
+
 msgid "Private key file path that Foreman will use to encrypt websockets"
 msgstr ""
 
@@ -7275,9 +7592,6 @@ msgid "Project domain ID"
 msgstr ""
 
 msgid "Project domain name"
-msgstr ""
-
-msgid "Project id for GCE only"
 msgstr ""
 
 msgid "Project name (v3) or Tenant name (v2). Can be retrieved via CLI or RC file."
@@ -7326,6 +7640,9 @@ msgid "Provisioning for switches running NX-OS."
 msgstr ""
 
 msgid "Provisioning only"
+msgstr ""
+
+msgid "Provisioning settings"
 msgstr ""
 
 msgid "Provisioning template"
@@ -7378,6 +7695,9 @@ msgstr ""
 msgid "Public"
 msgstr ""
 
+msgid "Public IP address"
+msgstr ""
+
 msgid "Public SSH key"
 msgstr ""
 
@@ -7427,6 +7747,9 @@ msgid "Query local nameservers"
 msgstr ""
 
 msgid "Quota ID"
+msgstr ""
+
+msgid "RAM"
 msgstr ""
 
 msgid "REPLACE locations with given ids"
@@ -7492,7 +7815,18 @@ msgstr ""
 msgid "Realm|Realm type"
 msgstr ""
 
+msgid "Reassign hostgroups"
+msgstr ""
+
+msgid "Reassigned %{count} host to hostgroup %{hostgroup}"
+msgid_plural "Reassigned %{count} hosts to hostgroup %{hostgroup}"
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "Reboot"
+msgstr ""
+
+msgid "Reboot after build. Ignored if rebuild_configuration is passed."
 msgstr ""
 
 msgid "Reboot and build"
@@ -7504,11 +7838,22 @@ msgstr ""
 msgid "Rebuild Config"
 msgstr ""
 
+msgid "Rebuild configuration only"
+msgstr ""
+
 msgid "Rebuild orchestration config"
 msgstr ""
 
 msgid "Rebuild orchestration configuration"
 msgstr ""
+
+msgid "Rebuild provisioning configuration only"
+msgstr ""
+
+msgid "Rebuilt configuration for %s host"
+msgid_plural "Rebuilt configuration for %s hosts"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Receiving vm data for host '%{host}' from used compute resource '%{compute_resource}' failed: '%{exception}'."
 msgstr ""
@@ -7549,7 +7894,13 @@ msgstr ""
 msgid "Region"
 msgstr ""
 
+msgid "Register"
+msgstr ""
+
 msgid "Register Host"
+msgstr ""
+
+msgid "Registration Tokens"
 msgstr ""
 
 msgid "Registration command"
@@ -7559,6 +7910,9 @@ msgid "Registration template"
 msgstr ""
 
 msgid "Registration token is missing or invalid."
+msgstr ""
+
+msgid "Release date"
 msgstr ""
 
 msgid "Relevant only for audit summary notification"
@@ -7610,8 +7964,13 @@ msgstr ""
 msgid "Remove widget"
 msgstr ""
 
-msgid "Removed %{from} to %{to}"
+msgid "Removed %{from} from %{to}"
 msgstr ""
+
+msgid "Removed assignment of host group from %s host"
+msgid_plural "Removed assignment of host group from %s hosts"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Removing IPv4 in External IPAM for %s"
 msgstr ""
@@ -7704,6 +8063,9 @@ msgstr ""
 msgid "Reported by %s"
 msgstr ""
 
+msgid "Reported data"
+msgstr ""
+
 msgid "Reports"
 msgstr ""
 
@@ -7723,22 +8085,28 @@ msgstr "Report time"
 msgid "Report|Status"
 msgstr "Status"
 
+msgid "Repositories"
+msgstr ""
+
+msgid "Repositories to be added before the registration is performed. It can be useful to e.g. make the subscription-manager packages available for the purpose of the registration. GPG keys can also be provided here if necessary."
+msgstr ""
+
 msgid "Repository"
 msgstr ""
 
 msgid "Repository GPG key URL"
 msgstr ""
 
-msgid "Repository URL / details, for example for Debian OS family: 'deb http://deb.example.com/ buster 1.0', for Red Hat OS family: 'http://yum.theforeman.org/client/latest/el8/x86_64/'"
+msgid "Repository URL / details, for example, for Debian OS family: 'deb http://deb.example.com/ buster 1.0', for Red Hat OS family: 'http://yum.theforeman.org/client/latest/el8/x86_64/'"
 msgstr ""
 
-msgid "Repository URL / details, for example for Debian OS family: 'deb http://deb.example.com/ buster 1.0', for Red Hat and SUSE OS family: 'http://yum.theforeman.org/client/latest/el8/x86_64/'"
+msgid "Repository URL / details, for example, for Debian OS family: 'deb http://deb.example.com/ buster 1.0', for Red Hat and SUSE OS family: 'http://yum.theforeman.org/client/latest/el8/x86_64/'"
+msgstr ""
+
+msgid "Repository list"
 msgstr ""
 
 msgid "Represents the host object for which the template is rendered."
-msgstr ""
-
-msgid "Request Failed"
 msgstr ""
 
 msgid "Request UUID"
@@ -7757,6 +8125,12 @@ msgid "Reset"
 msgstr ""
 
 msgid "Reset PuppetCA certname for %s"
+msgstr ""
+
+msgid "Reset form"
+msgstr ""
+
+msgid "Reset search"
 msgstr ""
 
 msgid "Reset to default"
@@ -7899,6 +8273,9 @@ msgid "Role|Origin"
 msgstr ""
 
 msgid "Root Password Hash"
+msgstr ""
+
+msgid "Root device type"
 msgstr ""
 
 msgid "Root password"
@@ -8075,6 +8452,9 @@ msgstr ""
 msgid "Search"
 msgstr ""
 
+msgid "Search and go"
+msgstr ""
+
 msgid "Search error"
 msgstr ""
 
@@ -8082,6 +8462,12 @@ msgid "Search fields"
 msgstr ""
 
 msgid "Search may fail or give you wrong results since it contains special characters that are query keywords such as < and >"
+msgstr ""
+
+msgid "Search query that selects users for which registration tokens will be invalidated. Search query example: id ^ (2, 4, 6)"
+msgstr ""
+
+msgid "Search string describing which hosts to perform the action on"
 msgstr ""
 
 msgid "Search your logs for request-id"
@@ -8099,7 +8485,13 @@ msgstr ""
 msgid "Secret Key"
 msgstr ""
 
+msgid "Security Groups"
+msgstr ""
+
 msgid "Security groups"
+msgstr ""
+
+msgid "See list of supported browsers: %s"
 msgstr ""
 
 msgid "Select Action"
@@ -8123,6 +8515,9 @@ msgstr ""
 msgid "Select a period"
 msgstr ""
 
+msgid "Select all"
+msgstr ""
+
 msgid "Select all items on this page"
 msgstr ""
 
@@ -8133,6 +8528,9 @@ msgid "Select columns to display in the table."
 msgstr ""
 
 msgid "Select compute resources"
+msgstr ""
+
+msgid "Select default"
 msgstr ""
 
 msgid "Select desired %s proxy"
@@ -8162,7 +8560,13 @@ msgstr ""
 msgid "Select media"
 msgstr ""
 
+msgid "Select none"
+msgstr ""
+
 msgid "Select organizations"
+msgstr ""
+
+msgid "Select page"
 msgstr ""
 
 msgid "Select partition tables"
@@ -8263,13 +8667,13 @@ msgstr ""
 msgid "Set IP addresses for %s"
 msgstr ""
 
-msgid "Set a proxy for all outgoing HTTP(S) connections from Foreman. System-wide proxies must be configured at the operating system level."
-msgstr ""
-
 msgid "Set a randomly generated password on the VNC display connection"
 msgstr ""
 
 msgid "Set a randomly generated password on the display connection"
+msgstr ""
+
+msgid "Set an HTTP(s) proxy for all outgoing HTTP(S) connections from Foreman. System-wide proxies must be configured at the operating system level."
 msgstr ""
 
 msgid "Set hostnames to which requests are not to be proxied. Requests to the local host are excluded by default."
@@ -8356,7 +8760,13 @@ msgstr ""
 msgid "Setup remote execution. If set to `Yes`, SSH keys will be installed on the registered host. The inherited value is based on the `host_registration_remote_execution` parameter. It can be inherited e.g. from host group, operating system, organization. When overridden, the selected value will be stored on host parameter level."
 msgstr ""
 
+msgid "Shortcuts"
+msgstr ""
+
 msgid "Should the `foreman-rake db:seed` be executed on the next run of the installer modules?"
+msgstr ""
+
+msgid "Should the value be hidden"
 msgstr ""
 
 msgid "Should the value be hidden from users? Useful for sensitive input values such as passwords. Only applicable to Plain value types."
@@ -8384,6 +8794,9 @@ msgid "Show Diff"
 msgstr ""
 
 msgid "Show Experimental Labs"
+msgstr ""
+
+msgid "Show New Host Overview Page"
 msgstr ""
 
 msgid "Show a Personal Access Token for a user"
@@ -8528,9 +8941,6 @@ msgid "Show an operating system"
 msgstr ""
 
 msgid "Show available API links"
-msgstr ""
-
-msgid "Show distribution chart"
 msgstr ""
 
 msgid "Show full value"
@@ -8736,6 +9146,9 @@ msgstr ""
 msgid "Specify authentication type, if required"
 msgstr ""
 
+msgid "Split"
+msgstr ""
+
 #. TRANSLATORS: "Table name" or "Table name|Column name" for error messages
 msgid "Ssh key"
 msgstr ""
@@ -8815,6 +9228,9 @@ msgid "Strong"
 msgstr ""
 
 msgid "Submit"
+msgstr ""
+
+msgid "Submit edit"
 msgstr ""
 
 #. TRANSLATORS: "Table name" or "Table name|Column name" for error messages
@@ -8936,6 +9352,9 @@ msgstr ""
 msgid "Success"
 msgstr ""
 
+msgid "Successfully Invalidated registration tokens."
+msgstr ""
+
 msgid "Successfully created %s."
 msgstr ""
 
@@ -8946,6 +9365,15 @@ msgid "Successfully deleted %s."
 msgstr ""
 
 msgid "Successfully deleted report."
+msgstr ""
+
+msgid "Successfully invalidated registration tokens for %s."
+msgstr ""
+
+msgid "Successfully invalidated registration tokens for all users."
+msgstr ""
+
+msgid "Successfully invalidated registration tokens."
 msgstr ""
 
 msgid "Successfully recreated"
@@ -9012,6 +9440,9 @@ msgid "TFTP Proxy to use within this subnet"
 msgstr ""
 
 msgid "TFTP server"
+msgstr ""
+
+msgid "TPM is not compatible with BIOS firmware. Please change Firmware or disable TPM."
 msgstr ""
 
 #. TRANSLATORS: "Table name" or "Table name|Column name" for error messages
@@ -9206,6 +9637,9 @@ msgstr ""
 msgid "Templates DSL"
 msgstr ""
 
+msgid "Templates accessible publicly"
+msgstr ""
+
 msgid "Templates are generated using the Embedded Ruby (ERB) language."
 msgstr ""
 
@@ -9213,6 +9647,9 @@ msgid "Templates can access built-in instance variables denoted by <code>@</code
 msgstr ""
 
 msgid "Templates for partition tables"
+msgstr ""
+
+msgid "Templates from this category can be accessed publicly using the /unattended endpoint."
 msgstr ""
 
 msgid "Templates resolved for this operating system"
@@ -9345,7 +9782,7 @@ msgstr ""
 msgid "The algorithm used to encode the JWT in the OpenID provider."
 msgstr ""
 
-msgid "The authentication process currently requires an LDAP provider, such as {FreeIPA}, {OpenLDAP} or {Microsoft}."
+msgid "The authentication process currently requires an LDAP provider, such as {Free_IPA}, {OpenLDAP} or {Microsoft}."
 msgstr ""
 
 msgid "The authentication source of your external user groups could not connect to LDAP with the provided credentials. Please verify the credentials are still valid."
@@ -9372,7 +9809,7 @@ msgstr ""
 msgid "The default administrator email address"
 msgstr ""
 
-msgid "The file path where your JSON file is located"
+msgid "The download utility to use during host registration"
 msgstr ""
 
 msgid "The final entry, Operating System default, can be set by editing the %s page."
@@ -9432,7 +9869,7 @@ msgstr ""
 msgid "The information from above can be used e.g. to create a NetworkManager configuration file for each interface in the provisioning template."
 msgstr ""
 
-msgid "The instance title is shown on the top navigation bar (requires a page reload)."
+msgid "The instance title is shown above the header in a banner (requires a page reload)."
 msgstr ""
 
 msgid "The iss (issuer) claim identifies the principal that issued the JWT, which exists at a `/.well-known/openid-configuration` in case of most of the OpenID providers."
@@ -9534,9 +9971,6 @@ msgstr ""
 msgid "There is no proxy with BMC feature set up. Associate a BMC feature with a subnet."
 msgstr ""
 
-msgid "There may be more information in the server's logs."
-msgstr ""
-
 msgid "There must be at least one Smart Proxy present with an External IPAM plugin installed and configured"
 msgstr ""
 
@@ -9550,6 +9984,9 @@ msgid "There was an error listing %{listing}: %{errors}"
 msgstr ""
 
 msgid "There was an error listing VMs: %(status)s %(statusText)s"
+msgstr ""
+
+msgid "There was an error loading this content."
 msgstr ""
 
 msgid "There was an error rendering the %{name} template: %{error}"
@@ -9630,9 +10067,6 @@ msgstr ""
 msgid "This is used to reduce the number of lines, where Ruby syntax permits, in rendered templates. White spaces in ERB tags are ignored."
 msgstr ""
 
-msgid "This may be caused by unavailability of some required service, incorrect API call or a server-side bug. "
-msgstr ""
-
 msgid "This might take a while, as all hosts, facts and reports <b>will be deleted</b> as well. %s This behavior can be changed via global setting \"Destroy associated VM on host delete\"."
 msgstr ""
 
@@ -9689,10 +10123,13 @@ msgstr ""
 msgid "This value is used also as the host's primary interface name."
 msgstr ""
 
+msgid "This will change the delete the parameter, are you sure?"
+msgstr ""
+
 msgid "This will change the host power status, are you sure?"
 msgstr ""
 
-msgid "This will delete the VM and its disks. This behavior can be changed via global setting \"Destroy associated VM on host delete\"."
+msgid "This will delete the VM and its disks. This behavior can be changed via global setting \\\"Destroy associated VM on host delete\\\"."
 msgstr ""
 
 msgid "This will generate a report %s. Based on its definition, it can take a long time to process."
@@ -9719,6 +10156,18 @@ msgstr ""
 msgid "Timezone to use for new users"
 msgstr ""
 
+msgid "Title of the Host group to register the host in"
+msgstr ""
+
+msgid "Title of the Location to register the host in"
+msgstr ""
+
+msgid "Title of the Operating System to register the host in"
+msgstr ""
+
+msgid "Title of the Organization to register the host in"
+msgstr ""
+
 msgid "To access %s API, you need to install the Foreman Puppet plugin"
 msgstr ""
 
@@ -9732,6 +10181,12 @@ msgid "To enable a provider, either install the OS package (e.g. foreman-libvirt
 msgstr ""
 
 msgid "To enable safe mode, navigate to Settings page and enable Safemode rendering option."
+msgstr ""
+
+msgid "To focus the navigation search bar"
+msgstr ""
+
+msgid "To focus the page search bar"
 msgstr ""
 
 msgid "To launch the VMRC console, you need the VMRC software installed."
@@ -9784,6 +10239,9 @@ msgstr ""
 msgid "Total Hosts: %s"
 msgstr ""
 
+msgid "Total disk space"
+msgstr ""
+
 msgid "Total hosts count"
 msgstr ""
 
@@ -9817,6 +10275,12 @@ msgid "Type of value"
 msgstr ""
 
 msgid "Type or protocol, IPv4 or IPv6, defaults to IPv4"
+msgstr ""
+
+msgid "UEFI"
+msgstr ""
+
+msgid "UEFI Secure Boot"
 msgstr ""
 
 msgid "URL"
@@ -9859,9 +10323,6 @@ msgid "UUID"
 msgstr ""
 
 msgid "UUID to track orchestration tasks status, GET /api/orchestration/:UUID/tasks"
-msgstr ""
-
-msgid "Unable to access key"
 msgstr ""
 
 msgid "Unable to add IP %{ip} to the subnet %{subnet} in External IPAM."
@@ -9934,9 +10395,6 @@ msgid "Unable to fetch logs"
 msgstr ""
 
 msgid "Unable to find 'Host initial configuration' template for host %{host} running %{os}, associate the 'Host initial configuration' template for this OS first"
-msgstr ""
-
-msgid "Unable to find IP address for '%s'"
 msgstr ""
 
 msgid "Unable to find a proxy with BMC feature"
@@ -10086,10 +10544,19 @@ msgstr ""
 msgid "Undo selection"
 msgstr ""
 
+msgid "Unexpected error occurred."
+msgstr ""
+
 msgid "Unhide this value"
 msgstr ""
 
+msgid "Unified"
+msgstr ""
+
 msgid "Unknown"
+msgstr ""
+
+msgid "Unknown '%{klass}' resource class"
 msgstr ""
 
 msgid "Unknown IPAM type - can't continue"
@@ -10129,9 +10596,6 @@ msgid "Unknown records found in the database"
 msgstr ""
 
 msgid "Unknown status: %s"
-msgstr ""
-
-msgid "Unkown '%{klass}' resource class"
 msgstr ""
 
 msgid "Unlimited?"
@@ -10321,6 +10785,9 @@ msgid "Updated hosts: changed owner"
 msgstr ""
 
 msgid "Updates a table preference for a given table"
+msgstr ""
+
+msgid "Upgrade documentation"
 msgstr ""
 
 #. TRANSLATORS: "Table name" or "Table name|Column name" for error messages
@@ -10596,7 +11063,7 @@ msgstr ""
 msgid "VM already associated with a host"
 msgstr ""
 
-msgid "VM and its disks will not be deleted. This behavior can be changed via global setting \"Destroy associated VM on host delete\"."
+msgid "VM and its disks will not be deleted. This behavior can be changed via global setting \\\"Destroy associated VM on host delete\\\"."
 msgstr ""
 
 msgid "VM associated to host %s"
@@ -10662,6 +11129,9 @@ msgstr ""
 msgid "Variables"
 msgstr ""
 
+msgid "Vendor"
+msgstr ""
+
 msgid "Vendor class"
 msgstr ""
 
@@ -10680,9 +11150,6 @@ msgstr ""
 msgid "Very strong"
 msgstr ""
 
-msgid "View Chart"
-msgstr ""
-
 msgid "View in Foreman:"
 msgstr ""
 
@@ -10690,6 +11157,12 @@ msgid "View list"
 msgstr ""
 
 msgid "View provisioning template {openTemplate}."
+msgstr ""
+
+msgid "View upgrade documentation"
+msgstr ""
+
+msgid "Virtual"
 msgstr ""
 
 msgid "Virtual (NAT)"
@@ -10710,10 +11183,19 @@ msgstr ""
 msgid "Virtual NIC"
 msgstr ""
 
+msgid "Virtual TPM"
+msgstr ""
+
 msgid "Virtual machine settings cannot be edited on an existing machine in %s"
 msgstr ""
 
 msgid "Virtual machine was not found by id %{vm_id}"
+msgstr ""
+
+msgid "Virtualization"
+msgstr ""
+
+msgid "Visit the community forum"
 msgstr ""
 
 msgid "Vnic Profile"
@@ -10832,6 +11314,9 @@ msgstr ""
 msgid "Whether or not to show a menu to access experimental lab features (requires reload of page)"
 msgstr ""
 
+msgid "Whether or not to show the new overview page for All Hosts"
+msgstr ""
+
 msgid "Whether the class parameter value is managed by Foreman."
 msgstr ""
 
@@ -10909,9 +11394,6 @@ msgid ""
 " A Foreman user group can be associated to a group stored in an LDAP server, so membership of the LDAP group automatically adds the user to the Foreman user group."
 msgstr ""
 
-msgid "Writing ERB Templates"
-msgstr ""
-
 msgid "Writing ERB templates"
 msgstr ""
 
@@ -10957,6 +11439,9 @@ msgstr ""
 msgid "You are trying access the preferences of a different user"
 msgstr ""
 
+msgid "You are trying to compare the same host."
+msgstr ""
+
 msgid "You are trying to delete your own account"
 msgstr ""
 
@@ -10966,7 +11451,7 @@ msgstr ""
 msgid "You can add SSH public keys to a user in Foreman."
 msgstr ""
 
-msgid "You can find The Foreman on the %{liberachat} (irc.libera.chat) network.  For general support, please visit #theforeman and for development specific related chat, please visit #theforeman-dev."
+msgid "You can find The Foreman on %{Matrix}.  For general support, please visit the #theforeman:matrix.org room and for development specific related chat, please visit the #theforeman-dev:matrix.org room."
 msgstr ""
 
 msgid "You can select one of the IPAM modes supported by the selected IP protocol:"
@@ -11056,9 +11541,6 @@ msgstr ""
 msgid "ZTP PXE template"
 msgstr ""
 
-msgid "Zone"
-msgstr ""
-
 msgid "[empty]"
 msgstr ""
 
@@ -11108,6 +11590,9 @@ msgid "boolean"
 msgstr ""
 
 msgid "boot device, valid devices are disk, cdrom, pxe, bios"
+msgstr ""
+
+msgid "by %s"
 msgstr ""
 
 msgid "can only be set for array, hash, json or yaml"
@@ -11164,6 +11649,9 @@ msgstr ""
 msgid "cannot be changed on an internal protected account"
 msgstr ""
 
+msgid "cannot be in the past"
+msgstr ""
+
 msgid "cannot be removed from an internal protected account"
 msgstr ""
 
@@ -11195,9 +11683,6 @@ msgid "community forums"
 msgstr ""
 
 msgid "compresed"
-msgstr ""
-
-msgid "console is not available at this time because the instance is powered off"
 msgstr ""
 
 msgid "contains special characters"
@@ -11284,6 +11769,9 @@ msgstr ""
 msgid "e.g. uid"
 msgstr ""
 
+msgid "edit"
+msgstr ""
+
 msgid "enable caching, for VMware only"
 msgstr ""
 
@@ -11312,9 +11800,6 @@ msgid "filter..."
 msgstr ""
 
 msgid "for AzureRm eg. 'eastus' and for EC2 only. Use '%s' for EC2 GovCloud region"
-msgstr ""
-
-msgid "for GCE only"
 msgstr ""
 
 msgid "for Libvirt and VMware only"
@@ -11393,6 +11878,9 @@ msgid "hostname can contain only lowercase letters, numbers, dashes and dots acc
 msgstr ""
 
 msgid "hostname of the host"
+msgstr ""
+
+msgid "hosts"
 msgstr ""
 
 msgid "hours"
@@ -11704,6 +12192,9 @@ msgstr ""
 msgid "our templates documentation"
 msgstr ""
 
+msgid "override"
+msgstr ""
+
 msgid "pending"
 msgstr ""
 
@@ -11794,7 +12285,10 @@ msgstr ""
 msgid "select an owner"
 msgstr ""
 
-msgid "selected image does not exist"
+msgid "selected host"
+msgstr ""
+
+msgid "selected hosts"
 msgstr ""
 
 msgid "service configuration will be skipped."
@@ -11827,9 +12321,6 @@ msgstr ""
 msgid "specified template \"%s\" kind was not found"
 msgstr ""
 
-msgid "split"
-msgstr ""
-
 msgid "start"
 msgstr ""
 
@@ -11840,17 +12331,6 @@ msgid "state"
 msgstr ""
 
 msgid "status"
-msgstr ""
-
-msgid ""
-"status type\n"
-msgstr ""
-
-msgid ""
-"status type, can be one of\n"
-"* global\n"
-"* configuration\n"
-"* build\n"
 msgstr ""
 
 msgid "stop"
@@ -11892,9 +12372,6 @@ msgstr ""
 msgid "unable to sign a non pending certificate"
 msgstr ""
 
-msgid "unified"
-msgstr ""
-
 msgid "unknown network_type"
 msgstr ""
 
@@ -11929,6 +12406,9 @@ msgid "using %s"
 msgstr ""
 
 msgid "using %{allocation} GB out of %{capacity} GB, %{pool_name} storage pool"
+msgstr ""
+
+msgid "using %{allocation} out of %{capacity}"
 msgstr ""
 
 msgid "valid"
@@ -11974,4 +12454,7 @@ msgid "you can't assign some of roles you selected"
 msgstr ""
 
 msgid "you can't change administrator flag"
+msgstr ""
+
+msgid "{hostsCount} will be deleted. This action is irreversible. {br}{br} {cascade} {br}{br} This behavior can be changed via global setting \\\"Destroy associated VM on host delete\\\" in {settings}.{br}{br}"
 msgstr ""

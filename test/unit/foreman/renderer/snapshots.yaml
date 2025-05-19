@@ -14,7 +14,6 @@ files:
   - PXELinux/pxelinux_chain_ipxe_undi.erb
   - provision/alterator_default.erb
   - finish/alterator_default_finish.erb
-  - provision/atomic_kickstart_default.erb
   - provision/autoyast_default.erb
   - provision/autoyast_sles_default.erb
   - PXELinux/autoyast_default_pxelinux.erb
@@ -57,6 +56,7 @@ files:
   - snippet/freeipa_register.erb
   - snippet/kickstart_rhsm.erb
   - snippet/preseed_networking_setup.erb
+  - snippet/preseed_kernel_options_autoinstall.erb
   - snippet/puppet.conf.erb
   - snippet/puppet_setup.erb
   - snippet/pxegrub2_chainload.erb
@@ -70,6 +70,7 @@ files:
   - snippet/saltstack_minion.erb
   - snippet/saltstack_setup.erb
   - PXELinux/preseed_default_pxelinux_autoinstall.erb
+  - PXEGrub2/preseed_default_pxegrub2_autoinstall.erb
   - user_data/preseed_autoinstall_cloud_init.erb
   - iPXE/autoyast_default_ipxe.erb
   - iPXE/ipxe_default_local_boot.erb
@@ -77,3 +78,8 @@ files:
   - iPXE/ipxe_intermediate_script.erb
   - iPXE/kickstart_default_ipxe.erb
   - iPXE/preseed_default_ipxe.erb
+  - iPXE/preseed_default_ipxe_autoinstall.erb
+  - provision/windows_default_provisioning.erb
+  - finish/windows_default_finish.erb
+  - script/windows_default_script.erb
+  - snippet/windows_network.erb

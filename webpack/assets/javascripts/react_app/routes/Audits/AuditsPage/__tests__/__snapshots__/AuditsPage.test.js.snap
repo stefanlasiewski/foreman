@@ -7,11 +7,12 @@ exports[`AuditsPage rendering render audits page 1`] = `
   customBreadcrumbs={null}
   header="Audits"
   isLoading={false}
-  onBookmarkClick={[Function]}
   onSearch={[Function]}
+  pageSectionType="default"
   searchProps={
     Object {
       "autocomplete": Object {
+        "apiParams": Object {},
         "id": "searchBar-audits",
         "searchQuery": "",
         "url": "audits/auto_complete_search",
@@ -33,6 +34,7 @@ exports[`AuditsPage rendering render audits page 1`] = `
       className="btn-docs"
       component="a"
       href="/links/manual/4.1.4Auditing"
+      ouiaId="audits-documentation-button"
       rel="external noreferrer noopener"
       target="_blank"
       variant="secondary"
@@ -51,6 +53,7 @@ exports[`AuditsPage rendering render audits page 1`] = `
       Object {
         "data": Object {
           "autocomplete": Object {
+            "apiParams": Object {},
             "id": "searchBar",
             "searchQuery": null,
             "url": "model/auto_complete_search",
@@ -64,7 +67,6 @@ exports[`AuditsPage rendering render audits page 1`] = `
           },
           "controller": "models",
         },
-        "setAutocompleteSearchQuery": [MockFunction],
       }
     }
     searchable={true}
@@ -79,11 +81,12 @@ exports[`AuditsPage rendering render audits page w/empty audits 1`] = `
   customBreadcrumbs={null}
   header="Audits"
   isLoading={false}
-  onBookmarkClick={[Function]}
   onSearch={[Function]}
+  pageSectionType="default"
   searchProps={
     Object {
       "autocomplete": Object {
+        "apiParams": Object {},
         "id": "searchBar-audits",
         "searchQuery": "",
         "url": "audits/auto_complete_search",
@@ -105,6 +108,7 @@ exports[`AuditsPage rendering render audits page w/empty audits 1`] = `
       className="btn-docs"
       component="a"
       href="/links/manual/4.1.4Auditing"
+      ouiaId="audits-documentation-button"
       rel="external noreferrer noopener"
       target="_blank"
       variant="secondary"
@@ -125,6 +129,7 @@ exports[`AuditsPage rendering render audits page w/empty audits 1`] = `
       Object {
         "data": Object {
           "autocomplete": Object {
+            "apiParams": Object {},
             "id": "searchBar",
             "searchQuery": null,
             "url": "model/auto_complete_search",
@@ -138,7 +143,6 @@ exports[`AuditsPage rendering render audits page w/empty audits 1`] = `
           },
           "controller": "models",
         },
-        "setAutocompleteSearchQuery": [MockFunction],
       }
     }
     searchable={true}
@@ -153,11 +157,12 @@ exports[`AuditsPage rendering render audits page w/error 1`] = `
   customBreadcrumbs={null}
   header="Audits"
   isLoading={false}
-  onBookmarkClick={[Function]}
   onSearch={[Function]}
+  pageSectionType="default"
   searchProps={
     Object {
       "autocomplete": Object {
+        "apiParams": Object {},
         "id": "searchBar-audits",
         "searchQuery": "",
         "url": "audits/auto_complete_search",
@@ -179,6 +184,7 @@ exports[`AuditsPage rendering render audits page w/error 1`] = `
       className="btn-docs"
       component="a"
       href="/links/manual/4.1.4Auditing"
+      ouiaId="audits-documentation-button"
       rel="external noreferrer noopener"
       target="_blank"
       variant="secondary"
@@ -199,6 +205,7 @@ exports[`AuditsPage rendering render audits page w/error 1`] = `
       Object {
         "data": Object {
           "autocomplete": Object {
+            "apiParams": Object {},
             "id": "searchBar",
             "searchQuery": null,
             "url": "model/auto_complete_search",
@@ -212,7 +219,6 @@ exports[`AuditsPage rendering render audits page w/error 1`] = `
           },
           "controller": "models",
         },
-        "setAutocompleteSearchQuery": [MockFunction],
       }
     }
     searchable={true}
@@ -227,11 +233,12 @@ exports[`AuditsPage rendering render loading audits page 1`] = `
   customBreadcrumbs={null}
   header="Audits"
   isLoading={false}
-  onBookmarkClick={[Function]}
   onSearch={[Function]}
+  pageSectionType="default"
   searchProps={
     Object {
       "autocomplete": Object {
+        "apiParams": Object {},
         "id": "searchBar-audits",
         "searchQuery": "",
         "url": "audits/auto_complete_search",
@@ -253,6 +260,7 @@ exports[`AuditsPage rendering render loading audits page 1`] = `
       className="btn-docs"
       component="a"
       href="/links/manual/4.1.4Auditing"
+      ouiaId="audits-documentation-button"
       rel="external noreferrer noopener"
       target="_blank"
       variant="secondary"
@@ -273,6 +281,7 @@ exports[`AuditsPage rendering render loading audits page 1`] = `
       Object {
         "data": Object {
           "autocomplete": Object {
+            "apiParams": Object {},
             "id": "searchBar",
             "searchQuery": null,
             "url": "model/auto_complete_search",
@@ -286,7 +295,6 @@ exports[`AuditsPage rendering render loading audits page 1`] = `
           },
           "controller": "models",
         },
-        "setAutocompleteSearchQuery": [MockFunction],
       }
     }
     searchable={true}

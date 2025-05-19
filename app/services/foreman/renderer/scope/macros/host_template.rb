@@ -73,7 +73,7 @@ module Foreman
           end
           def host_puppet_environment
             check_host
-            host.respond_to?(:environment) ? host.environment : host_param('puppet_environment')
+            host.try(:environment).presence || host_param('puppet_environment')
           end
 
           apipie :method, 'Checks whether a parameter value is truthly or not' do
@@ -173,7 +173,7 @@ module Foreman
               <<~CMD
                 #{banner}
                 zypper refresh
-                zypper -n install #{packages}
+                zypper -n --gpg-auto-import-keys install #{packages}
               CMD
             else
               raise UnsupportedOS.new

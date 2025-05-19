@@ -4,7 +4,6 @@ exports[`RegistrationCommandsPage fields - Taxonomies renders 1`] = `
 <Fragment>
   <FormGroup
     fieldId="reg_organization"
-    isRequired={true}
     label="Organization"
     labelIcon={
       <LabelIcon
@@ -20,6 +19,7 @@ exports[`RegistrationCommandsPage fields - Taxonomies renders 1`] = `
       onBlur={[Function]}
       onChange={[Function]}
       onFocus={[Function]}
+      ouiaId="reg_organization"
       ouiaSafe={true}
       validated="default"
       value={0}
@@ -32,7 +32,6 @@ exports[`RegistrationCommandsPage fields - Taxonomies renders 1`] = `
   </FormGroup>
   <FormGroup
     fieldId="reg_location"
-    isRequired={true}
     label="Location"
     labelIcon={
       <LabelIcon
@@ -48,6 +47,7 @@ exports[`RegistrationCommandsPage fields - Taxonomies renders 1`] = `
       onBlur={[Function]}
       onChange={[Function]}
       onFocus={[Function]}
+      ouiaId="reg_location"
       ouiaSafe={true}
       validated="default"
       value={0}

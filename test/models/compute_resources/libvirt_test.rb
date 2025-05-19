@@ -180,7 +180,7 @@ class Foreman::Model::LibvirtTest < ActiveSupport::TestCase
       test 'adds volumes_attributes when they were missing' do
         normalized = cr.normalize_vm_attrs({})
 
-        assert_equal({}, normalized['volumes_attributes'])
+        assert_empty(normalized['volumes_attributes'])
       end
 
       test 'normalizes volumes_attributes' do
@@ -213,7 +213,7 @@ class Foreman::Model::LibvirtTest < ActiveSupport::TestCase
       test 'adds interfaces_attributes when they were missing' do
         normalized = cr.normalize_vm_attrs({})
 
-        assert_equal({}, normalized['interfaces_attributes'])
+        assert_empty(normalized['interfaces_attributes'])
       end
 
       test 'normalizes interfaces_attributes' do
@@ -268,6 +268,29 @@ class Foreman::Model::LibvirtTest < ActiveSupport::TestCase
 
     test 'attribute names' do
       check_vm_attribute_names(cr)
+    end
+  end
+
+  describe '#generate_secure_boot_settings' do
+    before do
+      @cr = FactoryBot.build_stubbed(:libvirt_cr)
+    end
+
+    test "returns secure boot settings when firmware is 'uefi_secure_boot'" do
+      expected_sb_settings = {
+        firmware_features: { 'secure-boot' => 'yes', 'enrolled-keys' => 'yes' },
+        loader_attributes: { 'secure' => 'yes' },
+        secure_boot: true,
+      }
+
+      assert_equal expected_sb_settings, @cr.send(:generate_secure_boot_settings, 'uefi_secure_boot')
+    end
+
+    test "returns an empty hash for firmware types other than 'uefi_secure_boot'" do
+      assert_empty @cr.send(:generate_secure_boot_settings, 'uefi')
+      assert_empty @cr.send(:generate_secure_boot_settings, 'bios')
+      assert_empty @cr.send(:generate_secure_boot_settings, '')
+      assert_empty @cr.send(:generate_secure_boot_settings, nil)
     end
   end
 end

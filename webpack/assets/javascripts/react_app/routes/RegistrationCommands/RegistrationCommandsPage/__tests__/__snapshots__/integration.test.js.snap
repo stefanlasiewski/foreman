@@ -8,15 +8,15 @@ Object {
         "payload": Object {
           "key": "REGISTRATION_COMMANDS",
           "params": Object {
+            "downloadUtility": "curl",
             "hostgroupId": undefined,
             "insecure": false,
             "jwtExpiration": 4,
-            "locationId": undefined,
+            "locationId": 4,
             "operatingsystemId": undefined,
-            "organizationId": undefined,
+            "organizationId": 3,
             "packages": "",
-            "repo": "",
-            "repoGpgKeyUrl": "",
+            "repoData": Array [],
             "setupInsights": "",
             "setupRemoteExecution": "",
             "smartProxyId": undefined,
@@ -28,7 +28,24 @@ Object {
       },
     ],
   ],
-  "state": Object {},
+  "state": Object {
+    "apiReducer": Object {
+      "REGISTRATION_COMMANDS": Object {
+        "payload": Object {
+          "url": "/hosts/register",
+        },
+        "response": null,
+        "status": "PENDING",
+      },
+      "REGISTRATION_COMMANDS_DATA": Object {
+        "payload": Object {
+          "url": "/hosts/register/data",
+        },
+        "response": null,
+        "status": "PENDING",
+      },
+    },
+  },
 }
 `;
 
@@ -40,8 +57,8 @@ Object {
         "payload": Object {
           "key": "REGISTRATION_COMMANDS_DATA",
           "params": Object {
-            "location_id": undefined,
-            "organization_id": undefined,
+            "location_id": 4,
+            "organization_id": 3,
           },
           "url": "/hosts/register/data",
         },
@@ -49,6 +66,16 @@ Object {
       },
     ],
   ],
-  "state": Object {},
+  "state": Object {
+    "apiReducer": Object {
+      "REGISTRATION_COMMANDS_DATA": Object {
+        "payload": Object {
+          "url": "/hosts/register/data",
+        },
+        "response": null,
+        "status": "PENDING",
+      },
+    },
+  },
 }
 `;

@@ -2,7 +2,7 @@ module TemplatesHelper
   def snippet_message(template)
     return unless template.snippet
     alert(:class => 'alert-info', :header => '',
-          :text => _("Not relevant for snippet"))
+      :text => _("Not relevant for snippet"))
   end
 
   def default_template_description
@@ -75,13 +75,22 @@ module TemplatesHelper
       textarea_f(f, :value, options.merge(rows: 2, class: input.hidden_value? ? 'masked-input' : ''))
     else
       input_type = input.value_type
-      if input_type == 'date'
+      case input_type
+      when 'date'
         input_type = 'dateTime'
         options[:label_help] ||= 'Format is yyyy-MM-dd HH-mm-ss'
-      elsif input_type == 'search'
+      when 'search'
         input_type = 'autocomplete'
         resource_type = input.resource_type&.tableize
-        options.merge!(resource_type: resource_type, use_key_shortcuts: false, url: search_path(resource_type))
+        options[:data] = {
+          autocomplete: {
+            searchQuery: options[:search_query] || f.object&.value || '',
+            controller: options[:path] || auto_complete_controller_name,
+            disabled: options[:disabled] || false,
+            url: search_path(resource_type),
+          },
+        }
+        options[:onSearch] = nil
       end
       react_form_input(input_type, f, :value, options)
     end

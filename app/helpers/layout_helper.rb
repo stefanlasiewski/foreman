@@ -1,10 +1,10 @@
 module LayoutHelper
   def mount_react_app
     react_component('ReactApp', {
-                      layout: layout_data,
-                      metadata: app_metadata,
-                      toasts: toast_notifications_data,
-                    })
+      layout: layout_data,
+      metadata: app_metadata,
+      toasts: toast_notifications_data,
+    })
   end
 
   def fetch_menus
@@ -40,18 +40,19 @@ module LayoutHelper
   end
 
   def fetch_user
-    { current_user: User.current, user_dropdown: Menu::Manager.to_hash(:side_menu), impersonated_by: User.unscoped.find_by_id(session[:impersonated_by]) }
+    { current_user: User.current.as_json(only: [:id, :firstname, :lastname, :mail, :admin, :last_login_on, :name]), user_dropdown: Menu::Manager.to_hash(:side_menu), impersonated_by: User.unscoped.find_by_id(session[:impersonated_by]) }
   end
 
   def layout_data
     { menu: fetch_menus,
-      logo: image_path("header_logo.svg", :class => "header-logo"),
+      logo: image_path("header_logo.svg"),
       notification_url: main_app.notification_recipients_path,
       stop_impersonation_url: main_app.stop_impersonation_users_path,
       user: fetch_user, brand: 'foreman',
       root: main_app.root_path,
       locations: fetch_locations, orgs: fetch_organizations,
-      instance_title: Setting[:instance_title]
+      instance_title: Setting[:instance_title],
+      instance_color: Setting[:instance_color]
     }
   end
 
@@ -94,8 +95,37 @@ module LayoutHelper
     content_for(:stylesheets) { stylesheet_link_tag(*args) }
   end
 
-  def javascript(*args)
-    content_for(:javascripts) { javascript_include_tag(*args) }
+  def javascript(*args, **kwargs)
+    # Workaround for overriding javascript load with webpack_asset_paths, should be removed when webpack_asset_paths is removed
+    if kwargs.is_a?(Hash) && kwargs[:source] == "webpack_asset_paths"
+      content_for(:javascripts) { kwargs[:webpacked] }
+    else
+      content_for(:javascripts) { javascript_include_tag(*args, **kwargs) }
+    end
+  end
+
+  def javascript_include_tag(*params, **kwargs)
+    # Workaround for overriding javascript load with webpack_asset_paths, should be removed when webpack_asset_paths is removed
+    if kwargs[:source] == "webpack_asset_paths"
+      kwargs[:webpacked]
+    else
+      super(*params, **kwargs)
+    end
+  end
+
+  # @deprecated Previously provided by webpack-rails
+  def webpack_asset_paths(plugin_name, extension: 'js')
+    case extension
+    when 'js'
+      Foreman::Deprecation.deprecation_warning('3.12', '`webpack_asset_paths` is deprecated, use `content_for(:javascripts) { webpacked_plugins_js_for(plugin_name) }` instead.')
+      [{
+        source: 'webpack_asset_paths',
+        webpacked: webpacked_plugins_js_for(plugin_name.to_sym),
+      }]
+    when 'css'
+      Foreman::Deprecation.deprecation_warning('3.12', '`webpack_asset_paths` is deprecated and not needed for css assets.')
+      nil
+    end
   end
 
   # The target should have class="collapse [out|in]" out means collapsed on load and in means expanded.
@@ -109,8 +139,8 @@ module LayoutHelper
   def base_errors_for(obj)
     if obj.errors[:base].present?
       alert :header => _("Unable to save"),
-            :class  => 'alert-danger base in fade',
-            :text   => obj.errors[:base].map { |e| '<li>'.html_safe + e + '</li>'.html_safe }.join.html_safe
+        :class  => 'alert-danger base in fade',
+        :text   => obj.errors[:base].map { |e| '<li>'.html_safe + e + '</li>'.html_safe }.join.html_safe
     end
   end
 
@@ -129,7 +159,7 @@ module LayoutHelper
 
   def icon_text(i, text = "", opts = {})
     opts[:kind] ||= "glyphicon"
-    (content_tag(:span, "", :class => "#{opts[:kind] + ' ' + opts[:kind]}-#{i} #{opts[:class]}", :title => opts[:title]) + " " + text).html_safe
+    (content_tag(:span, "", :class => "#{opts[:kind] + ' ' + opts[:kind]}-#{i} #{opts[:class]}", :title => opts[:title]) + " " + text.to_s).html_safe
   end
 
   def alert(opts = {})
@@ -219,7 +249,7 @@ module LayoutHelper
     content_tag(:div, :class => "#{association}_fields_template form_template", :style => "display: none;") do
       form_builder.fields_for(association, options[:object], :child_index => "new_#{association}") do |f|
         render(:partial => options[:partial], :layout => options[:layout],
-               :locals => { options[:form_builder_local] => f }.merge(options[:form_builder_attrs]))
+          :locals => { options[:form_builder_local] => f }.merge(options[:form_builder_attrs]))
       end
     end
   end
@@ -231,6 +261,11 @@ module LayoutHelper
   def per_page(collection)
     per_page = params[:per_page] ? params[:per_page].to_i : Setting[:entries_per_page]
     [per_page, collection.total_entries].min
+  end
+
+  def body_css_classes
+    # so plugins can replace foreman colors by removing foreman-theme
+    "pf-m-redhat-font foreman-theme"
   end
 
   private

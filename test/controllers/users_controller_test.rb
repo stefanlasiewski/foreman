@@ -158,6 +158,73 @@ class UsersControllerTest < ActionController::TestCase
     assert !User.exists?(user.id)
   end
 
+  test "Admin should be able to invalidate jwt for any user" do
+    User.current = users(:admin)
+    user = users(:two)
+    FactoryBot.build(:jwt_secret, token: 'test_jwt_secret', user: user)
+    patch :invalidate_jwt, params: { :id => user.id }, session: set_session_user(User.current)
+    user.reload
+    assert_nil user.jwt_secret
+    assert_response :redirect
+  end
+
+  test "User should be able to invalidate jwt for self" do
+    User.current = users(:one)
+    user = User.current
+    FactoryBot.create(:jwt_secret, token: 'test_jwt_secret', user: user)
+    patch :invalidate_jwt, params: { :id => user.id }, session: set_session_user(User.current)
+    user.reload
+    assert_nil user.jwt_secret
+    assert_response :redirect
+  end
+
+  test 'user with edit users permission should be able to invalidate jwt for another user' do
+    User.current = setup_user "edit", "users"
+    user = users(:scoped)
+    FactoryBot.create(:jwt_secret, token: 'test_jwt_secret', user: user)
+    patch :invalidate_jwt, params: { :id => user.id }, session: set_session_user(User.current)
+    user.reload
+    assert_nil user.jwt_secret
+    assert_response :redirect
+  end
+
+  test 'user without edit users permission should not be able to invalidate jwt for another user' do
+    User.current = users(:one)
+    user = users(:two)
+    FactoryBot.create(:jwt_secret, token: 'test_jwt_secret', user: user)
+    patch :invalidate_jwt, params: { :id => user.id }, session: set_session_user(User.current)
+    assert_response :forbidden
+    assert_not_nil user.jwt_secret
+  end
+
+  test 'user with edit users permission should be able to invalidate jwt for all authorized users' do
+    User.current = setup_user "edit", "users"
+    users = User.except_hidden
+    users.each do |user|
+      FactoryBot.create(:jwt_secret, token: "test_jwt_secret_#{user.id}", user: user)
+    end
+    delete :invalidate_jwt_for_all_users, session: set_session_user(User.current)
+    users.each do |user|
+      user.reload
+      assert_nil user.jwt_secret
+    end
+    assert_response :redirect
+  end
+
+  test 'Admin should be able to invalidate jwt for all authorized users' do
+    User.current = users(:admin)
+    users = User.except_hidden
+    users.each do |user|
+      FactoryBot.create(:jwt_secret, token: "test_jwt_secret_#{user.id}", user: user)
+    end
+    delete :invalidate_jwt_for_all_users, session: set_session_user(User.current)
+    users.each do |user|
+      user.reload
+      assert_nil user.jwt_secret
+    end
+    assert_response :redirect
+  end
+
   test "should modify session when locale is updated" do
     as_admin do
       put :update, params: { :id => users(:admin).id, :user => { :locale => "cs" } }, session: set_session_user
@@ -193,7 +260,7 @@ class UsersControllerTest < ActionController::TestCase
 
   test "should clear the current user after processing the request" do
     get :index, session: set_session_user
-    assert User.current.nil?
+    assert_nil User.current
   end
 
   test "should be able to create user without mail and update the mail later" do
@@ -222,7 +289,7 @@ class UsersControllerTest < ActionController::TestCase
     time = Time.zone.now
     @request.env['HTTP_REMOTE_USER'] = users(:admin).login
     get :extlogin, session: {:user => users(:admin).id }
-    assert_redirected_to hosts_path
+    assert_redirected_to ApplicationHelper.current_hosts_path
     users(:admin).reload
     assert users(:admin).last_login_on.to_i >= time.to_i, 'User last login time was not updated'
   end
@@ -271,8 +338,9 @@ class UsersControllerTest < ActionController::TestCase
     Setting['authorize_login_delegation_auth_source_user_autocreate'] = 'apache_mod'
     @request.session.clear
     @request.env['HTTP_REMOTE_USER'] = 'ares'
+    @request.env['HTTP_REMOTE_USER_EMAIL'] = '(null)'
     get :extlogin
-    assert_redirected_to edit_user_path(User.unscoped.find_by_login('ares'))
+    assert_redirected_to ApplicationHelper.current_hosts_path
   end
 
   test "should use intercept if available" do
@@ -280,7 +348,7 @@ class UsersControllerTest < ActionController::TestCase
     SSO::FormIntercept.any_instance.stubs(:authenticated?).returns(true)
     SSO::FormIntercept.any_instance.stubs(:current_user).returns(users(:admin))
     post :login, params: { :login => {:login => 'ares', :password => 'password_that_does_not_match'} }
-    assert_redirected_to hosts_path
+    assert_redirected_to ApplicationHelper.current_hosts_path
   end
 
   test 'non admin user should edit itself' do
@@ -337,13 +405,13 @@ class UsersControllerTest < ActionController::TestCase
       session: set_session_user(user)
 
     assert_response :redirect
-    assert_redirected_to hosts_path
+    assert_redirected_to ApplicationHelper.current_hosts_path
   end
 
   test "#login sets the session user and bumps last log in time" do
     time = Time.zone.now
     post :login, params: { :login => {'login' => users(:admin).login, 'password' => 'secret'} }
-    assert_redirected_to hosts_path
+    assert_redirected_to ApplicationHelper.current_hosts_path
     assert_equal users(:admin).id, session[:user]
     users(:admin).reload
     assert users(:admin).last_login_on.to_i >= time.to_i, 'User last login on was not updated'
@@ -393,13 +461,13 @@ class UsersControllerTest < ActionController::TestCase
   end
 
   test "#login shows a warning for any user model errors" do
-    attrs = {:firstname => "foo", :mail => "foo#bar", :login => "ldap-user", :auth_source_id => auth_sources(:one).id}
+    attrs = {:firstname => "foo", :mail => "foo#bar", :login => "ldap-user", :auth_source_id => auth_sources(:one).id, :mail_enabled => true}
     AuthSourceLdap.any_instance.stubs(:authenticate).returns(attrs)
     AuthSourceLdap.any_instance.stubs(:update_usergroups).returns(true)
     AuthSourceLdap.any_instance.stubs(:organizations).returns([taxonomies(:organization1)])
     AuthSourceLdap.any_instance.stubs(:locations).returns([taxonomies(:location1)])
     post :login, params: { :login => {'login' => 'ldap-user', 'password' => 'password'} }
-    assert_redirected_to hosts_path
+    assert_redirected_to ApplicationHelper.current_hosts_path
     assert_match /mail.*invalid/i, flash[:warning]
 
     # Subsequent redirects to the user edit page should preserve the warning
@@ -446,7 +514,7 @@ class UsersControllerTest < ActionController::TestCase
 
   context "when user is logged in" do
     test "#login redirects to previous url" do
-      @previous_url = "/bookmarks"
+      @previous_url = "http://test.host/bookmarks"
       get :login, session: set_session_user
       request.env['HTTP_REFERER'] = @previous_url
 
@@ -454,19 +522,19 @@ class UsersControllerTest < ActionController::TestCase
       assert_redirected_to @previous_url
     end
 
-    test "#login if referer absent redirect to hosts_path" do
+    test "#login if referer absent redirect to ApplicationHelper.current_hosts_path" do
       request.env['HTTP_REFERER'] = nil
 
       get :login
-      assert_redirected_to hosts_path
+      assert_redirected_to ApplicationHelper.current_hosts_path
     end
   end
 
   context 'default taxonomies' do
     test 'accessing a regular page sets default taxonomies' do
       users(:one).update(:default_location_id => taxonomies(:location1).id,
-                                    :default_organization_id => taxonomies(:organization1).id,
-                                    :password                => 'changeme')
+        :default_organization_id => taxonomies(:organization1).id,
+        :password                => 'changeme')
 
       get :index, session: set_session_user(:one)
       assert_equal session['organization_id'], users(:one).default_organization_id
@@ -475,7 +543,7 @@ class UsersControllerTest < ActionController::TestCase
 
     test 'users can update their own default taxonomies' do
       users(:one).update(:locations => [taxonomies(:location1)],
-                                    :organizations => [taxonomies(:organization1)])
+        :organizations => [taxonomies(:organization1)])
 
       put :update, params: { :id   => users(:one).id,
                              :user => { :default_location_id => taxonomies(:location1).id,
@@ -527,7 +595,7 @@ class UsersControllerTest < ActionController::TestCase
     session[:impersonated_by] = nil
     user = users(:one)
     get :impersonate, params: { :id => user.id }, session: set_session_user
-    assert_redirected_to hosts_path
+    assert_redirected_to ApplicationHelper.current_hosts_path
     assert flash.to_hash["success"]
   end
 

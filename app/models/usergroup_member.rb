@@ -49,8 +49,8 @@ class UsergroupMember < ApplicationRecord
   def add_new_cache
     find_all_affected_users.each do |user|
       find_all_user_roles.each do |user_role|
-        CachedUserRole.create!(:user      => user, :role => user_role.role,
-                               :user_role => user_role)
+        CachedUserRole.create!(:user => user, :role => user_role.role,
+          :user_role => user_role)
       end
 
       find_all_usergroups.each do |group|
@@ -113,9 +113,10 @@ class UsergroupMember < ApplicationRecord
   end
 
   def find_all_affected_users_for(member)
-    if member.is_a?(User)
+    case member
+    when User
       [member]
-    elsif member.is_a?(Usergroup)
+    when Usergroup
       [member.users + member.usergroups.map { |g| find_all_affected_users_for(g) }]
     else
       raise ArgumentError, "Unknown member type #{member}"
@@ -130,9 +131,10 @@ class UsergroupMember < ApplicationRecord
   end
 
   def find_all_affected_memberships_for(member, direction = :usergroups)
-    if member.is_a?(User)
+    case member
+    when User
       [member.usergroup_member]
-    elsif member.is_a?(Usergroup)
+    when Usergroup
       [member.usergroup_members.user_memberships +
            member.send(direction).map { |g| find_all_affected_memberships_for(g, direction) }]
     else

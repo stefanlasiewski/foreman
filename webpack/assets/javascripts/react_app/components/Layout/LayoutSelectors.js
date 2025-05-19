@@ -1,10 +1,8 @@
 import { snakeCase } from 'lodash';
-import { noop } from '../../common/helpers';
 
 export const selectLayout = state => state.layout;
 
 export const selectMenuItems = state => selectLayout(state).items;
-export const selectActiveMenu = state => selectLayout(state).activeMenu;
 export const selectIsLoading = state => selectLayout(state).isLoading;
 export const selectIsCollapsed = state => selectLayout(state).isCollapsed;
 
@@ -32,13 +30,8 @@ export const patternflyMenuItemsSelector = (
 
 const childToMenuItem = (child, currentLocation, currentOrganization) => ({
   id: `menu_item_${snakeCase(child.name)}`,
-  title: child.name,
+  title: child.title,
   isDivider: child.type === 'divider',
-  className:
-    child.name === currentLocation || child.name === currentOrganization
-      ? 'mobile-active'
-      : '',
-  href: child.url || '#',
-  preventHref: true,
-  onClick: child.onClick || noop,
+  href: child.url,
+  onClick: child.onClick || null,
 });

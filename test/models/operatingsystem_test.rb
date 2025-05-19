@@ -56,6 +56,20 @@ class OperatingsystemTest < ActiveSupport::TestCase
     assert operating_system.to_s == operating_system.to_label
   end
 
+  test "should find Ubuntu 22.04 by fullname string" do
+    FactoryBot.create(:ubuntu22_04)
+    str = "Ubuntu 22.04"
+    os = Operatingsystem.find_by_to_label(str)
+    assert_equal str, os.fullname
+  end
+
+  test "should find Ubuntu 22.04.3 by fullname string" do
+    FactoryBot.create(:ubuntu22_04_3)
+    str = "Ubuntu 22.04.3"
+    os = Operatingsystem.find_by_to_label(str)
+    assert_equal str, os.fullname
+  end
+
   test "should find by fullname string" do
     str = "Redhat 6.1"
     os = Operatingsystem.find_by_to_label(str)
@@ -365,13 +379,13 @@ class OperatingsystemTest < ActiveSupport::TestCase
     test 'should be the smart proxy and httpboot port for UEFI HTTP' do
       SmartProxy.any_instance.expects(:setting).with(:HTTPBoot, 'http_port').returns(1234)
       host = FactoryBot.build(:host, :managed, :with_tftp_and_httpboot_subnet, pxe_loader: 'Grub2 UEFI HTTP')
-      assert_match(%r{http://somewhere.*net:1234/httpboot/grub2/grubx64.efi}, host.operatingsystem.boot_filename(host))
+      assert_match(%r{http://somewhere.*net:1234/httpboot/@@subdir@@/grub2/grubx64.efi}, host.operatingsystem.boot_filename(host))
     end
 
     test 'should be the smart proxy and httpboot port for UEFI HTTPS' do
       SmartProxy.any_instance.expects(:setting).with(:HTTPBoot, 'https_port').returns(1235)
       host = FactoryBot.build(:host, :managed, :with_tftp_and_httpboot_subnet, pxe_loader: 'Grub2 UEFI HTTPS')
-      assert_match(%r{https://somewhere.*net:1235/httpboot/grub2/grubx64.efi}, host.operatingsystem.boot_filename(host))
+      assert_match(%r{https://somewhere.*net:1235/httpboot/@@subdir@@/grub2/grubx64.efi}, host.operatingsystem.boot_filename(host))
     end
 
     test 'should not raise an error without httpboot feature for PXE' do

@@ -45,6 +45,19 @@ module Foreman
               example "<% #{name}.each_record do |#{model.to_s.downcase}| %>
   <%= #{model.to_s.downcase}.id %>, <%= #{model.to_s.downcase}.#{model == User ? 'login' : 'name'} %>
 <% end %>", desc: "Prints #{model.to_s.downcase} id and #{model == User ? 'login' : 'name'} of each #{model.to_s.downcase}"
+              example <<~EXAMPLE
+                # Joins - for comparing and filtering data
+                Host.joins(:interfaces).where("nics.mac = ?", "<mac>")
+
+                # Preload - for loading associated data
+                Host.preload(:interfaces)
+
+                # Includes - for loading, comparing and filtering data with associated data
+                Host.includes(:interfaces).where(interfaces: { mac: "<mac>" })
+
+                # For more information, please refer official Rails documentation:
+                # https://guides.rubyonrails.org/active_record_querying.html#eager-loading-associations", desc: "Join, Preload and Includes
+              EXAMPLE
               example_for :load_hosts, "<% load_hosts(search: 'domain = example.com', includes: [ :interfaces ]).each_record do |host| %>
   <%= host.name %>, <%= host.interfaces.map { |i| i.mac }.join(', ') %>
 <% end %>", desc: 'Prints host name and MACs of each host'
@@ -53,7 +66,7 @@ module Foreman
 <% end %>", desc: "Prints users in Europe, their login, when a user was logged on for the last time and the authentication source"
             end
             define_method name do |search: '', includes: nil, preload: nil, joins: nil, select: nil, batch: 1_000, limit: nil|
-              load_resource(klass: model, search: search, permission: permission, includes: includes, preload: preload, joins: joins, select: select, batch: batch, limit: limit)
+              load_resource(klass: model, search: search, permission: permission, includes: includes, preload: preload, joins: joins, select: select, batch: batch, limit: limit, defined_as: name)
             end
           end
 
@@ -63,8 +76,11 @@ module Foreman
           #   .each { |batch| batch.each { |record| record.name }}
           # or
           #   .each_record { |record| record.name }
-          def load_resource(klass:, search:, permission:, batch: 1_000, includes: nil, limit: nil, select: nil, joins: nil, where: nil, preload: nil)
+          def load_resource(klass:, search:, permission:, batch: 1_000, includes: nil, limit: nil, select: nil, joins: nil, where: nil, preload: nil, defined_as: __method__)
             limit ||= 10 if preview?
+
+            type_check!(defined_as, 'select', select, [Symbol, [Array, Symbol]])
+            type_check!(defined_as, 'joins', joins, [Symbol, Hash, [Array, Symbol]])
 
             base = klass
             base = base.search_for(search)
@@ -76,6 +92,16 @@ module Foreman
             base = base.where(where) unless where.nil?
             base = base.select(select) unless select.nil?
             base.in_batches(of: batch)
+          end
+
+          def type_check!(method, label, what, spec)
+            return if what.nil?
+            return if spec.any? { |type, subtype| what.is_a?(type) && (subtype.nil? || what.all? { |value| value.is_a?(subtype) }) }
+
+            options = spec.map { |type, subtype| subtype.nil? ? type : "#{type} of #{subtype.to_s.pluralize}" }
+            last = options.pop
+            options = options.join(', ') + " or #{last}"
+            raise ArgumentError, "Value of '#{label}' passed to #{method} must be #{options}"
           end
         end
       end

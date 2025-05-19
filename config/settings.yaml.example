@@ -11,15 +11,6 @@
 # Mark translated strings with X characters (for developers)
 :mark_translated: false
 
-# Use the webpack development server? set to false to disable (for developers)
-# Make sure to run `rake webpack:compile` if disabled.
-:webpack_dev_server: true
-
-# If you run Foreman in development behind some proxy or use HTTPS you need
-# to enable HTTPS for webpack dev server too, otherwise you'd get mixed content
-# errors in your browser
-:webpack_dev_server_https: false
-
 # Assets in development are not bundled/minified
 # Do not set this to false if you plan to edit assets (css, js, etc.)
 :assets_debug: false
@@ -112,7 +103,6 @@
   # prefix for all metrics
   :prefix: 'fm_rails'
   # prometheus endpoint is at /metrics
-  # warning: ruby client library currently does not supprt multi-process web servers
   :prometheus:
     :enabled: false
   # works with statsd_exporter too, use the rake task to generate config
@@ -127,6 +117,14 @@
     :enabled: false
     # logging level as in Logger::LEVEL
     :level: 'DEBUG'
+  # Overwrite allowed_labels, if needed, for example:
+  # :allowed_labels:
+  #   :controller:
+  #     - '.*'
+  #   :action:
+  #     - 'index'
+  #   :class:
+  #     - '.*'
 
 #
 # Configure how many workers should dynflow use to handle incoming requests.
@@ -142,7 +140,7 @@
 # :rails_cache_store:
 #   :type: redis
 #   :urls:
-#    - redis://localhost:8479/0
+#    - redis://localhost:8479/4
 #   :options:
 #     :compress: true
 #     :namespace: foreman

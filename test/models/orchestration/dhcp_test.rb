@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class DhcpOrchestrationTest < ActiveSupport::TestCase
+class DHCPOrchestrationTest < ActiveSupport::TestCase
   def setup
     disable_orchestration
   end
@@ -19,7 +19,7 @@ class DhcpOrchestrationTest < ActiveSupport::TestCase
     h = FactoryBot.create(:host)
     assert h.valid?
     assert_equal false, h.dhcp?
-    assert_equal [], h.dhcp_records
+    assert_empty h.dhcp_records
   end
 
   test 'unmanaged should not call methods after managed?' do
@@ -339,7 +339,7 @@ class DhcpOrchestrationTest < ActiveSupport::TestCase
     as_admin do
       h = FactoryBot.create(:host, :with_dhcp_orchestration, :mac => "aa:bb:cc:dd:ee:ff")
       Nic::BMC.create!(:host_id => h.id, :mac => "da:aa:aa:ab:db:bb", :domain_id => h.domain_id,
-                       :ip => h.ip.succ, :subnet_id => h.subnet_id, :name => "bmc-#{h}", :provider => 'IPMI')
+        :ip => h.ip.succ, :subnet_id => h.subnet_id, :name => "bmc-#{h}", :provider => 'IPMI')
     end
     h.reload
     bmc = h.interfaces.bmc.first
@@ -371,7 +371,8 @@ class DhcpOrchestrationTest < ActiveSupport::TestCase
 
     h.build = true
     assert h.valid?, h.errors.messages.to_s
-    assert_equal ["dhcp_remove_aa:bb:cc:dd:ee:f1", "dhcp_create_aa:bb:cc:dd:ee:f1"], h.queue.task_ids
+    assert_includes h.queue.task_ids, "dhcp_remove_aa:bb:cc:dd:ee:f1"
+    assert_includes h.queue.task_ids, "dhcp_create_aa:bb:cc:dd:ee:f1"
   end
 
   test "when an existing host trigger a 'rebuild', its dhcp records should not be updated if valid dhcp records are found" do
@@ -382,8 +383,9 @@ class DhcpOrchestrationTest < ActiveSupport::TestCase
 
     h.build = true
     assert h.valid?
-    assert h.errors.empty?
-    assert_equal ["dhcp_create_aa:bb:cc:dd:ee:f1"], h.queue.task_ids
+    assert_empty h.errors
+    assert_includes h.queue.task_ids, "dhcp_create_aa:bb:cc:dd:ee:f1"
+    assert_not_includes h.queue.task_ids, "dhcp_remove_aa:bb:cc:dd:ee:f1"
   end
 
   test "when an existing host change its bmc mac address, its dhcp record should be updated" do
@@ -391,7 +393,7 @@ class DhcpOrchestrationTest < ActiveSupport::TestCase
     as_admin do
       h = FactoryBot.create(:host, :with_dhcp_orchestration, :mac => "aa:bb:cc:dd:ee:f1")
       Nic::BMC.create! :host => h, :mac => "aa:aa:aa:ab:bd:bb", :ip => h.ip.succ, :domain => h.domain,
-                       :subnet => h.subnet, :name => "bmc1-#{h}", :provider => 'IPMI'
+        :subnet => h.subnet, :name => "bmc1-#{h}", :provider => 'IPMI'
     end
     h = Host.find(h.id)
     bmc = h.interfaces.bmc.first
@@ -406,7 +408,7 @@ class DhcpOrchestrationTest < ActiveSupport::TestCase
     as_admin do
       h = FactoryBot.create(:host, :with_dhcp_orchestration, :mac => "aa:aa:ad:ab:bb:cc")
       Nic::BMC.create!(:host => h, :mac => "aa:aa:ad:ab:bb:bb", :domain => h.domain, :subnet => h.subnet,
-                       :name => "bmc-it", :provider => 'IPMI', :ip => h.ip.succ)
+        :name => "bmc-it", :provider => 'IPMI', :ip => h.ip.succ)
     end
     h.reload
     h.mac = next_mac(h.mac)

@@ -1,12 +1,12 @@
 module Foreman
-  module ForemanUrlRenderer
+  module ForemanURLRenderer
     # foreman_url macro uses url_for, therefore we need url helpers and fake default_url_options
     # if it's not defined in class the we mix into
     include Rails.application.routes.url_helpers
     extend ApipieDSL::Module
 
     apipie :class, 'Foreman URL macro class' do
-      name 'ForemanUrlRenderer'
+      name 'ForemanURLRenderer'
       sections only: %w[all reports provisioning jobs partition_tables]
     end
 
@@ -63,7 +63,8 @@ module Foreman
 
       host = @host
       host = self if @host.nil? && self.class < Host::Base
-      template_proxy = host.try(:provision_interface).try(:subnet).try(:template_proxy)
+      template_proxy = host.try(:provision_interface).try(:subnet6).try(:template_proxy)
+      template_proxy ||= host.try(:provision_interface).try(:subnet).try(:template_proxy)
 
       # Use template_url from the request if set, but otherwise look for a Template
       # feature proxy, as PXE templates are written without an incoming request.

@@ -20,14 +20,22 @@ require 'test_report_helper'
 FactoryBot.use_parent_strategy = false
 
 # Do not allow network connections and external processes
-WebMock.disable_net_connect!(allow_localhost: true)
+if ENV.fetch('SELENIUM_REMOTE_HOST', nil)
+  WebMock.disable_net_connect!(allow_localhost: true, allow: ENV['SELENIUM_REMOTE_HOST'])
+else
+  WebMock.disable_net_connect!(allow_localhost: true)
+end
 
 # Configure shoulda
 Shoulda::Matchers.configure do |config|
   config.integrate do |with|
-    with.test_framework :minitest_4
+    with.test_framework :minitest
     with.library :rails
   end
+end
+
+Mocha.configure do |config|
+  config.strict_keyword_argument_matching = true
 end
 
 # Use our custom test runner, and register a fake plugin to skip a specific test
@@ -63,6 +71,18 @@ def invalid_name_list
   ]
 end
 
+module ReactjsHelper
+  def read_webpack_manifest
+    manifest = Rails.root.join('public/webpack/manifest.json')
+    if manifest.exist?
+      JSON.parse(manifest.read)
+    else
+      # Stubbed method to deal with a missing manifest for controller tests
+      {"assetsByChunkName" => {"foreman-vendor" => ["foreman-vendor.js", "foreman-vendor.css"]}}
+    end
+  end
+end
+
 module TestCaseRailsLoggerExtensions
   def before_setup
     super
@@ -79,8 +99,8 @@ module TestCaseRailsLoggerExtensions
     ActiveRecord::Base.logger = @_ext_old_ar_logger if @_ext_old_ar_logger
     if (ENV['PRINT_TEST_LOGS_ON_ERROR'] && error?) || (ENV['PRINT_TEST_LOGS_ON_FAILURE'] && !passed?)
       @_ext_current_buffer.close_write
-      STDOUT << "\n\nRails logs for #{name} FAILURE:\n"
-      STDOUT << @_ext_current_buffer.string
+      $stdout << "\n\nRails logs for #{name} FAILURE:\n"
+      $stdout << @_ext_current_buffer.string
     end
     super
   ensure
@@ -112,16 +132,26 @@ class ActiveSupport::TestCase
     Foreman::Plugin.send(:clear)
   end
 
-  def restore_plugins
-    Foreman::Deprecation.deprecation_warning('2.5', '`teardown :restore_plugins` is deprecated, plugin restoration is automated when `setup :clear_plugins` is used')
-  end
-
   def after_teardown
     super
 
     return unless @clear_plugins
     Foreman::Plugin.send(:clear, @plugins_backup, @registries_backup)
     @clear_plugins = nil
+  end
+
+  def assert_sql_queries(num_of_queries, match = /SELECT/)
+    queries = []
+    ActiveSupport::Notifications.subscribe("sql.active_record") do |_name, _start, _finish, _id, payload|
+      queries << payload[:sql] if payload[:sql] =~ match
+    end
+    yield
+    ActiveSupport::Notifications.unsubscribe("sql.active_record")
+    assert_equal num_of_queries, queries.size, "Expected #{num_of_queries} queries, but got #{queries.size}"
+  end
+
+  def assert_equal_arrays(array1, array2)
+    assert_equal array1.sort, array2.sort
   end
 end
 
@@ -137,8 +167,7 @@ end
 class ActionController::TestCase
   extend Robottelo::Reporter::TestAttributes
   include ::BasicRestResponseTest
-  setup :setup_set_script_name, :set_api_user, :turn_off_login,
-    :disable_webpack, :set_admin
+  setup :setup_set_script_name, :set_api_user, :turn_off_login, :set_admin
 
   class << self
     alias_method :test, :it
@@ -172,11 +201,15 @@ class ActionController::TestCase
     @request.env['HTTP_ACCEPT'] = 'application/json'
   end
 
-  # functional tests will fail if assets are not compiled because page
-  # rendering will try to include the webpack assets path which will throw an
-  # exception.
-  def disable_webpack
-    Webpack::Rails::Manifest.stubs(:asset_paths).returns([])
+  def with_temporary_settings(**kwargs)
+    old_settings = SETTINGS.dup
+    begin
+      SETTINGS.update(kwargs)
+
+      yield
+    ensure
+      SETTINGS.replace(old_settings)
+    end
   end
 end
 
@@ -188,18 +221,14 @@ class GraphQLQueryTestCase < ActiveSupport::TestCase
 
   def assert_record(expected, actual, type_name: nil)
     assert_not_nil expected
-    type_name ||= ForemanGraphqlSchema.resolve_type(nil, expected, nil)&.graphql_name || expected.class.name
-    assert_equal Foreman::GlobalId.encode(type_name, expected.id), actual['id']
+    assert_equal Foreman::GlobalId.for(expected), actual['id']
   end
 
   def assert_collection(expected, actual, type_name: nil)
     assert expected.any?, 'The expected records array can not be empty to assert_collection'
     assert_equal expected.count, actual['totalCount']
 
-    expected_global_ids = expected.map do |r|
-      t_name = type_name || ForemanGraphqlSchema.resolve_type(nil, r, nil)&.graphql_name || r.class.name
-      Foreman::GlobalId.encode(t_name, r.id)
-    end
+    expected_global_ids = expected.map { |r| Foreman::GlobalId.for(r) }
     actual_global_ids = actual['edges'].map { |e| e['node']['id'] }
 
     assert_same_elements expected_global_ids, actual_global_ids

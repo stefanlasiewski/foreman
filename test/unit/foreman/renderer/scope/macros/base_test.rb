@@ -36,20 +36,64 @@ class BaseMacrosTest < ActiveSupport::TestCase
     assert_equal indented, "foo\n    bar\n    baz"
   end
 
+  test "should indent a string ignoring the line if it starts with the word 'EOF'" do
+    indented = @scope.indent(4, skip_content: 'EOF') do
+      "foo\nEOF\nbar\nbaz"
+    end
+    assert_equal indented, "    foo\nEOF\n    bar\n    baz"
+  end
+
   test '#foreman_url can be rendered even outside of controller context' do
     assert_nothing_raised do
       assert_match /\/unattended\/built/, @scope.foreman_url('built')
     end
   end
 
-  test "foreman_url should respect proxy with Templates feature" do
-    host = FactoryBot.build(:host, :with_separate_provision_interface, :with_dhcp_orchestration)
-    host.provision_interface.subnet.template = FactoryBot.build(:template_smart_proxy)
-    ProxyAPI::Template.any_instance.stubs(:template_url).returns(host.provision_interface.subnet.template.url)
+  test "foreman_url should respect proxy with Templates feature over ipv4" do
+    host = FactoryBot.build(:host, :with_separate_provision_interface_dualstack)
+
+    v4_template_proxy = Minitest::Mock.new()
+    v4_template_proxy.expect(:present?, true)
+    v4_template_proxy.expect(:template_url, 'http://192.0.2.1')
+    host.provision_interface.subnet.stubs(:template_proxy).returns(v4_template_proxy)
+
+    host.provision_interface.subnet6.stubs(:template_proxy).returns(nil)
 
     @scope.instance_variable_set('@host', host)
 
-    assert_match(host.provision_interface.subnet.template.url, @scope.foreman_url('provision'))
+    assert_match('http://192.0.2.1/', @scope.foreman_url('provision'))
+  end
+
+  test "foreman_url should respect proxy with Templates feature over ipv6" do
+    host = FactoryBot.build(:host, :with_separate_provision_interface_dualstack)
+
+    host.provision_interface.subnet.stubs(:template_proxy).returns(nil)
+
+    v6_template_proxy = Minitest::Mock.new()
+    v6_template_proxy.expect(:present?, true)
+    v6_template_proxy.expect(:template_url, 'http://[2001:db8::1]')
+    host.provision_interface.subnet6.stubs(:template_proxy).returns(v6_template_proxy)
+
+    @scope.instance_variable_set('@host', host)
+
+    assert_match('http://[2001:db8::1]/', @scope.foreman_url('provision'))
+  end
+
+  test "foreman_url prefer proxy with Templates feature over ipv6" do
+    host = FactoryBot.build(:host, :with_separate_provision_interface_dualstack)
+
+    v4_template_proxy = Minitest::Mock.new()
+    v4_template_proxy.expect(:present?, true)
+    host.provision_interface.subnet.stubs(:template_proxy).returns(v4_template_proxy)
+
+    v6_template_proxy = Minitest::Mock.new()
+    v6_template_proxy.expect(:present?, true)
+    v6_template_proxy.expect(:template_url, 'http://[2001:db8::1]/')
+    host.provision_interface.subnet6.stubs(:template_proxy).returns(v6_template_proxy)
+
+    @scope.instance_variable_set('@host', host)
+
+    assert_match('http://[2001:db8::1]/', @scope.foreman_url('provision'))
   end
 
   test "foreman_url should run with @host as nil" do
@@ -112,7 +156,7 @@ class BaseMacrosTest < ActiveSupport::TestCase
       FactoryBot.create(:fact_value, fact_name: ansible_kernel_fact, host: host, value: '1.2.3')
       FactoryBot.create(:fact_value, fact_name: chef_kernel_fact, host: host, value: '2.2.2')
       FactoryBot.create(:fact_value, fact_name: unrelated_fact, host: host, value: 'Fedora 29')
-      assert_equal '1.2.3', @scope.host_kernel_release(host)
+      assert_equal '2.2.2', @scope.host_kernel_release(host)
       FactoryBot.create(:fact_value, fact_name: puppet_and_salt_fact, host: host, value: '4.5.6')
       assert_equal '4.5.6', @scope.host_kernel_release(host.reload)
       FactoryBot.create(:fact_value, fact_name: rhsm_fact, host: rhsm_host, value: '7.8.9')
@@ -217,9 +261,9 @@ class BaseMacrosTest < ActiveSupport::TestCase
       assert_equal command, "cat << #{delimiter} | base64 -d > /tmp/test\n#{base64}#{delimiter}"
     end
 
-    test "should properly escape filename" do
-      command = @scope.save_to_file('/tmp/a file with spaces', nil)
-      assert_equal command, 'cp /dev/null /tmp/a\ file\ with\ spaces'
+    test "should ignore escaping of filename by default" do
+      command = @scope.save_to_file('/tmp/ifcfg-$sanitized_real', nil)
+      assert_equal command, 'cp /dev/null /tmp/ifcfg-$sanitized_real'
     end
   end
 end

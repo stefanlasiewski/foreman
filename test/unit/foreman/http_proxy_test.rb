@@ -1,11 +1,11 @@
 require 'test_helper'
 
-class HTTPProxyTest < ActiveSupport::TestCase
-  class DummyHTTPAdapter
-    include Foreman::HTTPProxy
+class Foreman::HttpProxyTest < ActiveSupport::TestCase
+  class DummyHttpAdapter
+    include Foreman::HttpProxy
   end
 
-  let(:adapter) { DummyHTTPAdapter.new }
+  let(:adapter) { DummyHttpAdapter.new }
   let(:http_proxy) { 'http://dummyproxy.theforeman.org:3218' }
   let(:excepted_hosts) { [] }
   let(:request_host) { 'dummyproxy.theforeman.org' }
@@ -106,10 +106,10 @@ class HTTPProxyTest < ActiveSupport::TestCase
   end
 
   describe 'Excon::Connection extension' do
-    let(:excon_connection) { Excon::Connection.new }
+    let(:excon_connection) { ::Excon::Connection.new }
 
     setup do
-      Excon::Connection.class_eval { prepend Foreman::HttpProxy::ExconConnectionExtension } if Excon::Connection.ancestors.first != Foreman::HttpProxy::ExconConnectionExtension
+      ::Excon::Connection.class_eval { prepend Foreman::HttpProxy::ExconConnectionExtension } if ::Excon::Connection.ancestors.first != Foreman::HttpProxy::ExconConnectionExtension
       excon_connection.stubs(:http_proxy).returns(http_proxy)
       excon_connection.stubs(:setup_proxy).returns
       excon_connection.stubs(:proxy_http_request?).returns(true)
@@ -123,7 +123,7 @@ class HTTPProxyTest < ActiveSupport::TestCase
 
     test 'rescues requests and mentions proxy' do
       stub_request(:get, "http://#{request_host}/features").to_raise("AnException")
-      assert_raises_with_message Excon::Error::Socket, "AnException" do
+      assert_raises_with_message ::Excon::Error::Socket, "AnException" do
         excon_connection.request({host: request_host, path: "/features", headers: {}})
       end
     end
@@ -145,7 +145,7 @@ class HTTPProxyTest < ActiveSupport::TestCase
     test 'rescues requests and mentions proxy' do
       stub_request(:get, "http://#{request_host}/features")
       assert_raises_with_message StandardError.new, "Failed to open TCP connection" do
-        net_http.request(Net::HTTP::Get.new("/features"))
+        net_http.request(::Net::HTTP::Get.new("/features"))
       end
     end
   end
